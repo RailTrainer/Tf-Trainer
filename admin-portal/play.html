@@ -1,0 +1,1040 @@
+<!DOCTYPE html>
+<html lang="de" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>RailTrainer Live-Battle | Mitspielen</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0fdf4',
+              400: '#34d399',
+              500: '#10b981',
+              600: '#059669',
+              700: '#047857',
+            }
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+    .touch-btn {
+      transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .touch-btn:active {
+      transform: scale(0.95);
+    }
+  </style>
+</head>
+<body class="bg-gray-950 text-gray-100 min-h-screen flex flex-col justify-between overflow-x-hidden p-4 relative">
+
+  <div class="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+    <div class="absolute -top-28 -left-28 w-80 h-80 rounded-full bg-emerald-500/15 blur-[100px]"></div>
+    <div class="absolute -bottom-28 -right-28 w-80 h-80 rounded-full bg-teal-500/15 blur-[100px]"></div>
+  </div>
+
+  <header class="relative z-10 flex items-center justify-between py-2.5 border-b border-gray-800/80">
+    <div class="flex items-center gap-2.5">
+      <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-700 flex items-center justify-center font-black text-white text-sm shadow-md shadow-emerald-500/25 ring-1 ring-emerald-400/30">
+        RT
+      </div>
+      <div>
+        <div class="font-extrabold text-sm tracking-tight text-white flex items-center gap-1.5">
+          <span>RailTrainer</span>
+          <span class="px-1.5 py-0.2 text-[9px] rounded-full bg-emerald-500/20 text-emerald-400 font-bold border border-emerald-500/30 shadow-sm shadow-emerald-500/10">BATTLE</span>
+        </div>
+        <div class="text-[10px] text-gray-400" id="headerGameInfo">Live-Quiz</div>
+      </div>
+    </div>
+    <div id="playerBadge" class="hidden items-center gap-2 bg-gradient-to-r from-gray-950 to-emerald-950/40 border border-emerald-500/30 px-3.5 py-1 rounded-full text-xs shadow-sm shadow-emerald-950/50">
+      <span id="playerAvatarDisplay">🚂</span>
+      <span id="playerNameDisplay" class="font-bold text-white max-w-[100px] truncate">Spieler</span>
+      <span id="playerScoreDisplay" class="font-extrabold text-emerald-400 ml-1">0 Pkt</span>
+    </div>
+  </header>
+
+  <main class="relative z-10 flex-1 flex flex-col justify-center my-4">
+
+    <!-- 1. JOIN SCREEN -->
+    <section id="screen-join" class="space-y-5 max-w-sm mx-auto w-full">
+      <div class="text-center space-y-1.5">
+        <div class="w-16 h-16 rounded-3xl bg-gradient-to-br from-emerald-500/20 to-teal-500/10 border-2 border-emerald-500/40 flex items-center justify-center mx-auto mb-2 text-3xl shadow-xl shadow-emerald-500/20">
+          ⚔️
+        </div>
+        <h1 class="text-2xl font-black text-white tracking-tight">Quiz-Battle beitreten</h1>
+        <p class="text-xs text-gray-400">Tritt der Live-Runde auf dem Beamer bei und sammle Punkte!</p>
+      </div>
+
+      <form id="joinForm" onsubmit="handleJoinBattle(event)" class="bg-gradient-to-b from-gray-900 to-gray-950 border border-emerald-500/20 rounded-3xl p-6 shadow-2xl space-y-4">
+        <div>
+          <label class="block text-xs font-bold text-emerald-400 uppercase tracking-wider mb-1.5">4-Stelliger Game-PIN</label>
+          <input type="text" id="inputPin" required placeholder="z.B. 4821" maxlength="6" inputmode="numeric"
+            class="w-full text-center text-3xl font-black tracking-widest py-3 bg-gray-950 border-2 border-gray-800 rounded-2xl text-emerald-400 placeholder-gray-700 focus:outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-500/20 transition shadow-inner drop-shadow-[0_0_12px_rgba(52,211,153,0.25)]">
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">Dein Name / Spitzname</label>
+          <input type="text" id="inputName" required placeholder="z.B. Max oder Lokführer 1" maxlength="20"
+            class="w-full py-2.5 px-4 bg-gray-950 border border-gray-800 rounded-xl text-sm font-semibold text-white placeholder-gray-600 focus:outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/20 transition">
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">Wähle deinen Avatar</label>
+          <div class="grid grid-cols-4 gap-2" id="avatarGrid"></div>
+        </div>
+
+        <button type="submit" id="joinSubmitBtn" class="w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-sm tracking-wide shadow-xl shadow-emerald-600/30 active:scale-95 transition-all flex items-center justify-center gap-2">
+          <span>Jetzt Mitspielen</span>
+          <i data-lucide="arrow-right" class="w-4 h-4"></i>
+        </button>
+        <div id="joinErrorBox" class="hidden text-xs text-center text-red-400 font-bold p-2.5 rounded-xl bg-red-500/10 border border-red-500/20"></div>
+      </form>
+    </section>
+
+    <!-- 2. LOBBY WAITING SCREEN -->
+    <section id="screen-waiting" class="hidden text-center space-y-6 max-w-sm mx-auto w-full">
+      <div class="bg-gradient-to-b from-gray-900 to-gray-950 border border-emerald-500/30 rounded-3xl p-8 shadow-2xl space-y-5">
+        <div class="w-24 h-24 rounded-3xl bg-gradient-to-br from-emerald-500/20 to-teal-500/10 border-2 border-emerald-400/50 ring-4 ring-emerald-500/20 flex items-center justify-center mx-auto text-5xl shadow-2xl shadow-emerald-500/20 animate-pulse" id="waitingAvatarBox">
+          🚂
+        </div>
+        <div>
+          <div class="inline-block px-3 py-1 rounded-full text-xs font-black bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 tracking-wider uppercase mb-2">Erfolgreich in der Lobby!</div>
+          <h2 class="text-2xl font-black text-white mt-1" id="waitingPlayerName">Spieler</h2>
+          <p class="text-xs text-gray-400 mt-2">Blick auf den Beamer: Der Ausbilder startet das Quiz-Battle gleich...</p>
+        </div>
+        <div class="p-3 bg-gray-950 border border-emerald-500/30 rounded-2xl text-xs text-gray-300 flex items-center justify-center gap-2 shadow-inner">
+          <div class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></div>
+          <span>Verbunden mit PIN: <strong class="text-emerald-400 font-black tracking-widest text-sm ml-1" id="waitingPinDisplay">----</strong></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. QUESTION SCREEN -->
+    <section id="screen-question" class="hidden flex-col justify-between flex-1 max-w-md mx-auto w-full min-h-0">
+      <div class="bg-gray-900/90 border border-gray-800 rounded-2xl p-3 mb-2.5 flex items-center justify-between shadow-lg shrink-0">
+        <div class="flex items-center gap-2">
+          <span class="w-6 h-6 rounded-lg bg-gradient-to-br from-emerald-600 to-teal-600 text-white font-black text-xs flex items-center justify-center shadow-sm shadow-emerald-500/30" id="qNumBadge">1</span>
+          <span class="text-xs font-bold text-emerald-300 bg-emerald-950/60 border border-emerald-500/30 px-2.5 py-0.5 rounded-full" id="qCategoryBadge">Signale</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <button type="button" onclick="toggleMobileLayoutMode()" id="btnToggleMobileLayout" class="px-2.5 py-1 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white text-[11px] font-bold border border-gray-700 flex items-center gap-1 transition shadow-sm" title="Layout umschalten: Liste oder Kacheln">
+            <span id="layoutToggleIcon">☰</span>
+            <span id="layoutToggleText">Liste</span>
+          </button>
+          <div class="flex items-center gap-1.5 text-xs font-extrabold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-xl">
+            <i data-lucide="clock" class="w-3.5 h-3.5"></i>
+            <span id="questionTimer">20s</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-gradient-to-b from-gray-900 to-gray-950 border border-emerald-500/25 rounded-2xl p-3.5 mb-2.5 text-center shadow-lg shadow-black/40 max-h-32 overflow-y-auto custom-scrollbar shrink-0">
+        <h3 class="text-xs sm:text-sm font-bold text-white leading-snug break-words" id="questionTextMobile">Frage auf dem Beamer beachten!</h3>
+      </div>
+
+      <div id="battleOptionsContainer" class="grid gap-2.5 flex-1 min-h-0 overflow-y-auto custom-scrollbar p-0.5 pb-2">
+        <button onclick="handleSelectOption(0)" id="btn_opt_0" class="touch-btn p-3.5 rounded-2xl bg-gradient-to-r from-red-600 to-rose-600 active:from-red-700 active:to-rose-700 text-white font-black flex items-center shadow-xl shadow-red-600/25 border border-red-400/30">
+          <div id="opt_badge_0" class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-base font-black shrink-0 shadow mr-3">▲ A</div>
+          <span class="text-xs sm:text-sm font-bold leading-snug break-words flex-1 text-left" id="opt_text_0">Option A</span>
+        </button>
+
+        <button onclick="handleSelectOption(1)" id="btn_opt_1" class="touch-btn p-3.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 active:from-blue-700 active:to-indigo-700 text-white font-black flex items-center shadow-xl shadow-blue-600/25 border border-blue-400/30">
+          <div id="opt_badge_1" class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-base font-black shrink-0 shadow mr-3">◆ B</div>
+          <span class="text-xs sm:text-sm font-bold leading-snug break-words flex-1 text-left" id="opt_text_1">Option B</span>
+        </button>
+
+        <button onclick="handleSelectOption(2)" id="btn_opt_2" class="touch-btn p-3.5 rounded-2xl bg-gradient-to-r from-amber-400 to-amber-500 active:from-amber-500 active:to-amber-600 text-gray-950 font-black flex items-center shadow-xl shadow-amber-500/25 border border-amber-300/40">
+          <div id="opt_badge_2" class="w-10 h-10 rounded-xl bg-black/20 text-black flex items-center justify-center text-base font-black shrink-0 shadow mr-3">● C</div>
+          <span class="text-xs sm:text-sm font-bold leading-snug break-words flex-1 text-left text-gray-950" id="opt_text_2">Option C</span>
+        </button>
+
+        <button onclick="handleSelectOption(3)" id="btn_opt_3" class="touch-btn p-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-600 active:from-emerald-700 active:to-teal-700 text-white font-black flex items-center shadow-xl shadow-emerald-600/35 border border-emerald-400/40 ring-1 ring-emerald-400/20">
+          <div id="opt_badge_3" class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-base font-black shrink-0 shadow mr-3">■ D</div>
+          <span class="text-xs sm:text-sm font-bold leading-snug break-words flex-1 text-left" id="opt_text_3">Option D</span>
+        </button>
+
+        <button onclick="handleSelectOption(4)" id="btn_opt_4" class="hidden touch-btn p-3.5 rounded-2xl bg-gradient-to-r from-purple-600 to-violet-600 active:from-purple-700 active:to-violet-700 text-white font-black flex items-center shadow-xl shadow-purple-600/25 border border-purple-400/30">
+          <div id="opt_badge_4" class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-base font-black shrink-0 shadow mr-3">★ E</div>
+          <span class="text-xs sm:text-sm font-bold leading-snug break-words flex-1 text-left" id="opt_text_4">Option E</span>
+        </button>
+
+        <button onclick="handleSelectOption(5)" id="btn_opt_5" class="hidden touch-btn p-3.5 rounded-2xl bg-gradient-to-r from-teal-600 to-cyan-600 active:from-teal-700 active:to-cyan-700 text-white font-black flex items-center shadow-xl shadow-teal-600/25 border border-teal-400/30">
+          <div id="opt_badge_5" class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-base font-black shrink-0 shadow mr-3">✦ F</div>
+          <span class="text-xs sm:text-sm font-bold leading-snug break-words flex-1 text-left" id="opt_text_5">Option F</span>
+        </button>
+
+        <button onclick="handleSelectOption(6)" id="btn_opt_6" class="hidden touch-btn p-3.5 rounded-2xl bg-gradient-to-r from-pink-600 to-rose-600 active:from-pink-700 active:to-rose-700 text-white font-black flex items-center shadow-xl shadow-pink-600/25 border border-pink-400/30">
+          <div id="opt_badge_6" class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-base font-black shrink-0 shadow mr-3">✿ G</div>
+          <span class="text-xs sm:text-sm font-bold leading-snug break-words flex-1 text-left" id="opt_text_6">Option G</span>
+        </button>
+
+        <button onclick="handleSelectOption(7)" id="btn_opt_7" class="hidden touch-btn p-3.5 rounded-2xl bg-gradient-to-r from-indigo-600 to-blue-600 active:from-indigo-700 active:to-blue-700 text-white font-black flex items-center shadow-xl shadow-indigo-600/25 border border-indigo-400/30">
+          <div id="opt_badge_7" class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-base font-black shrink-0 shadow mr-3">❖ H</div>
+          <span class="text-xs sm:text-sm font-bold leading-snug break-words flex-1 text-left" id="opt_text_7">Option H</span>
+        </button>
+      </div>
+
+      <!-- REIHENFOLGE SORTIER-CONTAINER FÜR SMARTPHONE -->
+      <div id="battleOrderContainer" class="hidden flex-col gap-2 flex-1 min-h-0 overflow-y-auto custom-scrollbar p-0.5 pb-2">
+        <div class="p-2.5 rounded-2xl bg-cyan-950/60 border border-cyan-500/40 text-cyan-200 text-xs flex items-center gap-2 shrink-0">
+          <i data-lucide="arrow-up-down" class="w-4 h-4 text-cyan-400 shrink-0"></i>
+          <span>Bringe die Schritte mit <strong>▲ / ▼ Tasten</strong> oder <strong>Ziehen</strong> in die richtige Reihenfolge:</span>
+        </div>
+        <div id="battleOrderItemsList" class="space-y-2 flex-1 overflow-y-auto custom-scrollbar"></div>
+        <button type="button" onclick="handleSubmitOrder()" id="btnSubmitOrder" class="w-full py-3.5 mt-1 rounded-2xl bg-gradient-to-r from-cyan-600 via-teal-600 to-emerald-600 hover:from-cyan-500 hover:to-emerald-500 active:scale-95 text-white font-extrabold text-sm tracking-wide shadow-xl shadow-cyan-600/30 transition flex items-center justify-center gap-2 shrink-0">
+          <i data-lucide="check-circle" class="w-4 h-4"></i>
+          <span>Reihenfolge einloggen</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- 4. SUBMITTED SCREEN -->
+    <section id="screen-submitted" class="hidden text-center space-y-5 max-w-sm mx-auto w-full">
+      <div class="bg-gradient-to-b from-gray-900 to-gray-950 border border-emerald-500/30 rounded-3xl p-8 shadow-2xl space-y-4">
+        <div class="w-20 h-20 rounded-3xl bg-gradient-to-br from-emerald-500/20 to-teal-500/10 border-2 border-emerald-400/50 ring-4 ring-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto text-4xl shadow-2xl shadow-emerald-500/30 animate-pulse">
+          ⚡
+        </div>
+        <h2 class="text-xl font-black text-white">Antwort abgegeben!</h2>
+        <div class="p-3.5 bg-gradient-to-b from-gray-950 to-emerald-950/20 border border-emerald-500/30 rounded-2xl text-xs text-gray-300" id="submittedChoiceContainer">
+          <div class="text-[11px] text-emerald-400 uppercase font-bold mb-1">Deine Wahl:</div>
+          <div class="text-emerald-300 text-sm font-black" id="submittedChoiceText">Antwort A</div>
+        </div>
+        <p class="text-xs text-gray-400">Warte auf das Timer-Ende und die Beamer-Auflösung...</p>
+      </div>
+    </section>
+
+    <!-- 5. ROUND RESULT SCREEN -->
+    <section id="screen-round-result" class="hidden text-center space-y-4 max-w-sm mx-auto w-full">
+      <div id="roundResultCard" class="bg-gradient-to-b from-gray-900 to-gray-950 border-2 rounded-3xl p-6 shadow-2xl space-y-3 transition-all">
+        <div id="roundResultIcon" class="text-5xl mx-auto mb-1">🎉</div>
+        <h2 id="roundResultTitle" class="text-2xl font-black text-white">RICHTIG!</h2>
+        <div id="roundResultPointsBadge" class="inline-block px-4 py-1.5 rounded-full text-base font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 shadow">
+          +920 Punkte
+        </div>
+        <div id="roundResultDangerAlert" class="hidden p-2.5 rounded-xl bg-red-500/20 border border-red-500 text-red-200 text-xs font-bold">
+          ⚠️ Betriebsgefährdende Antwort (BG) gewählt!
+        </div>
+
+        <!-- Richtige Lösung im Klartext anzeigen -->
+        <div id="roundResultAnswerSummary" class="hidden p-3.5 rounded-2xl bg-gray-950/90 border border-emerald-500/30 text-left text-xs space-y-1.5 shadow-inner">
+          <div class="flex items-center justify-between text-[11px] font-bold text-gray-400">
+            <span>Richtige Lösung:</span>
+            <span class="text-emerald-400 font-extrabold" id="roundResultCorrectLetter">Antwort A</span>
+          </div>
+          <div class="text-gray-200 font-semibold text-xs leading-snug break-words" id="roundResultCorrectText">Lösungstext...</div>
+        </div>
+
+        <div class="pt-2 border-t border-gray-800/80 flex items-center justify-around text-xs text-gray-300">
+          <div>
+            <div class="text-[10px] text-gray-400 uppercase font-bold">Gesamtpunkte</div>
+            <div class="font-extrabold text-sm text-white mt-0.5" id="roundTotalScore">0 Pkt</div>
+          </div>
+          <div>
+            <div class="text-[10px] text-gray-400 uppercase font-bold">Aktueller Rang</div>
+            <div class="font-extrabold text-sm text-emerald-400 mt-0.5" id="roundCurrentRank">#1</div>
+          </div>
+          <div>
+            <div class="text-[10px] text-gray-400 uppercase font-bold">Streak 🔥</div>
+            <div class="font-extrabold text-sm text-amber-400 mt-0.5" id="roundStreakCount">0x</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 6. FINAL PODIUM SCREEN -->
+    <section id="screen-game-over" class="hidden text-center space-y-5 max-w-sm mx-auto w-full">
+      <div class="bg-gradient-to-b from-gray-900 to-gray-950 border-2 border-emerald-500/40 rounded-3xl p-8 shadow-2xl space-y-4">
+        <div class="text-6xl filter drop-shadow" id="finalTrophyIcon">🏆</div>
+        <h2 class="text-2xl font-black text-white" id="finalPlacementHeading">Platz 1!</h2>
+        <p class="text-xs text-gray-300" id="finalSubtext">Großartige Leistung im Quiz-Battle!</p>
+        <div class="p-4 rounded-2xl bg-gradient-to-b from-gray-950 to-emerald-950/30 border border-emerald-500/30 text-center space-y-1 shadow-inner">
+          <div class="text-[11px] text-gray-400 uppercase font-bold">Endstand</div>
+          <div class="text-3xl font-black text-emerald-400" id="finalTotalPoints">0 Pkt</div>
+        </div>
+        <button onclick="handlePlayAgain()" class="w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-sm border border-emerald-500/40 shadow-xl shadow-emerald-600/25 active:scale-95 transition-all">
+          Neues Spiel beitreten
+        </button>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="relative z-10 text-center py-2 text-[10px] text-gray-500 border-t border-gray-800/60 flex items-center justify-between">
+    <span>RailTrainer Live-Multiplayer</span>
+    <span class="flex items-center gap-1 font-semibold text-gray-400">
+      <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+      Online
+    </span>
+  </footer>
+
+  <script>
+    const SUPABASE_URL = 'https://ahmcoyfmdrgpmclaxgfj.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_cENpbfjZbysfKIjFKxTFWg_YziNteq1';
+    const restHeaders = {
+      'apikey': SUPABASE_KEY,
+      'Authorization': 'Bearer ' + SUPABASE_KEY,
+      'Content-Type': 'application/json'
+    };
+
+    const AVATARS = ['🚂', '🚦', '🛡️', '🔧', '🚄', '⭐', '🎒', '⚡'];
+    let selectedAvatar = '🚂';
+    let myPlayerId = 'p_' + Math.random().toString(36).substr(2, 9);
+    let myPlayerName = '';
+    let currentPin = '';
+    let currentSession = null;
+    let pollInterval = null;
+    let hasAnsweredCurrentQ = false;
+    let myScore = 0;
+    let myStreak = 0;
+    let userLayoutPreference = null; // null = auto, 'list' = force list, 'grid' = force grid
+    let currentOrderPermutation = [];
+    let currentOrderQIndex = -1;
+
+    function generateAntiIdentityShuffle(count) {
+      if (count <= 1) return [0];
+      const original = Array.from({ length: count }, (_, i) => i);
+      let shuffled = [];
+      let attempts = 0;
+      do {
+        shuffled = [...original];
+        for (let i = shuffled.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+        }
+        attempts++;
+        const isIdentical = shuffled.every((val, idx) => val === idx);
+        if (!isIdentical || attempts > 50) break;
+      } while (true);
+      return shuffled;
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const pinParam = urlParams.get('pin');
+      if (pinParam) {
+        const pinInput = document.getElementById('inputPin');
+        if (pinInput) pinInput.value = pinParam.trim().toUpperCase();
+      }
+      renderAvatarPicker();
+      if (window.lucide) lucide.createIcons();
+    });
+
+    function renderAvatarPicker() {
+      const grid = document.getElementById('avatarGrid');
+      if (!grid) return;
+      grid.innerHTML = AVATARS.map(av => {
+        const isSelected = av === selectedAvatar;
+        return '<button type="button" onclick="selectAvatar(\'' + av + '\')" class="p-2.5 rounded-2xl text-2xl border transition-all ' +
+          (isSelected ? 'bg-emerald-500/20 border-emerald-400 scale-110 shadow-lg shadow-emerald-500/30 ring-2 ring-emerald-400/50' : 'bg-gray-950 border-gray-800 hover:border-gray-700') + '">' +
+          av +
+        '</button>';
+      }).join('');
+    }
+
+    window.selectAvatar = function(av) {
+      selectedAvatar = av;
+      renderAvatarPicker();
+    };
+
+    function showScreen(screenId) {
+      const screens = ['screen-join', 'screen-waiting', 'screen-question', 'screen-submitted', 'screen-round-result', 'screen-game-over'];
+      screens.forEach(s => {
+        const el = document.getElementById(s);
+        if (!el) return;
+        if (s === screenId) {
+          el.classList.remove('hidden');
+          el.classList.add('flex');
+        } else {
+          el.classList.add('hidden');
+          el.classList.remove('flex');
+        }
+      });
+      if (window.lucide) lucide.createIcons();
+    }
+
+    window.handleJoinBattle = async function(e) {
+      if (e) e.preventDefault();
+      const pin = document.getElementById('inputPin').value.trim().toUpperCase();
+      const name = document.getElementById('inputName').value.trim();
+      const errBox = document.getElementById('joinErrorBox');
+      const submitBtn = document.getElementById('joinSubmitBtn');
+
+      if (!pin || !name) {
+        if (errBox) {
+          errBox.textContent = 'Bitte PIN und Namen eingeben.';
+          errBox.classList.remove('hidden');
+        }
+        return;
+      }
+
+      currentPin = pin;
+      myPlayerName = name;
+
+      try {
+        if (submitBtn) submitBtn.innerHTML = '<span>Lobby suchen...</span>';
+        const session = await fetchSessionByPin(pin);
+        if (!session) {
+          throw new Error('Kein aktives Quiz-Battle mit PIN ' + pin + ' gefunden!');
+        }
+
+        const players = Array.isArray(session.players) ? session.players : [];
+        const existingIdx = players.findIndex(p => p.id === myPlayerId || (p.name.toLowerCase() === name.toLowerCase()));
+        const myPlayerData = {
+          id: myPlayerId,
+          name: name,
+          avatar: selectedAvatar,
+          score: 0,
+          streak: 0,
+          last_answer: null,
+          last_answer_time: null,
+          is_correct: false,
+          is_danger: false
+        };
+
+        if (existingIdx !== -1) {
+          myPlayerId = players[existingIdx].id;
+          players[existingIdx] = { ...players[existingIdx], ...myPlayerData };
+        } else {
+          players.push(myPlayerData);
+        }
+
+        await updateSessionPlayers(session.id, players);
+
+        document.getElementById('waitingPlayerName').textContent = name;
+        document.getElementById('waitingAvatarBox').textContent = selectedAvatar;
+        document.getElementById('waitingPinDisplay').textContent = pin;
+        document.getElementById('playerNameDisplay').textContent = name;
+        document.getElementById('playerAvatarDisplay').textContent = selectedAvatar;
+        document.getElementById('playerBadge').classList.remove('hidden');
+        document.getElementById('playerBadge').classList.add('flex');
+
+        showScreen('screen-waiting');
+        startPolling();
+      } catch (err) {
+        if (errBox) {
+          errBox.textContent = err.message || 'Konnte Battle nicht beitreten.';
+          errBox.classList.remove('hidden');
+        }
+      } finally {
+        if (submitBtn) {
+          submitBtn.innerHTML = '<span>Jetzt Mitspielen</span><i data-lucide="arrow-right" class="w-4 h-4"></i>';
+          if (window.lucide) lucide.createIcons();
+        }
+      }
+    };
+
+    function getPlayApiUrl(path) {
+      if (window.location.protocol === 'http:' || window.location.protocol === 'https:') {
+        return window.location.origin + path;
+      }
+      return 'http://192.168.188.78:3000' + path;
+    }
+
+    async function fetchSessionByPin(pin) {
+      // 1. Lokale API versuchen
+      const url = getPlayApiUrl('/api/battle/session?pin=' + encodeURIComponent(pin));
+      try {
+        const res = await fetch(url);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.pin) return data;
+        }
+      } catch {}
+
+      // 2. Cloud Supabase versuchen (beim Webhosting)
+      try {
+        const res = await fetch(SUPABASE_URL + '/rest/v1/chat_messages?id=eq.battle_' + encodeURIComponent(pin) + '&select=*', {
+          headers: restHeaders
+        });
+        if (res.ok) {
+          const rows = await res.json();
+          if (Array.isArray(rows) && rows.length > 0 && rows[0].text) {
+            const data = JSON.parse(rows[0].text);
+            if (data && data.pin) return data;
+          }
+        }
+      } catch (e) {
+        console.warn('Cloud fetch error', e);
+      }
+
+      return null;
+    }
+
+    async function updateSessionPlayers(sessionId, players) {
+      // 1. Lokale API
+      const url = getPlayApiUrl('/api/battle/session');
+      try {
+        fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pin: currentPin, players: players })
+        }).catch(() => {});
+      } catch {}
+
+      // 2. Cloud Supabase
+      try {
+        const session = await fetchSessionByPin(currentPin);
+        if (session) {
+          session.players = players;
+          await fetch(SUPABASE_URL + '/rest/v1/chat_messages', {
+            method: 'POST',
+            headers: { ...restHeaders, 'Prefer': 'resolution=merge-duplicates' },
+            body: JSON.stringify([{
+              id: 'battle_' + currentPin,
+              category: '__battle_sync__',
+              sender_id: 'admin-default-id',
+              sender_name: session.status || 'lobby',
+              sender_role: 'admin',
+              text: JSON.stringify(session),
+              timestamp: Date.now()
+            }])
+          });
+        }
+      } catch (e) {
+        console.warn('Cloud update error', e);
+      }
+    }
+
+    function startPolling() {
+      if (pollInterval) clearInterval(pollInterval);
+      pollInterval = setInterval(async () => {
+        if (!currentPin) return;
+        const session = await fetchSessionByPin(currentPin);
+        if (!session) return;
+        handleSessionUpdate(session);
+      }, 1000);
+    }
+
+    let lastKnownStatus = '';
+    let lastKnownQIndex = -1;
+
+    function handleSessionUpdate(session) {
+      currentSession = session;
+      const status = session.status;
+      const qIndex = session.current_q_index || 0;
+
+      if (status !== lastKnownStatus || qIndex !== lastKnownQIndex) {
+        lastKnownStatus = status;
+        lastKnownQIndex = qIndex;
+
+        if (status === 'lobby') {
+          showScreen('screen-waiting');
+        } else if (status === 'question') {
+          hasAnsweredCurrentQ = false;
+          renderQuestionScreen(session);
+          showScreen('screen-question');
+        } else if (status === 'round_result') {
+          renderRoundResultScreen(session);
+          showScreen('screen-round-result');
+        } else if (status === 'podium' || status === 'finished') {
+          renderFinalScreen(session);
+          showScreen('screen-game-over');
+        }
+      }
+
+      const players = session.players || [];
+      const me = players.find(p => p.id === myPlayerId);
+      if (me) {
+        myScore = me.score || 0;
+        myStreak = me.streak || 0;
+        const scoreEl = document.getElementById('playerScoreDisplay');
+        if (scoreEl) scoreEl.textContent = myScore + ' Pkt';
+      }
+    }
+
+    window.toggleMobileLayoutMode = function() {
+      if (userLayoutPreference === 'list') {
+        userLayoutPreference = 'grid';
+      } else {
+        userLayoutPreference = 'list';
+      }
+      if (currentSession && currentSession.current_question_data) {
+        renderQuestionScreen(currentSession);
+      }
+    };
+
+    function renderQuestionScreen(session) {
+      const q = session.current_question_data;
+      if (!q) return;
+
+      document.getElementById('qNumBadge').textContent = (session.current_q_index + 1);
+      document.getElementById('qCategoryBadge').textContent = '#' + (q.category || 'Signale');
+      document.getElementById('questionTextMobile').innerHTML = q.text || 'Frage auf dem Beamer beachten!';
+
+      const options = Array.isArray(q.options) ? q.options : [];
+      const isOrder = q.question_type === 'order' || q.questionType === 'order' || ((q.explanation || '').includes('"qt":"order"'));
+
+      const container = document.getElementById('battleOptionsContainer');
+      const orderContainer = document.getElementById('battleOrderContainer');
+      const toggleBtn = document.getElementById('btnToggleMobileLayout');
+
+      if (isOrder) {
+        if (container) container.classList.add('hidden');
+        if (orderContainer) {
+          orderContainer.classList.remove('hidden');
+          orderContainer.classList.add('flex');
+        }
+        if (toggleBtn) toggleBtn.classList.add('hidden');
+
+        // Initialisiere die gemischte Start-Reihenfolge (Anti-Identity Shuffle)
+        if (currentOrderQIndex !== session.current_q_index || currentOrderPermutation.length !== options.length) {
+          currentOrderQIndex = session.current_q_index;
+          currentOrderPermutation = generateAntiIdentityShuffle(options.length);
+        }
+
+        renderOrderItems(options);
+        return;
+      }
+
+      // Normaler Single-Choice Modus
+      if (orderContainer) {
+        orderContainer.classList.add('hidden');
+        orderContainer.classList.remove('flex');
+      }
+      if (container) container.classList.remove('hidden');
+      if (toggleBtn) toggleBtn.classList.remove('hidden');
+
+      const maxOptLen = Math.max(0, ...options.map(o => (typeof o === 'string' ? o.trim().length : 0)));
+
+      // Wenn eine Antwort > 40 Zeichen lang ist oder es 5/6/7/8 Optionen gibt -> Listenansicht (1-spaltig) für perfekten Lesefluss
+      const isListMode = userLayoutPreference === 'list' || (userLayoutPreference !== 'grid' && (maxOptLen > 40 || options.length >= 5));
+
+      const toggleIcon = document.getElementById('layoutToggleIcon');
+      const toggleText = document.getElementById('layoutToggleText');
+
+      if (toggleIcon && toggleText) {
+        if (isListMode) {
+          toggleIcon.textContent = '⊞';
+          toggleText.textContent = 'Kacheln';
+        } else {
+          toggleIcon.textContent = '☰';
+          toggleText.textContent = 'Liste';
+        }
+      }
+
+      if (container) {
+        if (isListMode) {
+          container.className = 'grid grid-cols-1 gap-2.5 flex-1 min-h-0 overflow-y-auto custom-scrollbar p-0.5 pb-3';
+        } else {
+          container.className = 'grid grid-cols-2 gap-2.5 sm:gap-3 flex-1 min-h-0 overflow-y-auto custom-scrollbar p-0.5 pb-3';
+        }
+      }
+
+      const btn4 = document.getElementById('btn_opt_4');
+      if (btn4) {
+        if (!isListMode && options.length === 5) btn4.classList.add('col-span-2');
+        else btn4.classList.remove('col-span-2');
+      }
+
+      for (let i = 0; i <= 7; i++) {
+        const btn = document.getElementById('btn_opt_' + i);
+        const badge = document.getElementById('opt_badge_' + i);
+        const txt = document.getElementById('opt_text_' + i);
+        if (!btn || !txt) continue;
+
+        if (options[i]) {
+          btn.classList.remove('hidden');
+          txt.textContent = options[i];
+
+          if (isListMode) {
+            // Liste: volle Breite, Icon links, Text rechts, Zeilenumbruch ohne Abschneiden
+            btn.classList.remove('flex-col', 'justify-center', 'text-center', 'p-4', 'rounded-3xl');
+            btn.classList.add('flex-row', 'items-center', 'justify-start', 'text-left', 'p-3', 'sm:p-3.5', 'rounded-2xl');
+
+            if (badge) {
+              badge.className = (i === 2)
+                ? 'w-10 h-10 rounded-xl bg-black/20 text-black flex items-center justify-center text-sm font-black shrink-0 shadow mr-3'
+                : 'w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-sm font-black shrink-0 shadow mr-3';
+            }
+
+            let fontClass = 'text-xs sm:text-sm font-bold leading-snug break-words flex-1 text-left';
+            if (maxOptLen > 130) {
+              fontClass = 'text-xs font-semibold leading-snug break-words flex-1 text-left';
+            } else if (maxOptLen > 70) {
+              fontClass = 'text-xs sm:text-sm font-bold leading-snug break-words flex-1 text-left';
+            } else {
+              fontClass = 'text-sm font-extrabold leading-snug break-words flex-1 text-left';
+            }
+            txt.className = fontClass + (i === 2 ? ' text-gray-950' : ' text-white');
+
+          } else {
+            // Kacheln: 2-spaltig (nur bei kurzen Texten)
+            btn.classList.remove('flex-row', 'justify-start', 'text-left', 'p-3', 'sm:p-3.5', 'rounded-2xl');
+            btn.classList.add('flex-col', 'items-center', 'justify-center', 'text-center', 'p-3.5', 'sm:p-4', 'rounded-3xl');
+
+            if (badge) {
+              badge.className = (i === 2)
+                ? 'w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-black/20 text-black flex items-center justify-center text-base sm:text-lg mb-1.5 shadow font-black'
+                : 'w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-white/20 flex items-center justify-center text-base sm:text-lg mb-1.5 shadow font-black';
+            }
+
+            let fontClass = 'text-xs sm:text-sm font-extrabold leading-tight break-words text-center flex-1';
+            if (maxOptLen > 25) {
+              fontClass = 'text-[11px] sm:text-xs font-extrabold leading-tight break-words text-center flex-1';
+            }
+            txt.className = fontClass + (i === 2 ? ' text-gray-950' : ' text-white');
+          }
+        } else {
+          btn.classList.add('hidden');
+        }
+      }
+    }
+
+    function renderOrderItems(options) {
+      const listEl = document.getElementById('battleOrderItemsList');
+      if (!listEl) return;
+
+      listEl.innerHTML = currentOrderPermutation.map((origOptIdx, slotIdx) => {
+        const isFirst = (slotIdx === 0);
+        const isLast = (slotIdx === currentOrderPermutation.length - 1);
+        const text = options[origOptIdx] || '';
+
+        return '<div class="flex items-center gap-2 p-2.5 sm:p-3 rounded-2xl bg-gray-900 border border-gray-800 shadow transition select-none" ' +
+          'id="order_touch_item_' + slotIdx + '" data-slot="' + slotIdx + '">' +
+          '<div class="w-8 h-8 rounded-xl bg-cyan-600 text-white font-black text-xs sm:text-sm flex items-center justify-center shrink-0 shadow">' + (slotIdx + 1) + '</div>' +
+          '<div class="flex-1 text-xs sm:text-sm font-bold text-gray-100 leading-snug break-words">' + escapeHtml(text) + '</div>' +
+          '<div class="flex items-center gap-1 shrink-0">' +
+            '<button type="button" onclick="moveOrderItem(' + slotIdx + ', -1)" ' + (isFirst ? 'disabled class="opacity-20 p-2 text-gray-600 rounded-xl bg-gray-950 cursor-not-allowed"' : 'class="p-2 text-cyan-300 hover:text-white active:scale-90 bg-gray-950 border border-gray-800 rounded-xl transition"') + ' title="Nach oben">' +
+              '<i data-lucide="chevron-up" class="w-4 h-4"></i>' +
+            '</button>' +
+            '<button type="button" onclick="moveOrderItem(' + slotIdx + ', 1)" ' + (isLast ? 'disabled class="opacity-20 p-2 text-gray-600 rounded-xl bg-gray-950 cursor-not-allowed"' : 'class="p-2 text-cyan-300 hover:text-white active:scale-90 bg-gray-950 border border-gray-800 rounded-xl transition"') + ' title="Nach unten">' +
+              '<i data-lucide="chevron-down" class="w-4 h-4"></i>' +
+            '</button>' +
+            '<div class="touch-handle p-2 text-gray-500 hover:text-cyan-400 cursor-grab active:cursor-grabbing rounded-xl bg-gray-950 border border-gray-800 shrink-0 flex items-center justify-center" ' +
+              'data-slot="' + slotIdx + '" title="Halten & Ziehen">' +
+              '<i data-lucide="grip-vertical" class="w-4 h-4 pointer-events-none"></i>' +
+            '</div>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+
+      if (window.lucide) lucide.createIcons();
+      attachTouchReorderListeners();
+    }
+
+    window.moveOrderItem = function(slotIdx, dir) {
+      if (hasAnsweredCurrentQ) return;
+      const targetIdx = slotIdx + dir;
+      if (targetIdx < 0 || targetIdx >= currentOrderPermutation.length) return;
+
+      const temp = currentOrderPermutation[slotIdx];
+      currentOrderPermutation[slotIdx] = currentOrderPermutation[targetIdx];
+      currentOrderPermutation[targetIdx] = temp;
+
+      const q = currentSession && currentSession.current_question_data;
+      const options = (q && Array.isArray(q.options)) ? q.options : [];
+      renderOrderItems(options);
+    };
+
+    let touchDragStartSlot = null;
+    let touchDragTargetSlot = null;
+
+    function attachTouchReorderListeners() {
+      const handles = document.querySelectorAll('.touch-handle');
+      handles.forEach(handle => {
+        handle.ontouchstart = (e) => {
+          if (hasAnsweredCurrentQ) return;
+          const slot = parseInt(handle.getAttribute('data-slot'), 10);
+          touchDragStartSlot = slot;
+          touchDragTargetSlot = slot;
+          const row = document.getElementById('order_touch_item_' + slot);
+          if (row) row.classList.add('ring-2', 'ring-cyan-500', 'opacity-70', 'scale-[1.02]');
+        };
+
+        handle.ontouchmove = (e) => {
+          if (touchDragStartSlot === null) return;
+          e.preventDefault();
+          const touch = e.touches[0];
+          const elemBelow = document.elementFromPoint(touch.clientX, touch.clientY);
+          if (!elemBelow) return;
+          const targetRow = elemBelow.closest('[data-slot]');
+          if (targetRow) {
+            const slot = parseInt(targetRow.getAttribute('data-slot'), 10);
+            if (!isNaN(slot) && slot !== touchDragTargetSlot) {
+              document.querySelectorAll('[id^="order_touch_item_"]').forEach(r => r.classList.remove('border-cyan-400', 'border-t-2', 'border-b-2'));
+              touchDragTargetSlot = slot;
+              if (slot > touchDragStartSlot) {
+                targetRow.classList.add('border-b-2', 'border-cyan-400');
+              } else if (slot < touchDragStartSlot) {
+                targetRow.classList.add('border-t-2', 'border-cyan-400');
+              }
+            }
+          }
+        };
+
+        handle.ontouchend = (e) => {
+          if (touchDragStartSlot === null) return;
+          const start = touchDragStartSlot;
+          const target = touchDragTargetSlot;
+          touchDragStartSlot = null;
+          touchDragTargetSlot = null;
+
+          document.querySelectorAll('[id^="order_touch_item_"]').forEach(r => {
+            r.classList.remove('ring-2', 'ring-cyan-500', 'opacity-70', 'scale-[1.02]', 'border-cyan-400', 'border-t-2', 'border-b-2');
+          });
+
+          if (target !== null && start !== target) {
+            const [moved] = currentOrderPermutation.splice(start, 1);
+            currentOrderPermutation.splice(target, 0, moved);
+            const q = currentSession && currentSession.current_question_data;
+            const options = (q && Array.isArray(q.options)) ? q.options : [];
+            renderOrderItems(options);
+          }
+        };
+      });
+    }
+
+    window.handleSubmitOrder = async function() {
+      if (hasAnsweredCurrentQ || !currentSession) return;
+      hasAnsweredCurrentQ = true;
+
+      const q = currentSession.current_question_data;
+      const options = (q && Array.isArray(q.options)) ? q.options : [];
+
+      const subChoice = document.getElementById('submittedChoiceText');
+      if (subChoice) {
+        const listHtml = currentOrderPermutation.map((origIdx, slot) => {
+          return '<div class="flex items-center gap-2 py-0.5"><span class="w-4 h-4 rounded text-[10px] bg-cyan-600 text-white font-black flex items-center justify-center shrink-0">' + (slot + 1) + '</span><span class="text-gray-200 truncate">' + escapeHtml(options[origIdx] || '') + '</span></div>';
+        }).join('');
+        subChoice.innerHTML = '<span class="text-cyan-400 font-black text-sm">Deine Reihenfolge:</span>' +
+          '<div class="text-gray-300 font-medium text-xs mt-1.5 text-left bg-gray-950 p-2.5 rounded-2xl border border-gray-800 space-y-1">' + listHtml + '</div>';
+      }
+      showScreen('screen-submitted');
+
+      const answerTime = Date.now();
+      // Die korrekte Reihenfolge verlangt, dass die Indizes 0, 1, ..., N-1 in exakt aufsteigender Folge sortiert wurden
+      const isCorrect = (currentOrderPermutation.length === options.length && currentOrderPermutation.every((val, i) => val === i));
+
+      const timeLimitSecs = currentSession.time_limit || 20;
+      const elapsedSecs = Math.max(0, (answerTime - (currentSession.question_start_time || answerTime)) / 1000);
+      const remainingSecs = Math.max(0, timeLimitSecs - elapsedSecs);
+      let earnedPoints = 0;
+
+      if (isCorrect) {
+        const speedBonus = Math.round((remainingSecs / timeLimitSecs) * 500);
+        earnedPoints = 500 + speedBonus;
+      }
+
+      try {
+        const freshSession = await fetchSessionByPin(currentPin);
+        if (!freshSession) return;
+        const players = freshSession.players || [];
+        const meIdx = players.findIndex(p => p.id === myPlayerId);
+
+        if (meIdx !== -1) {
+          const prevScore = players[meIdx].score || 0;
+          const prevStreak = isCorrect ? ((players[meIdx].streak || 0) + 1) : 0;
+          players[meIdx] = {
+            ...players[meIdx],
+            score: prevScore + earnedPoints,
+            streak: prevStreak,
+            last_answer: currentOrderPermutation,
+            last_answer_time: answerTime,
+            is_correct: isCorrect,
+            is_danger: false,
+            last_earned_points: earnedPoints
+          };
+          await updateSessionPlayers(freshSession.id, players);
+        }
+      } catch (e) {
+        console.error('Order submit error', e);
+      }
+    };
+
+    window.handleSelectOption = async function(idx) {
+      if (hasAnsweredCurrentQ || !currentSession) return;
+      hasAnsweredCurrentQ = true;
+
+      const optLetters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+      const q = currentSession.current_question_data;
+      const chosenText = (q && q.options && q.options[idx]) ? q.options[idx] : '';
+      const subChoice = document.getElementById('submittedChoiceText');
+      if (subChoice) {
+        subChoice.innerHTML = '<span class="text-brand-400 font-black text-sm">Antwort ' + (optLetters[idx] || (idx + 1)) + '</span>' +
+          (chosenText ? ('<div class="text-gray-300 font-medium text-xs mt-1.5 break-words max-h-24 overflow-y-auto custom-scrollbar">' + escapeHtml(chosenText) + '</div>') : '');
+      }
+      showScreen('screen-submitted');
+
+      const answerTime = Date.now();
+      const isCorrect = (q && q.correct_index === idx);
+      const isDanger = (q && (q.danger_indices || q.dangerIndices || []).includes(idx));
+
+      const timeLimitSecs = currentSession.time_limit || 20;
+      const elapsedSecs = Math.max(0, (answerTime - (currentSession.question_start_time || answerTime)) / 1000);
+      const remainingSecs = Math.max(0, timeLimitSecs - elapsedSecs);
+      let earnedPoints = 0;
+
+      if (isCorrect) {
+        const speedBonus = Math.round((remainingSecs / timeLimitSecs) * 500);
+        earnedPoints = 500 + speedBonus;
+      }
+
+      try {
+        const freshSession = await fetchSessionByPin(currentPin);
+        if (!freshSession) return;
+        const players = freshSession.players || [];
+        const meIdx = players.findIndex(p => p.id === myPlayerId);
+
+        if (meIdx !== -1) {
+          const prevScore = players[meIdx].score || 0;
+          const prevStreak = isCorrect ? ((players[meIdx].streak || 0) + 1) : 0;
+          players[meIdx] = {
+            ...players[meIdx],
+            score: prevScore + earnedPoints,
+            streak: prevStreak,
+            last_answer: idx,
+            last_answer_time: answerTime,
+            is_correct: isCorrect,
+            is_danger: isDanger,
+            last_earned_points: earnedPoints
+          };
+          await updateSessionPlayers(freshSession.id, players);
+        }
+      } catch (e) {
+        console.error('Answer send error', e);
+      }
+    };
+
+    function renderRoundResultScreen(session) {
+      const players = session.players || [];
+      const me = players.find(p => p.id === myPlayerId);
+      if (!me) return;
+
+      const card = document.getElementById('roundResultCard');
+      const icon = document.getElementById('roundResultIcon');
+      const title = document.getElementById('roundResultTitle');
+      const ptsBadge = document.getElementById('roundResultPointsBadge');
+      const dangerAlert = document.getElementById('roundResultDangerAlert');
+
+      const isCorrect = me.is_correct;
+      const isDanger = me.is_danger;
+      const earned = me.last_earned_points || 0;
+
+      if (isCorrect) {
+        card.className = 'bg-gradient-to-b from-gray-900 via-gray-900 to-emerald-950/40 border-2 border-emerald-400 rounded-3xl p-6 shadow-2xl shadow-emerald-500/20 ring-4 ring-emerald-500/20 space-y-3';
+        icon.textContent = '🎉';
+        title.textContent = 'RICHTIG!';
+        title.className = 'text-2xl font-black text-emerald-400 drop-shadow-[0_0_12px_rgba(52,211,153,0.4)]';
+        ptsBadge.className = 'inline-block px-4 py-1.5 rounded-full text-base font-black bg-gradient-to-r from-emerald-500 to-teal-500 text-gray-950 shadow-lg shadow-emerald-500/30';
+        ptsBadge.textContent = '+' + earned + ' Punkte';
+        if (dangerAlert) dangerAlert.classList.add('hidden');
+      } else {
+        card.className = 'bg-gray-900 border-2 border-red-500/60 rounded-3xl p-6 shadow-2xl space-y-3';
+        icon.textContent = isDanger ? '⚠️' : '❌';
+        title.textContent = isDanger ? 'BETRIEBSGEFÄHRDEND!' : 'LEIDER FALSCH';
+        title.className = 'text-2xl font-black text-red-400';
+        ptsBadge.className = 'inline-block px-4 py-1.5 rounded-full text-base font-black bg-red-500/20 text-red-300 border border-red-500/40 shadow';
+        ptsBadge.textContent = '+0 Punkte';
+
+        if (dangerAlert) {
+          if (isDanger) dangerAlert.classList.remove('hidden');
+          else dangerAlert.classList.add('hidden');
+        }
+      }
+
+      // Richtige Lösung im Klartext anzeigen
+      const q = session.current_question_data;
+      if (q && q.options) {
+        const isOrder = q.question_type === 'order' || q.questionType === 'order' || ((q.explanation || '').includes('"qt":"order"'));
+        const optLetters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+        const corrLetterEl = document.getElementById('roundResultCorrectLetter');
+        const corrTextEl = document.getElementById('roundResultCorrectText');
+        const sumBox = document.getElementById('roundResultAnswerSummary');
+
+        if (isOrder) {
+          if (corrLetterEl) corrLetterEl.textContent = 'Korrekte Soll-Reihenfolge:';
+          if (corrTextEl) {
+            corrTextEl.innerHTML = q.options.map((opt, oIdx) => {
+              return '<div class="flex items-center gap-2 py-0.5"><span class="w-4 h-4 rounded text-[10px] bg-emerald-600 text-white font-black flex items-center justify-center shrink-0">' + (oIdx + 1) + '</span><span class="text-gray-200">' + escapeHtml(opt) + '</span></div>';
+            }).join('');
+          }
+        } else {
+          const correctIdx = (q.correct_index !== undefined) ? q.correct_index : (q.correctIndex || 0);
+          if (corrLetterEl) corrLetterEl.textContent = 'Antwort ' + (optLetters[correctIdx] || (correctIdx + 1));
+          if (corrTextEl) corrTextEl.textContent = q.options[correctIdx] || '';
+        }
+        if (sumBox) sumBox.classList.remove('hidden');
+      }
+
+      const sorted = [...players].sort((a, b) => (b.score || 0) - (a.score || 0));
+      const myRank = sorted.findIndex(p => p.id === myPlayerId) + 1;
+
+      document.getElementById('roundTotalScore').textContent = (me.score || 0) + ' Pkt';
+      document.getElementById('roundCurrentRank').textContent = '#' + myRank + ' von ' + sorted.length;
+      document.getElementById('roundStreakCount').textContent = (me.streak || 0) + 'x';
+    }
+
+    function renderFinalScreen(session) {
+      const players = session.players || [];
+      const sorted = [...players].sort((a, b) => (b.score || 0) - (a.score || 0));
+      const myRank = sorted.findIndex(p => p.id === myPlayerId) + 1;
+      const me = players.find(p => p.id === myPlayerId);
+
+      const trophy = document.getElementById('finalTrophyIcon');
+      const heading = document.getElementById('finalPlacementHeading');
+      const sub = document.getElementById('finalSubtext');
+      const pts = document.getElementById('finalTotalPoints');
+
+      if (pts) pts.textContent = (me?.score || 0) + ' Punkte';
+
+      const emeraldConfetti = ['#10b981', '#34d399', '#059669', '#6ee7b7', '#f59e0b', '#fbbf24'];
+
+      if (myRank === 1) {
+        trophy.textContent = '🥇';
+        heading.textContent = '1. PLATZ! BATTLE-CHAMPION!';
+        heading.className = 'text-2xl font-black text-emerald-400 drop-shadow-[0_0_15px_rgba(52,211,153,0.5)]';
+        sub.textContent = 'Wahnsinnige Leistung! Du hast das Quiz-Battle gewonnen!';
+        confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 }, colors: emeraldConfetti });
+      } else if (myRank === 2) {
+        trophy.textContent = '🥈';
+        heading.textContent = '2. PLATZ!';
+        heading.className = 'text-2xl font-black text-gray-200';
+        sub.textContent = 'Silbermedaille! Hervorragendes Eisenbahn-Wissen!';
+        confetti({ particleCount: 60, spread: 60, origin: { y: 0.6 }, colors: emeraldConfetti });
+      } else if (myRank === 3) {
+        trophy.textContent = '🥉';
+        heading.textContent = '3. PLATZ!';
+        heading.className = 'text-2xl font-black text-amber-500';
+        sub.textContent = 'Auf dem Treppchen! Starke Leistung!';
+      } else {
+        trophy.textContent = '🚂';
+        heading.textContent = '#' + myRank + ' von ' + sorted.length + ' Spielern';
+        heading.className = 'text-2xl font-black text-white';
+        sub.textContent = 'Tolles Match! Weiter so im Unterricht!';
+      }
+    }
+
+    window.handlePlayAgain = function() {
+      if (pollInterval) clearInterval(pollInterval);
+      showScreen('screen-join');
+    };
+  </script>
+</body>
+</html>

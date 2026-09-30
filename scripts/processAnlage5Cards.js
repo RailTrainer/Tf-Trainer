@@ -1,0 +1,454 @@
+const fs = require('fs');
+const https = require('https');
+
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+
+const KEY = 'sb_publishable_cENpbfjZbysfKIjFKxTFWg_YziNteq1';
+const SUPABASE_URL = 'https://ahmcoyfmdrgpmclaxgfj.supabase.co';
+
+const raw = JSON.parse(fs.readFileSync('quizlet_1108679139_raw.json', 'utf8'));
+const rawItems = raw.responses[0]?.models?.studiableItem || [];
+
+const cardData = [
+  {
+    title: 'Rechtspyramide im Eisenbahnwesen (AEG)',
+    content: 'Die rechtliche Rangordnung im Eisenbahnbereich gliedert sich von oben nach unten:\n\n1. Europäisches Recht (z.B. TSI, EU-Richtlinien, Verordnungen)\n2. Nationales Recht (z.B. AEG, EBO, ESO, UVV)\n3. Innerbetriebliche Regelungen des EVU / EIU (z.B. Richtlinien Ril 408, örtliche Zusätze, Dienst- und Betriebsanweisungen)',
+    reference: 'Allgemeines Eisenbahngesetz (AEG) / EBO'
+  },
+  {
+    title: 'Aufgaben der Bundespolizei im Bahnbereich',
+    content: 'Die Bundespolizei (BPOL) ist auf dem Gebiet der Bahnanlagen der Eisenbahnen des Bundes zuständig für:\n\n• Gefahrenabwehr für die öffentliche Sicherheit und Ordnung\n• Verhütung von Gefahren und Straftaten im Bahnverkehr\n• Verfolgung von Straftaten und Ordnungswidrigkeiten\n• Schutz der Reisenden, des Personals und der Bahnanlagen vor Angriffen',
+    reference: 'Bundespolizeigesetz (BPolG) § 3'
+  },
+  {
+    title: 'Verantwortlicher bei Bahnunfällen aller Art',
+    content: 'Bei Unfällen und gefährlichen Ereignissen im Bahnbetrieb:\n\n• Zuständig und leitender Ansprechpartner vor Ort ist immer der Notfallmanager (NotfM) des betroffenen Eisenbahnunternehmens (EIU/EVU).\n• Der Notfallmanager unterstützt die Rettungs- und Einsatzkräfte (Feuerwehr, Notarzt, Polizei), erteilt Bahnerdung und Streckensperrungen und koordiniert die betrieblichen Maßnahmen.',
+    reference: 'Ril 123 (Notfallmanagement)'
+  },
+  {
+    title: 'Bremsungsarten im Bahnbetrieb',
+    content: 'Folgende Bremsungen können im Fahrbetrieb ausgeführt werden:\n\n1. Betriebsbremsung: Normales, stufenweises Verzögern des Zuges zur Geschwindigkeitsregelung oder zum fahrplanmäßigen Halten.\n2. Vollbremsung: Maximale Bremswirkung der Betriebsbremse durch Druckabsenkung in der HL auf ca. 3,5 bar.\n3. Schnellbremsung: Vollständiges und schlagartiges Entlüften der HL auf 0 bar zur schnellstmöglichen Zugbeeinflussung / Halt.\n4. Notbremsung: Durch Reisende oder Personal betätigte Bremsung über Notbremshebel.',
+    reference: 'Ril 915 / VDV 757'
+  },
+  {
+    title: 'Zugsicherungssysteme in Deutschland und Europa',
+    content: 'Im Eisenbahnbetrieb kommen folgende Zugbeeinflussungs- und Sicherungssysteme zum Einsatz:\n\n• PZB: Punktförmige Zugbeeinflussung (nationaler Standard bis 160 km/h)\n• LZB: Linienförmige Zugbeeinflussung (für Geschwindigkeiten > 160 km/h)\n• ETCS: European Train Control System (europäischer Zugsicherungsstandard, Level 1, 2 und 3)\n• GNT: Geschwindigkeitsüberwachung für Neigetechnikzüge',
+    reference: 'Ril 483 / TSI Zugsicherung'
+  },
+  {
+    title: 'Aufgaben der PZB und Verhalten bei Störungen',
+    content: 'Aufgaben der PZB:\n• Überwachung der Zugfahrt auf Signalbeachtung, Bremsbereitschaft und Einhaltung zulässiger Höchstgeschwindigkeiten.\n• Verhinderung von Vorbeifahrten an Halt zeigenden Signalen.\n\nVerhalten bei Störung der PZB:\n• Die Störung muss unverzüglich dem Fahrdienstleiter / der Betriebszentrale gemeldet werden.\n• Befindet sich der führende Führerraum in PZB-Störung, gilt eine Geschwindigkeitsbeschränkung (max. 100 km/h auf Hauptbahnen bzw. 50 km/h auf Nebenbahnen).',
+    reference: 'Ril 483.0101 / Ril 408'
+  },
+  {
+    title: 'Aufgabe der Sicherheitsfahrschaltung (Sifa)',
+    content: 'Die Sicherheitsfahrschaltung (Sifa) überwacht kontinuierlich die Dienst- und Handlungsfähigkeit des Triebfahrzeugführers während der Zug- oder Rangierfahrt:\n\n• Reagiert der Tf nicht rechtzeitig auf das Ausbleiben oder Verharren der Betätigung, ertönt eine optische und akustische Warnung und es wird eine Zwangsbremsung eingeleitet.',
+    reference: 'Ril 492 / EBO § 28'
+  },
+  {
+    title: 'Sifa-Prüfung 1 (Standprüfung)',
+    content: 'Ablauf der ersten Sifa-Prüfung im Stillstand:\n\n• Das Sifa-Pedal bzw. der Sifa-Taster wird im Stand durchgehend ununterbrochen betätigt gehalten.\n• Nach ca. 30 Sekunden muss der optische und akustische Melder ansprechen, gefolgt von der Entlüftung der Hauptluftleitung (Zwangsbremsung).',
+    reference: 'Tfz-Bedienungsanweisung / Ril 492'
+  },
+  {
+    title: 'Sifa-Prüfung 2 (Funktionsprüfung auf geeignetem Gleis)',
+    content: 'Ablauf der zweiten Sifa-Prüfung:\n\n• Die Prüfung erfolgt bei langsamer Fahrt auf einem geeigneten Gleisabschnitt.\n• Das Sifa-Pedal wird während der Fahrt nicht betätigt.\n• Nach ca. 75 m bzw. Zeitintervall erfolgt die Sifa-Aufforderung mit Warnung und Zwangsbremsung.',
+    reference: 'Tfz-Bedienungsanweisung / Ril 492'
+  },
+  {
+    title: 'Sifa-Prüfung 3 (Prüfung während der Regelfahrt)',
+    content: 'Ablauf der dritten Sifa-Prüfung während der Fahrt:\n\n• Die Sifa wird durchgehend gedrückt gehalten und nicht im vorgeschriebenen Intervall losgelassen.\n• Nach Ablauf der Überwachungszeit muss die Warnung ansprechen und bei Nichtreaktion die Zwangsbremsung einleiten.',
+    reference: 'Tfz-Bedienungsanweisung / Ril 492'
+  },
+  {
+    title: 'Bedeutung der Abkürzung SIFA',
+    content: 'SIFA steht für Sicherheitsfahrschaltung.\n\nSie dient der Überwachung der Dienst- und Handlungsfähigkeit des Triebfahrzeugführers und ist für führende Triebfahrzeuge gesetzlich vorgeschrieben (EBO § 28).',
+    reference: 'EBO § 28'
+  },
+  {
+    title: 'Bedeutung der Abkürzung PZB',
+    content: 'PZB steht für Punktförmige Zugbeeinflussung.\n\nElektromagnetisches System zur Signal- und Geschwindigkeitsüberwachung von Zügen über Gleismagnete (1000 Hz, 500 Hz und 2000 Hz).',
+    reference: 'Ril 483'
+  },
+  {
+    title: 'Verhalten bei Ausfall der Sifa',
+    content: 'Fällt die Sifa auf der Fahrt aus:\n\n1. Die Störung ist unverzüglich der Betriebszentrale / dem Fdl zu melden.\n2. Ist ein geeigneter Beimann vorhanden, der den Zug im Notfall anhalten kann, darf mit Regelfahrplangeschwindigkeit gefahren werden.\n3. Ohne Beimann darf die Fahrt nur bis zum nächsten Bahnhof mit maximal 50 km/h fortgesetzt werden.',
+    reference: 'Ril 408.0611 / Ril 492'
+  },
+  {
+    title: 'Funkarten im Eisenbahnbetrieb',
+    content: 'Im Eisenbahnbetrieb werden im Wesentlichen zwei Funkarten unterschieden:\n\n1. Zugfunk (GSM-R): Verbindung zwischen Triebfahrzeugführer, Fahrdienstleiter, Disponent und Betriebszentrale.\n2. Rangierfunk (analoger oder digitaler Rangierfunk): Verbindung zwischen Rangierbegleiter, Triebfahrzeugführer und Stellwerk.',
+    reference: 'Ril 481 (Telekommunikationsanlagen)'
+  },
+  {
+    title: 'Definition Flankenschutzeinrichtungen',
+    content: 'Flankenschutzeinrichtungen sind signaltechnische Einrichtungen, die verhindern, dass feindliche Zug- oder Rangierfahrten seitlich in einen eingestellten Fahrweg geraten oder diesen gefährden.',
+    reference: 'Ril 408.0102'
+  },
+  {
+    title: 'Höhe von Fahrleitungsmasten',
+    content: 'Fahrleitungsmasten an Eisenbahnstrecken haben in der Regel folgende Höhen:\n\n• Standardhöhe: ca. 11 Meter über Schienenoberkante (SO)\n• Masten mit Zusatzauslegern / Speiseleitungen / Abspannungen: bis zu 16 Meter.',
+    reference: 'Ril 997 (Oberleitungsanlagen)'
+  },
+  {
+    title: 'Arten von Flankenschutzeinrichtungen',
+    content: 'Zu den Flankenschutzeinrichtungen zählen:\n\n• Zwingender Flankenschutz: Schutzweichen (abliegend gestellt), Gleissperren, Schutzgleise\n• Nicht zwingender Flankenschutz: Halt zeigende Sperrsignale (Sh 0 / Ra 12), Hauptsignale (Hp 0)',
+    reference: 'Ril 408 / Ril 819'
+  },
+  {
+    title: 'Definition Durchrutschweg (D-Weg)',
+    content: 'Der Durchrutschweg (D-Weg) ist ein gesicherter, freizuhaltender Gleisabschnitt hinter einem Halt zeigenden Hauptsignal, der für den Fall freigehalten wird, dass ein Zug ausnahmsweise nicht vor dem Signal zum Stillstand kommt.',
+    reference: 'Ril 408.0211'
+  },
+  {
+    title: 'Arten von Gleisfreimeldeanlagen',
+    content: 'Zur Feststellung, ob ein Gleisabschnitt frei oder besetzt ist, werden eingesetzt:\n\n1. Achszähler: Zählen ein- und ausfahrende Achsen am Abschnittsende.\n2. Gleisstromkreise (50 Hz oder 100 Hz): Ruhestromprinzip über die Schienen.\n3. Tonfrequenzstromkreise (FTGS): Für unisolierte, lückenlose Gleise.',
+    reference: 'Ril 819 (LST-Anlagen)'
+  },
+  {
+    title: 'Spannung und Frequenz der Oberleitung',
+    content: 'Die elektrische Energieversorgung der deutschen Fernbahnstrecken beträgt:\n\n• Nennspannung: 15.000 Volt (15 kV) Wechselspannung\n• Nennfrequenz: 16,7 Hertz (früher 16 2/3 Hz)',
+    reference: 'EBO § 10 / Ril 997'
+  },
+  {
+    title: 'Bremswegabstände Hauptbahn vs. Nebenbahn',
+    content: 'Der Bremswegabstand zwischen Vor- und Hauptsignal beträgt in der Regel:\n\n• Hauptbahnen: 1.000 Meter (auf bestimmten Strecken 700 m)\n• Nebenbahnen: 700 Meter (in Ausnahmefällen, z.B. bei niedrigen Geschwindigkeiten, 400 m)',
+    reference: 'EBO § 14 / Ril 301.1401'
+  },
+  {
+    title: 'Zulässige Höchstgeschwindigkeiten Hauptbahn vs. Nebenbahn',
+    content: 'Nach der Eisenbahn-Bau- und Betriebsordnung (EBO):\n\n• Hauptbahnen: Bis zu 160 km/h (mit PZB), über 160 km/h bis 300 km/h nur mit linienförmiger Zugbeeinflussung (LZB / ETCS).\n• Nebenbahnen: Grundsätzlich bis 80 km/h, bei besonders gut ausgebauten Strecken und gesicherten BÜ bis 100 km/h.',
+    reference: 'EBO § 40'
+  },
+  {
+    title: 'Regelspurweite der Eisenbahn',
+    content: 'Die Normalspur / Regelspurweite beträgt in Deutschland und großen Teilen Europas:\n\n• 1.435 mm (gemessen zwischen den Schieneninnenkanten 14 mm unter Schienenoberkante).',
+    reference: 'EBO § 5'
+  },
+  {
+    title: 'Spurweitentoleranzen auf Haupt- und Nebengleisen',
+    content: 'Zulässige Toleranzmaße für die Spurweite:\n\n• Hauptgleise: 1.430 mm bis 1.465 mm\n• Nebengleise: 1.430 mm bis 1.470 mm',
+    reference: 'EBO § 5'
+  },
+  {
+    title: 'Regelabstand der Gleise zueinander',
+    content: 'Gleismittenabstände nach EBO:\n\n• Freie Strecke: 3,50 m (bei Neubaustrecken 4,00 m bis 4,50 m)\n• Bahnhöfe: 4,00 m (bei Neubauten 4,50 m, um Raum für Masten und Signale zu schaffen)',
+    reference: 'EBO § 10'
+  },
+  {
+    title: 'Luftleitungen am Zug und deren Betriebsdrücke',
+    content: 'Druckluftleitungen am Schienenfahrzeug:\n\n1. Hauptluftleitung (HL): Regeldruck 5,0 bar (Steuer- und Bremsleitung).\n2. Hauptluftbehälterleitung (HBL): Regeldruck 8,5 bis 10,0 bar (Speiseleitung für Luftfederung, Bremszylinder und Hilfsbetriebe).',
+    reference: 'Ril 915 / VDV 757'
+  },
+  {
+    title: 'Direkte vs. Indirekte Bremse',
+    content: 'Unterschied der Bremssysteme:\n\n• Direkte Bremse (Zusatzbremse): Wirkt sofort und ausschließlich auf das Triebfahrzeug (über HBL direct gesteuert).\n• Indirekte Druckluftbremse: Wirkt durch Druckabsenkung in der HL selbsttätig auf alle gekuppelten Fahrzeuge im gesamten Zugverband.',
+    reference: 'VDV 757 / UIC 540'
+  },
+  {
+    title: 'Abgabe eines Nothaltauftrags über Funk',
+    content: 'Ein Nothaltauftrag muss unverzüglich abgesetzt werden:\n\n• Bedienung: Rote Nothalttaste (Notruftaste) am GSM-R-Bedienhandapparat mindestens 1 Sekunde drücken.\n• Wortlaut: „Betriebsgefahr, alle Züge zwischen [Betriebsstelle A] und [Betriebsstelle B] sofort anhalten! Ich wiederhole: Betriebsgefahr...“',
+    reference: 'Ril 408.0601 / GSM-R Richtlinie'
+  },
+  {
+    title: 'Definition: Bahnhof',
+    content: 'Bahnhöfe sind Bahnanlagen mit mindestens einer Weiche, wo Züge beginnen, enden, ausweichen oder wenden dürfen.\n\nAls Grenze zwischen dem Bahnhof und der freien Strecke gelten im Allgemeinen die Einfahrsignale bzw. Trapeztafeln (Ne 1).',
+    reference: 'EBO § 4 Abs. 2'
+  },
+  {
+    title: 'Definition: Überleitstelle (Üst)',
+    content: 'Überleitstellen sind Blockstellen der freien Strecke, wo Züge auf ein anderes Gleis derselben Strecke übergehen können (Weichenverbindung zwischen Richtungsgleisen).',
+    reference: 'EBO § 4 Abs. 6'
+  },
+  {
+    title: 'Definition: Abzweigstelle (Abzw)',
+    content: 'Abzweigstellen sind Blockstellen der freien Strecke, wo Züge von einer Eisenbahnstrecke auf eine andere Eisenbahnstrecke übergehen können.',
+    reference: 'EBO § 4 Abs. 5'
+  },
+  {
+    title: 'Definition: Anschlussstelle (Anst) und Ausweichanschlussstelle (Awanst)',
+    content: '• Anschlussstelle (Anst): Bahnanlage der freien Strecke, wo Züge ein angeschlossenes Gleis befahren können; die Blockstrecke wird dabei nicht für andere Fahrten freigegeben.\n• Ausweichanschlussstelle (Awanst): Wie Anst, jedoch kann die Blockstrecke für andere Zugfahrten freigegeben werden, während sich der Zug im Anschlussgleis befindet.',
+    reference: 'EBO § 4 Abs. 7'
+  },
+  {
+    title: 'Definition: Haltepunkt (Hp)',
+    content: 'Haltepunkte sind Bahnanlagen der freien Strecke ohne Weichen, wo Züge planmäßig halten, beginnen oder enden dürfen.',
+    reference: 'EBO § 4 Abs. 8'
+  },
+  {
+    title: 'Definition: Haltestelle (Hst)',
+    content: 'Haltestellen sind Abzweigstellen, Überleitstellen oder Anschlussstellen der freien Strecke, die mit einem Haltepunkt örtlich zusammenhängen.',
+    reference: 'EBO § 4 Abs. 9'
+  },
+  {
+    title: 'Definition: Zugmeldestelle',
+    content: 'Zugmeldestellen sind diejenigen Zugfolgestellen, die die Reihenfolge der Züge auf der freien Strecke regeln. Bahnhöfe, Abzweigstellen und Überleitstellen sind in der Regel Zugmeldestellen.',
+    reference: 'Ril 408.0102'
+  },
+  {
+    title: 'Definition: Blockstelle (Bk)',
+    content: 'Blockstellen sind Bahnanlagen, die eine Blockstrecke begrenzen. Eine Blockstrecke darf von einem Zug erst befahren werden, wenn sie von vorausfahrenden Zügen freigegeben ist.',
+    reference: 'EBO § 4 Abs. 4'
+  },
+  {
+    title: 'Definition: Deckungsstelle (Dkst)',
+    content: 'Deckungsstellen sind Bahnanlagen der freien Strecke, die den Bahnbetrieb an Gefahrstellen (z.B. beweglichen Brücken, Kreuzungen mit anderen Schienenbahnen) sichern.',
+    reference: 'EBO § 4 Abs. 10'
+  },
+  {
+    title: 'Wichtige Bauteile einer Eisenbahnweiche',
+    content: 'Eine einfache Weiche besteht aus folgenden Hauptkomponenten:\n\n1. Backenschienen (außenliegende feste Schienen)\n2. Weichenzungen (bewegliche Zungen zur Fahrwegsteuerung)\n3. Weichenspitze (Anfang der Zunge)\n4. Herzstück mit Herzstückspitze und Flügelschienen\n5. Radlenker (gegenüber dem Herzstück zur Zwangsführung des Radsatzes)',
+    reference: 'Ril 820 (Gleise und Weichen)'
+  },
+  {
+    title: 'Formel zur Berechnung der Bremshundertstel (BRH)',
+    content: 'Die Bremshundertstel geben das Bremsvermögen eines Zuges an:\n\nBRH = (Gesamtbremsgewicht [t] × 100) ÷ Gesamtzuggewicht [t]\n\n• Merkhilfe: „Brems-100stel“ = Bremsgewicht mal 100 geteilt durch Zuggewicht.',
+    reference: 'VDV 757 / Ril 915'
+  },
+  {
+    title: 'Gleismittenabstände im Überblick',
+    content: 'Erforderliche Abstände zwischen den Gleismitten:\n\n• Freie Strecke: 3,50 m (Neuplanung: 4,00 m)\n• Bahnhofsbereich: 4,00 m (Neuplanung: 4,50 m für Signalstandorte und Arbeitsräume)',
+    reference: 'EBO § 10'
+  },
+  {
+    title: 'Weichenhebelgewichte und deren Farbbedeutung',
+    content: 'Die Farbgebung von Handweichen-Hebelgewichten signalisiert die Grundstellung:\n\n• Schwarz & Weiß: Grundstellung der Weiche; muss nach dem Umstellen immer in diese Lage zurückgebracht werden.\n• Gelb & Schwarz / Gelb: Weiche ohne Grundstellung (bleibt in der zuletzt befahrenen Lage liegen).\n• Rot & Weiß / Gekerbt: Rückfallweiche.',
+    reference: 'Ril 301 / Ril 408'
+  },
+  {
+    title: 'Funktion eines Streckentrenners in der Oberleitung',
+    content: 'Ein Streckentrenner (auch Streckentrennung) trennt zwei Schaltgruppen der Oberleitung elektrisch voneinander, ermöglicht aber das kontinuierliche und funkenfreie Befahren durch Stromabnehmer.',
+    reference: 'Ril 997'
+  },
+  {
+    title: 'Betriebsstellen der Eisenbahn nach EBO',
+    content: 'Nach der EBO gehören zu den Betriebsstellen:\n\n• Bahnhöfe\n• Blockstellen\n• Abzweigstellen und Überleitstellen\n• Anschlussstellen und Ausweichanschlussstellen\n• Haltepunkte und Haltestellen\n• Deckungsstellen',
+    reference: 'EBO § 4'
+  },
+  {
+    title: 'Innerbetriebliche Verkehrswege im Gleisbereich',
+    content: 'Vorschriften für das Begehen von Gleisanlagen (DGUV V73):\n\n• Betreten nur aus dienstlichem Anlass (z.B. Rangieren, Tfz-Vorbereitung, Dienstwege).\n• Benutzung ausgewiesener Dienstwege.\n• Ständige Tragepflicht der persönlichen Schutzausrüstung (Warnkleidung nach EN ISO 20471, S3-Sicherheitsschuhe).',
+    reference: 'DGUV Vorschrift 73 / Ril 408'
+  },
+  {
+    title: 'Sicherheitsregeln beim Überschreiten von Gleisen',
+    content: 'Verhalten beim Queren von Gleisen:\n\n1. Kürzester Weg und immer rechtwinklig zur Gleisachse überschreiten.\n2. Vor dem Betreten nach beiden Richtungen vergewissern, dass sich kein Fahrzeug nähert.\n3. Nicht auf Schienenköpfe, Weichenzungen, Radlenker oder Schienenkabel treten (Rutschgefahr, Einklemmgefahr!).\n4. Abstand zu stehenden Fahrzeugen: mindestens 2 Meter.',
+    reference: 'DGUV Vorschrift 73'
+  },
+  {
+    title: 'Mitzuführende persönliche Gegenstände des Triebfahrzeugführers',
+    content: 'Der Triebfahrzeugführer muss im Dienst stets mitführen:\n\n1. Amtlicher Lichtbildausweis (Personalausweis / Reisepass)\n2. Eisenbahn-Triebfahrzeugführerschein (Tf-Schein) & Zusatzbescheinigung\n3. Firmen-/Dienstausweis\n4. Prüfungsnachweise, Streckenkunde- und Baureihenkundenachweise\n5. Dienstliche Unterlagen (Fahrplan, Signalbuch, Streckenbuch, Befehlsvordrucke)\n6. Persönliche Schutzausrüstung (Warnweste, Sicherheitsschuhe, Helm, Schutzbrille, Vierkant/Schaltschrank-Schlüssel, weiße Handleuchte)',
+    reference: 'TfV / Ril 408'
+  },
+  {
+    title: 'Verwendungsarten von Hauptsignalen',
+    content: 'Hauptsignale werden nach ihrer betrieblichen Funktion eingeteilt in:\n\n• Einfahrsignal (Esig): Sichert die Einfahrt in den Bahnhof.\n• Zwischensignal (Zsig): Unterteilt lange Bahnhofsgleise.\n• Ausfahrsignal (Asig): Sichert die Ausfahrt aus dem Bahnhof auf die freie Strecke.\n• Blocksignal (Bksig): Begrenzt eine Blockstrecke auf der freien Strecke.\n• Deckungssignal (Dksig): Sichert Gefahrstellen der freien Strecke.',
+    reference: 'Ril 301 / Ril 408'
+  },
+  {
+    title: 'Fahrten im Bahnhof: Zugfahrt vs. Rangierfahrt',
+    content: 'Im Bahnhof finden zwei Fahrtarten statt:\n\n• Zugfahrten: Fahrten von Zügen auf Hauptgleisen; verkehren nach Fahrplan, signalgeführt oder anzeigegeführt.\n• Rangierfahrten: Fahrten zur Zugbildung, Bereitstellung oder Lokumsetzung; verkehren auf Sicht mit max. 25 km/h.',
+    reference: 'Ril 408.0102'
+  },
+  {
+    title: 'Zulässige Signalbilder für die Abfahrt durch den Fahrdienstleiter',
+    content: 'Die Zustimmung des Fdl zur Abfahrt einer Zugfahrt erfolgt über:\n\n• Signal Hp 1 (Fahrt)\n• Signal Hp 2 (Langsamfahrt)\n• Signal Ks 1 (Fahrt)\n• Signal Ks 2 (Halt erwarten)\n• Signal Zs 1 (Ersatzsignal), Zs 7 (Vorsichtsignal), Zs 8 (Gegengleisfahrtsignal)\n• Schriftlicher Befehl 2 zur Vorbeifahrt am Halt zeigenden Signal',
+    reference: 'Ril 408.0331 / Ril 301'
+  },
+  {
+    title: 'Signale, die einen Bahnhof begrenzen',
+    content: 'Als äußere Grenze eines Bahnhofs gelten:\n\n• Einfahrsignale (Esig)\n• Trapeztafeln (Signal Ne 1) auf Nebenbahnen ohne Einfahrsignal\n• Ist kein Signal vorhanden: Die erste Weiche (Einfahrweiche) gegen die Spitze befahren.',
+    reference: 'EBO § 4 / Ril 408'
+  },
+  {
+    title: 'Abstände von Vorsignalbaken (Ne 3) und Bremswegabstand',
+    content: 'Staffelung der Vorsignalbaken:\n\n• Bake mit 1 Streifen: 100 m vor dem Vorsignal\n• Bake mit 2 Streifen: 175 m vor dem Vorsignal (75 m Abstand)\n• Bake mit 3 Streifen: 250 m vor dem Vorsignal (75 m Abstand)\n• Vorsignal zum Hauptsignal: Regel-Bremswegabstand 1.000 m (Nebenbahn 700 m).',
+    reference: 'Ril 301.1401'
+  },
+  {
+    title: 'Unterschiedliche Kupplungsköpfe von HL und HBL',
+    content: 'Um Verwechslungen auszuschließen, sind die Druckluftschläuche unterschiedlich gekennzeichnet:\n\n• Hauptluftleitung (HL): Schlauchkupplungskopf ist glatt, Kennfarbe Rot, Druck 5,0 bar.\n• Hauptluftbehälterleitung (HBL): Schlauchkupplungskopf besitzt eine erhabene Kreuzrippe (Nase), Kennfarbe Gelb, Druck 8,5 bis 10 bar.',
+    reference: 'Ril 915 / VDV 757'
+  },
+  {
+    title: 'Sicherheitsabstände zu herabhängenden Oberleitungen',
+    content: 'Liegt eine spannungsführende Oberleitung auf dem Boden oder hängt herab, gelten lebenswichtige Mindestabstände:\n\n• Mindestens 10 Meter Sicherheitsabstand bei bekannter Nennspannung (15 kV).\n• Mindestens 20 Meter Sicherheitsabstand bei unbekannter Spannung oder Hochspannungs-Freileitungen.\n• Schutzbereich nicht betreten; unverzüglich Notabschaltung und Bahnerdung über Fdl veranlassen!',
+    reference: 'DGUV Vorschrift 73 / Ril 997'
+  },
+  {
+    title: 'Bestandteile eines bereiften Eisenbahnrades',
+    content: 'Ein bereiftes Rad (im Gegensatz zum Monoblock-Vollrad) besteht aus:\n\n1. Radkörper (Radscheibe / Felge)\n2. Radreifen (aufgeschrumpfter Verschleißteil mit Lauffläche und Spurkranz)\n3. Sprengring (Sicherungsring gegen seitliches Abwandern des Reifens)',
+    reference: 'Ril 936 / VDV 758'
+  },
+  {
+    title: 'Verbot bei schleuderndem Radsatz',
+    content: 'Drehen die Treibradsätze beim Anfahren oder bei Steigungen durch (Schleudern):\n\n• Es darf keinesfalls in den schleudernden Radsatz gesandet werden!\n• Zuerst muss die Zugkraft/Leistung vollständig zurückgenommen werden.\n• Erst wenn alle Radsätze wieder rollen, darf gesandet und Leistung erneut aufgeschaltet werden (Gefahr von Getriebe-, Motor- und Schienenschäden!).',
+    reference: 'Tfz-Bedienungsanweisung'
+  },
+  {
+    title: 'PZB-Gleismagnete und ihre Frequenzen',
+    content: 'Die drei PZB-Gleismagnet-Frequenzen und ihre Überwachungsfunktionen:\n\n1. 1000-Hz-Magnet: Am Vorsignal (bei Vr 0, Vr 2, Ks 2, Lf 6 usw.) – überwacht Wachsamkeitsbedienung (WT) und Bremskurve.\n2. 500-Hz-Magnet: 150–260 m vor dem Hauptsignal – überwacht die Annäherungsgeschwindigkeit an das Halt zeigende Signal.\n3. 2000-Hz-Magnet: Direkt am Hauptsignal – löst bei Vorbeifahrt an Hp 0 sofortige Zwangsbremsung aus.',
+    reference: 'Ril 483.0101'
+  },
+  {
+    title: 'Regelwerke der Bahn und ihre Inhalte (Ril-Systematik)',
+    content: 'Übersicht der wichtigsten bahnbetrieblichen Richtlinien:\n\n• Ril 301: Signalbuch (Signale, Bedeutungen, Mastschilder)\n• Ril 408: Fahrdienstvorschrift (Fahrbetrieb, Zug- und Rangierfahrten, Befehle)\n• Ril 915: Bremsen im Betrieb bedienen und prüfen (Bremsproben, Bremstechnik)\n• Ril 483: Zugbeeinflussungsanlagen bedienen (PZB / LZB)\n• VDV 757: Bremsvorschrift für Eisenbahnen\n• VDV 758: Wagenprüfung im Güterverkehr',
+    reference: 'DB-Regelwerk / VDV'
+  },
+  {
+    title: 'Definition Lichtraumprofil und Regellichtraum',
+    content: 'Der vorgeschriebene freizuhaltende Sicherheitsraum entlang der Schienenwege:\n\n• Lichtraumprofil: Der von festen Gegenständen freizuhaltende Raum, der die gefahrlose Durchfahrt von Schienenfahrzeugen unter Berücksichtigung von Federbewegungen und Bogenüberhöhung sichert.\n• Regellichtraum: Umfasst den Raum für Fahrzeuge sowie beidseitige Sicherheitsräume für Personen.',
+    reference: 'EBO § 9'
+  },
+  {
+    title: 'Bremsstellungen und deren Eigenschaften (G, P, R)',
+    content: 'Die Bremsstellungen legen das Füll- und Löseverhalten der Druckluftbremse fest:\n\n• Bremsstellung G (Güterzug): Langsam wirkend (Anlegezeit 18–30 s, Lösezeit 45–60 s); verhindert Zerrungen in langen Zügen.\n• Bremsstellung P (Personenzug): Schnell wirkend (Anlegezeit 3–5 s, Lösezeit 15–20 s).\n• Bremsstellung R (Rapid / Hochleistungsbremse): Wie P, jedoch mit zweistufigem Bremszylinderdruck bei Geschwindigkeiten > 50 km/h.',
+    reference: 'VDV 757 / Ril 915'
+  },
+  {
+    title: 'Einleiten einer Betriebsbremsung bei vermindertem Reibwert',
+    content: 'Bei schlechten Schienenverhältnissen (Laub, Nässe, Raureif):\n\n• Die Bremsung muss rechtzeitig und vorausschauend eingeleitet werden, ohne sofort die maximale Bremskraft abzufordern.\n• Niedrige Bremsstufe wählen und Reibwert antesten.\n• Gegebenenfalls frühzeitig sanden, bevor Gleitvorgänge einsetzen.',
+    reference: 'Ril 915.0102'
+  },
+  {
+    title: 'Bauformen von Stellwerken',
+    content: 'Entwicklungsstufen der Eisenbahnstellwerkstechnik:\n\n1. Mechanisches Stellwerk: Drahtzugleitungen und Hebelbänke.\n2. Elektromechanisches Stellwerk: Elektrische Kontakte und Kraftantriebe.\n3. Relaisstellwerk (Spurplanstellwerk): Relaistechnik und Gleisbildtisch.\n4. Elektronisches Stellwerk (ESTW): Rechnergestützte Steuerung über Monitore und Mausklick.\n5. Digitales Stellwerk (DSTW): IP-Netzwerk-basierte Steuerung im Gigabit-Netz.',
+    reference: 'Ril 819'
+  },
+  {
+    title: 'Grundsätze und Prioritäten im Bahnbetrieb',
+    content: 'Die drei obersten Grundsätze der Betriebsführung stehen in fester Rangfolge:\n\n1. SICHERHEIT: Hat absolute und uneingeschränkte Priorität vor allen anderen Faktoren.\n2. PÜNKTLICHKEIT: Hohe Zuverlässigkeit unter Einhaltung aller Sicherheitsregeln.\n3. WIRTSCHAFTLICHKEIT: Ressourcenschonender und energiesparender Betrieb.',
+    reference: 'EBO § 4 / Ril 408'
+  },
+  {
+    title: 'Funktion der Heißläuferortungsanlage (HOA)',
+    content: 'Die Heißläuferortungsanlage (HOA) erfasst im Vorbeifahren berührungslos über Infrarotsensoren im Gleisbett die Temperatur der Radsatzlager aller Fahrzeuge:\n\n• Überschreitet ein Achslager den Grenzwert (Warm- oder Heißläufer), wird eine Alarmmeldung an den Fahrdienstleiter gesendet, um den Zug anzuhalten und Entgleisungen zu verhindern.',
+    reference: 'Ril 819'
+  },
+  {
+    title: 'Funktion der Festbremsortungsanlage (FBOA)',
+    content: 'Die Festbremsortungsanlage (FBOA) misst berührungslos die Temperatur der Radkränze und Bremsscheiben der vorbeifahrenden Züge:\n\n• Erkennt festgegangene oder ungelöste Bremsen, die zu Radabplattungen, Überhitzung oder Radbrüchen führen könnten.',
+    reference: 'Ril 819'
+  },
+  {
+    title: 'Definition: Nebengleise',
+    content: 'Nebengleise sind Gleise eines Bahnhofs, die planmäßig nicht von Zugfahrten, sondern ausschließlich von Rangierfahrten oder zum Abstellen von Fahrzeugen befahren werden.',
+    reference: 'EBO § 4 Abs. 3'
+  },
+  {
+    title: 'Definition: Hauptgleise',
+    content: 'Hauptgleise sind die von Zugfahrten planmäßig befahrenen Gleise eines Bahnhofs und der freien Strecke.\n\nDurchgehende Hauptgleise sind die Hauptgleise der freien Strecke und ihre Fortsetzung durch die Bahnhöfe.',
+    reference: 'EBO § 4 Abs. 3'
+  },
+  {
+    title: 'Aussage eines Hauptsignals',
+    content: 'Ein Hauptsignal zeigt an, ob der darauffolgende Blockabschnitt bzw. Fahrweg befahren werden darf:\n\n• Halt (Hp 0)\n• Fahrt frei mit Streckenhöchstgeschwindigkeit (Hp 1 / Ks 1)\n• Langsamfahrt (Hp 2 / Ks 1 mit Zs 3)',
+    reference: 'Ril 301.0101'
+  },
+  {
+    title: 'Aussage eines Vorsignals',
+    content: 'Ein Vorsignal kündigt im Bremswegabstand der Strecke an, welches Signalbild am dazugehörigen Hauptsignal zu erwarten ist:\n\n• Halt erwarten (Vr 0 / Ks 2)\n• Fahrt erwarten (Vr 1 / Ks 1)\n• Langsamfahrt erwarten (Vr 2)',
+    reference: 'Ril 301.0101'
+  },
+  {
+    title: 'Bestandteile des Oberleitungskettenwerks',
+    content: 'Das Kettenwerk einer Bahn-Oberleitung besteht aus:\n\n1. Tragseil: Obenliegendes Seil zur mechanischen Lastaufnahme.\n2. Hängeseile (Hänger): Verbinden Tragseil und Fahrdraht in gleichmäßigen Abständen.\n3. Fahrdraht: Rillendraht aus Kupferlegierung, an dem der Stromabnehmer (Schleifleiste) schleift.\n4. Y-Beiseil: Dämpft Schwingungen im Stützpunktbereich.',
+    reference: 'Ril 997'
+  }
+];
+
+async function run() {
+  console.log(`Processing ${cardData.length} cards for #Anlage 5...`);
+  
+  const results = cardData.map((item, idx) => {
+    const cardId = 'f_a5_' + String(idx + 1).padStart(2, '0');
+    return {
+      id: cardId,
+      category: 'Anlage 5',
+      title: item.title,
+      content: item.content,
+      reference: item.reference,
+      image_url: null,
+      imageUrl: null,
+      is_verified: true,
+      isVerified: true
+    };
+  });
+
+  fs.writeFileSync('src/database/anlage5_cards.json', JSON.stringify(results, null, 2));
+  console.log('Saved src/database/anlage5_cards.json with', results.length, 'cards');
+
+  // 1. Upload to Supabase in batches of 15
+  console.log('Uploading cards to Supabase...');
+  for (let b = 0; b < results.length; b += 15) {
+    const batch = results.slice(b, b + 15).map(c => ({
+      id: c.id,
+      category: c.category,
+      title: c.title,
+      content: c.content,
+      reference: c.reference,
+      image_url: null,
+      is_verified: true
+    }));
+    
+    await new Promise((resolve) => {
+      const payload = JSON.stringify(batch);
+      const req = https.request({
+        hostname: 'ahmcoyfmdrgpmclaxgfj.supabase.co',
+        path: '/rest/v1/flashcards',
+        method: 'POST',
+        headers: {
+          'apikey': KEY,
+          'Authorization': 'Bearer ' + KEY,
+          'Content-Type': 'application/json',
+          'Prefer': 'resolution=merge-duplicates'
+        }
+      }, res => {
+        let resp = '';
+        res.on('data', chunk => resp += chunk);
+        res.on('end', () => {
+          if (res.statusCode >= 200 && res.statusCode < 300) {
+            console.log(`Supabase batch ${Math.floor(b / 15) + 1} (${batch.length} cards) uploaded successfully`);
+            resolve();
+          } else {
+            console.error(`Supabase batch error ${res.statusCode}:`, resp);
+            resolve();
+          }
+        });
+      });
+      req.on('error', err => {
+        console.error('Supabase req error:', err);
+        resolve();
+      });
+      req.write(payload);
+      req.end();
+    });
+  }
+
+  // 2. Update all_flashcards.json
+  console.log('Updating all_flashcards.json...');
+  if (fs.existsSync('all_flashcards.json')) {
+    const all = JSON.parse(fs.readFileSync('all_flashcards.json', 'utf8'));
+    const idMap = new Map();
+    all.forEach(c => idMap.set(c.id, c));
+    results.forEach(c => {
+      idMap.set(c.id, {
+        id: c.id,
+        category: c.category,
+        title: c.title,
+        content: c.content,
+        reference: c.reference,
+        image_url: null,
+        created_at: new Date().toISOString(),
+        is_verified: true
+      });
+    });
+    const merged = Array.from(idMap.values());
+    fs.writeFileSync('all_flashcards.json', JSON.stringify(merged, null, 2));
+    console.log('all_flashcards.json updated, total cards:', merged.length);
+  }
+
+  console.log('Done!');
+}
+
+run();

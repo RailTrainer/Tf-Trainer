@@ -1,0 +1,35 @@
+﻿# Dependencies
+node_modules/
+
+# Expo / build outputs
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Existing builds
+*.apk
+*.aab
+*.jks
+*.keystore
+
+# Backups
+_backups/
+_backup_pre_button_redesign/
+
+# Admin portal and node utility scripts
+admin-portal/
+scripts/
+
+# Large import CSVs & scratch JSONs
+*.csv
+all_flashcards.json
+generated_wm_quiz_questions.json
+scratch_unique_cards.json
+
+# IDE / OS
+.vscode/
+.claude/
+*.log
+.DS_Store
+*.tsbuildinfo
