@@ -42,6 +42,7 @@ import {
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { mockDb, User, RoleDefinition, NewsItem } from '../database/mockDb';
 import AuthScreen from '../components/AuthScreen';
+import WebPaywallScreen from '../components/WebPaywallScreen';
 import { ThemeProvider, useAppTheme } from '../context/ThemeContext';
 import { useDynamicKeyboard } from '../hooks/useDynamicKeyboard';
 import { useDeviceLayout } from '../hooks/useDeviceLayout';
@@ -1056,6 +1057,13 @@ function MainAppLayout() {
     }
   }, []);
 
+  // Web-Titel für Browser-Reiter
+  useEffect(() => {
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      document.title = 'Tf-Trainer';
+    }
+  }, []);
+
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [roles, setRoles] = useState<RoleDefinition[]>([]);
   const [newsList, setNewsList] = useState<NewsItem[]>([]);
@@ -1157,45 +1165,22 @@ function MainAppLayout() {
     return <AuthScreen onLoginSuccess={(user) => setCurrentUser(user)} />;
   }
 
-  // WEB-GATE: Exklusiver Unterrichts-Zugang für Ausbilder & Dozenten
+  // WEB-GATE: Prüfung der Web-Freischaltung (4,99 € PayPal / Key oder Dozenten)
   if (Platform.OS === 'web') {
-    const userTitle = (currentUser.title || '').toLowerCase();
-    const isInstructor = currentUser.role === 'admin' || 
-      currentUser.role === 'moderator' || 
-      Boolean(roles.find(r => r.id === currentUser.role)?.canAccessAdmin) ||
-      userTitle.includes('ausbilder') || 
-      userTitle.includes('dozent') || 
-      userTitle.includes('prüfer') ||
-      userTitle.includes('lehrer');
+    const isUnlocked = mockDb.isUserWebUnlocked(currentUser, roles);
 
-    if (!isInstructor) {
+    if (!isUnlocked) {
       return (
-        <View style={{ flex: 1, backgroundColor: backgroundColor, justifyContent: 'center', alignItems: 'center', padding: 24 }}>
-          <View style={{ maxWidth: 540, width: '100%', backgroundColor: cardBackgroundColor, borderColor: borderColor, borderWidth: 1, borderRadius: 24, padding: 32, alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 16 }}>
-            <View style={{ width: 80, height: 80, borderRadius: 24, backgroundColor: isDark ? '#1e293b' : '#f1f5f9', justifyContent: 'center', alignItems: 'center', marginBottom: 20, borderWidth: 1.5, borderColor: borderColor }}>
-              <GraduationCap size={42} color={activeColor} />
-            </View>
-            <Text style={{ fontSize: 24, fontWeight: 'bold', color: textColor, textAlign: 'center', marginBottom: 8 }}>
-              RailTrainer Dozenten-Portal
-            </Text>
-            <View style={{ paddingHorizontal: 14, paddingVertical: 5, borderRadius: 20, backgroundColor: isDark ? '#1e3a8a40' : '#dbeafe', borderColor: activeColor, borderWidth: 1, marginBottom: 18 }}>
-              <Text style={{ fontSize: 13, fontWeight: 'bold', color: activeColor }}>Exklusiv für Ausbilder & Unterricht</Text>
-            </View>
-            <Text style={{ fontSize: 14, color: inactiveColor, textAlign: 'center', lineHeight: 22, marginBottom: 26 }}>
-              Der Web-Zugriff ist für Ausbilder zur Durchführung von Unterricht, Signal-Präsentationen und Prüfungsvorbereitungen auf Beamern & Smartboards reserviert.{'\n\n'}
-              Bitte nutze als Schüler die <Text style={{ fontWeight: 'bold', color: textColor }}>RailTrainer App</Text> auf deinem Android- oder iOS-Smartphone.
-            </Text>
-            <TouchableOpacity
-              style={{ backgroundColor: activeColor, paddingVertical: 14, paddingHorizontal: 24, borderRadius: 14, width: '100%', alignItems: 'center' }}
-              onPress={async () => {
-                await mockDb.logoutUser();
-                setCurrentUser(null);
-              }}
-            >
-              <Text style={{ color: '#ffffff', fontWeight: 'bold', fontSize: 15 }}>Mit Ausbilder-Account anmelden</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+        <WebPaywallScreen
+          currentUser={currentUser}
+          onUnlocked={(updatedUser) => {
+            setCurrentUser({ ...updatedUser });
+          }}
+          onLogout={async () => {
+            await mockDb.logoutUser();
+            setCurrentUser(null);
+          }}
+        />
       );
     }
   }
@@ -1277,7 +1262,7 @@ function MainAppLayout() {
           name="index"
           options={{
             title: 'Lernen',
-            headerTitle: 'RailTrainer - Lernen',
+            headerTitle: Platform.OS === 'web' ? 'Tf-Trainer - Lernen' : 'RailTrainer - Lernen',
             tabBarLabel: 'Lernen',
             tabBarIcon: ({ color, size }) => (
               <BookOpen color={color} size={size} />

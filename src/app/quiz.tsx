@@ -17,9 +17,10 @@ import {
   UIManager
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { mockDb, Question, QuizAttempt, Category, getQuestionCorrectIndices, isQuestionAnswerCorrect, generateAntiIdentityShuffle, shuffleQuestionOptions } from '../database/mockDb';
+import { mockDb, Question, QuizAttempt, Category, User, getQuestionCorrectIndices, isQuestionAnswerCorrect, generateAntiIdentityShuffle, shuffleQuestionOptions } from '../database/mockDb';
 import { useAppTheme } from '../context/ThemeContext';
 import { useDeviceLayout } from '../hooks/useDeviceLayout';
+import { CreateQuestionModal } from '../components/CreateQuestionModal';
 
 const triggerReorderAnimation = () => {
   try {
@@ -81,7 +82,9 @@ import {
   ArrowDown,
   Shuffle,
   GripVertical,
-  X 
+  X,
+  Plus,
+  Sparkles
 } from 'lucide-react-native';
 
 const PASS_PERCENTAGE = 70; // Lokführerprüfung verlangt 70% zum Bestehen
@@ -268,6 +271,8 @@ export default function QuizScreen() {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [history, setHistory] = useState<QuizAttempt[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [createQuestionModalVisible, setCreateQuestionModalVisible] = useState(false);
   const [loading, setLoading] = useState(true);
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   
@@ -307,6 +312,8 @@ export default function QuizScreen() {
   const loadData = async () => {
     try {
       setLoading(true);
+      const user = await mockDb.getCurrentUser();
+      setCurrentUser(user);
       const verifiedQuestions = await mockDb.getVerifiedQuestions();
       setQuestions(verifiedQuestions);
       const quizHistory = await mockDb.getQuizHistory();
@@ -571,6 +578,37 @@ export default function QuizScreen() {
           <Text style={[styles.subtitle, { color: colors.textMuted }]}>
             Bereite dich unter realen Bedingungen auf deine Theorieprüfung vor. Du erhältst eine zufällige Auswahl von Fragen.
           </Text>
+
+          {/* FRAGE EINREICHEN BANNER */}
+          <TouchableOpacity
+            activeOpacity={0.82}
+            onPress={() => setCreateQuestionModalVisible(true)}
+            style={[
+              styles.contributeBanner,
+              {
+                backgroundColor: isDark ? '#1e293b' : '#eff6ff',
+                borderColor: isDark ? '#334155' : '#bfdbfe',
+              }
+            ]}
+          >
+            <View style={[styles.contributeBannerIconBg, { backgroundColor: colors.primary + '25' }]}>
+              <Plus size={18} color={colors.primary} />
+            </View>
+            <View style={{ flex: 1, marginHorizontal: 10 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Text style={[styles.contributeBannerTitle, { color: colors.text }]}>
+                  Quizfrage einreichen
+                </Text>
+                <View style={{ backgroundColor: '#10b981', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, marginLeft: 6 }}>
+                  <Text style={{ color: '#ffffff', fontSize: 10, fontWeight: 'bold' }}>NEU</Text>
+                </View>
+              </View>
+              <Text style={[styles.contributeBannerText, { color: colors.textMuted }]}>
+                Prüfungsfrage vorschlagen – Ausbilder & Mods prüfen sie vor Aufnahme in die Prüfung.
+              </Text>
+            </View>
+            <ChevronRight size={18} color={colors.textMuted} />
+          </TouchableOpacity>
 
           <View style={isTablet ? { flexDirection: 'row', gap: 20, alignItems: 'flex-start', marginTop: 12 } : undefined}>
             {/* LINKS: EINSTELLUNGEN */}
@@ -1394,6 +1432,22 @@ export default function QuizScreen() {
             <RotateCcw color="#ffffff" size={20} />
             <Text style={styles.restartButtonText}>Zurück zur Auswahl</Text>
           </TouchableOpacity>
+
+          {/* FRAGE EINREICHEN BUTTON ON RESULT SCREEN */}
+          <TouchableOpacity
+            style={[
+              styles.resultContributeBtn,
+              { backgroundColor: colors.cardBg, borderColor: colors.border },
+              isTablet && { maxWidth: 400, width: '100%', alignSelf: 'center', marginTop: 12 }
+            ]}
+            onPress={() => setCreateQuestionModalVisible(true)}
+            activeOpacity={0.8}
+          >
+            <Sparkles size={18} color={colors.primary} style={{ marginRight: 8 }} />
+            <Text style={{ color: colors.primary, fontWeight: 'bold', fontSize: 14 }}>
+              Eigene Prüfungsfrage für dieses Thema einreichen
+            </Text>
+          </TouchableOpacity>
         </ScrollView>
       )}
 
@@ -1429,6 +1483,16 @@ export default function QuizScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* QUIZFRAGE EINREICHEN MODAL */}
+      <CreateQuestionModal
+        visible={createQuestionModalVisible}
+        onClose={() => setCreateQuestionModalVisible(false)}
+        onSuccess={() => loadData()}
+        categories={categories}
+        defaultCategory={selectedCategory !== 'Generaltest (Alle Themen)' ? selectedCategory : undefined}
+        currentUser={currentUser}
+      />
     </SafeAreaView>
   );
 }
@@ -1877,5 +1941,40 @@ const styles = StyleSheet.create({
     shadowOpacity: 1,
     shadowRadius: 8,
     elevation: 6,
+  },
+  contributeBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    marginTop: 14,
+    marginBottom: 6,
+  },
+  contributeBannerIconBg: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  contributeBannerTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  contributeBannerText: {
+    fontSize: 12,
+    marginTop: 2,
+    lineHeight: 16,
+  },
+  resultContributeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginTop: 10,
   },
 });

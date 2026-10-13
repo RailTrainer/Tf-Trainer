@@ -24,7 +24,8 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 }
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { mockDb, Question, Category, User as DbUser, Fact, RoleDefinition, Ticket, ChatMessageReport, getQuestionCorrectIndices } from '../database/mockDb';
+import { mockDb, Question, Category, User as DbUser, Fact, RoleDefinition, Ticket, ChatMessageReport, getQuestionCorrectIndices, CustomIconItem, ChatBanRecord } from '../database/mockDb';
+import CategoryIcon, { RAILWAY_ICONS_DEF, POPULAR_LUCIDE_ICONS_DEF } from '../components/CategoryIcon';
 import { useAppTheme } from '../context/ThemeContext';
 import { useDeviceLayout } from '../hooks/useDeviceLayout';
 import * as ImagePicker from 'expo-image-picker';
@@ -42,6 +43,7 @@ import {
   Edit3, 
   Trash2, 
   ShieldAlert, 
+  Ban, 
   Check, 
   X, 
   BookOpen, 
@@ -345,7 +347,8 @@ export default function AdminScreen() {
   const [activeSubTab, setActiveSubTab] = useState<'list' | 'form'>('list');
   const [factSubTab, setFactSubTab] = useState<'list' | 'form'>('list');
   const [catSubTab, setCatSubTab] = useState<'list' | 'form'>('list');
-  const [userSubTab, setUserSubTab] = useState<'users' | 'roles'>('users');
+  const [userSubTab, setUserSubTab] = useState<'users' | 'roles' | 'webkeys'>('users');
+  const [webKeysList, setWebKeysList] = useState<{ key: string; isRedeemed: boolean; redeemedBy?: string; createdAt: number }[]>([]);
 
   // Ticket Filter & Response State
   const [ticketFilter, setTicketFilter] = useState<'all' | 'open' | 'in_progress' | 'resolved'>('all');
@@ -356,6 +359,7 @@ export default function AdminScreen() {
   // Chat Reports State
   const [chatReports, setChatReports] = useState<ChatMessageReport[]>([]);
   const [reportFilter, setReportFilter] = useState<'all' | 'pending' | 'reviewed' | 'deleted'>('all');
+  const [chatBans, setChatBans] = useState<ChatBanRecord[]>([]);
 
   // Doppel-Check (Duplikaterkennung) State
   const [duplicateSubTab, setDuplicateSubTab] = useState<'all' | 'questions' | 'facts'>('all');
@@ -566,7 +570,16 @@ export default function AdminScreen() {
   const [formCatName, setFormCatName] = useState('');
   const [formCatDesc, setFormCatDesc] = useState('');
   const [formCatColor, setFormCatColor] = useState('#3b82f6');
-  const [formCatIcon, setFormCatIcon] = useState('BookOpen');
+  const [formCatIcon, setFormCatIcon] = useState('Lokomotive');
+
+  // CUSTOM ICONS & ICON PICKER
+  const [customIcons, setCustomIcons] = useState<CustomIconItem[]>([]);
+  const [iconPickerTab, setIconPickerTab] = useState<'railway' | 'popular' | 'custom' | 'all'>('railway');
+  const [showAddIconModal, setShowAddIconModal] = useState(false);
+  const [newIconType, setNewIconType] = useState<'lucide' | 'emoji'>('lucide');
+  const [newIconInput, setNewIconInput] = useState('');
+  const [newIconLabel, setNewIconLabel] = useState('');
+  const [addingIcon, setAddingIcon] = useState(false);
 
   // FORMULAR-STATES: ROLLEN
   const [editingRoleId, setEditingRoleId] = useState<string | null>(null);
@@ -609,6 +622,8 @@ export default function AdminScreen() {
         setTickets(allTickets);
         const allReports = await mockDb.getChatReports();
         setChatReports(allReports);
+        const allBans = await mockDb.getChatBans();
+        setChatBans(allBans);
         
         // Erste Kategorie als Standard setzen für Formulare
         if (allCategories.length > 0) {
@@ -618,6 +633,14 @@ export default function AdminScreen() {
 
         const allUsers = await mockDb.getUsers();
         setUsers(allUsers);
+
+        try {
+          const allWebKeys = await mockDb.getWebKeys();
+          setWebKeysList(allWebKeys);
+        } catch {}
+
+        const allCustomIcons = await mockDb.getCustomIcons();
+        setCustomIcons(allCustomIcons);
 
         try {
           const [storedReviewed, dbReviewed] = await Promise.all([
@@ -1318,6 +1341,11 @@ export default function AdminScreen() {
   };
 
   const handleToggleQuestionVerification = async (q: Question) => {
+    if (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'moderator')) {
+      Alert.alert('Keine Berechtigung', 'Nur Moderatoren und Administratoren können Fragen freigeben.');
+      return;
+    }
+
     const isAdmin = currentUser?.role === 'admin' || Boolean(roles.find(r => r.id === currentUser?.role)?.canAccessAdmin && currentUser?.role !== 'moderator');
     const isAuthor = Boolean(
       (q.createdBy && currentUser?.id && q.createdBy === currentUser.id) ||
@@ -1358,6 +1386,11 @@ export default function AdminScreen() {
   };
 
   const handleToggleFactVerification = async (f: Fact) => {
+    if (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'moderator')) {
+      Alert.alert('Keine Berechtigung', 'Nur Moderatoren und Administratoren können Lernkarten freigeben.');
+      return;
+    }
+
     const isAdmin = currentUser?.role === 'admin' || Boolean(roles.find(r => r.id === currentUser?.role)?.canAccessAdmin && currentUser?.role !== 'moderator');
     const isAuthor = Boolean(
       (f.createdBy && currentUser?.id && f.createdBy === currentUser.id) ||
@@ -1445,8 +1478,76 @@ export default function AdminScreen() {
     setFormCatName('');
     setFormCatDesc('');
     setFormCatColor('#3b82f6');
-    setFormCatIcon('BookOpen');
+    setFormCatIcon('Lokomotive');
   };
+
+  const handleAddCustomIcon = async () => {
+    if (!newIconInput.trim()) {
+      Alert.alert('Eingabe fehlt', newIconType === 'emoji' ? 'Bitte gib ein Emoji ein (z.B. 🚂 oder 🚦).' : 'Bitte gib einen Lucide-Icon-Namen ein (z.B. TrainFront, Flame, Zap).');
+      return;
+    }
+    const name = newIconInput.trim();
+    const label = newIconLabel.trim() || name;
+    setAddingIcon(true);
+    try {
+      const saved = await mockDb.saveCustomIcon({
+        name: name,
+        label: label,
+        type: newIconType,
+      });
+      setCustomIcons(prev => [...prev.filter(item => item.id !== saved.id), saved]);
+      setFormCatIcon(saved.name);
+      setNewIconInput('');
+      setNewIconLabel('');
+      setShowAddIconModal(false);
+      Alert.alert('Erfolg', `Symbol "${label}" wurde hinzugefügt und ausgewählt!`);
+    } catch (e: any) {
+      Alert.alert('Fehler', e?.message || 'Symbol konnte nicht hinzugefügt werden.');
+    } finally {
+      setAddingIcon(false);
+    }
+  };
+
+  const handleDeleteCustomIcon = (iconItem: CustomIconItem) => {
+    Alert.alert(
+      'Symbol entfernen?',
+      `Möchtest du das Symbol "${iconItem.label}" wirklich aus deiner Liste löschen?`,
+      [
+        { text: 'Abbrechen', style: 'cancel' },
+        {
+          text: 'Löschen',
+          style: 'destructive',
+          onPress: async () => {
+            const success = await mockDb.deleteCustomIcon(iconItem.id);
+            if (success) {
+              setCustomIcons(prev => prev.filter(item => item.id !== iconItem.id));
+              if (formCatIcon === iconItem.name) {
+                setFormCatIcon('Lokomotive');
+              }
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const displayedIcons = useMemo(() => {
+    switch (iconPickerTab) {
+      case 'railway':
+        return RAILWAY_ICONS_DEF.map(i => ({ name: i.id, label: i.label, isCustom: false as const }));
+      case 'popular':
+        return POPULAR_LUCIDE_ICONS_DEF.map(i => ({ name: i.id, label: i.label, isCustom: false as const }));
+      case 'custom':
+        return customIcons.map(c => ({ name: c.name, label: c.label, isCustom: true as const, item: c }));
+      case 'all':
+      default:
+        return [
+          ...RAILWAY_ICONS_DEF.map(i => ({ name: i.id, label: i.label, isCustom: false as const })),
+          ...customIcons.map(c => ({ name: c.name, label: c.label, isCustom: true as const, item: c })),
+          ...POPULAR_LUCIDE_ICONS_DEF.map(i => ({ name: i.id, label: i.label, isCustom: false as const })),
+        ];
+    }
+  }, [iconPickerTab, customIcons]);
 
   const handleCatSave = async () => {
     if (currentUser?.role !== 'admin') {
@@ -1624,6 +1725,32 @@ export default function AdminScreen() {
     );
   };
 
+  const handleToggleWebAccess = async (userId: string, userName: string, isCurrentlyUnlocked: boolean) => {
+    try {
+      if (isCurrentlyUnlocked) {
+        await mockDb.revokeWebAccess(userId);
+        Alert.alert('Web-Zugang gesperrt', `Der Web-Zugang für "${userName}" wurde entzogen.`);
+      } else {
+        await mockDb.unlockWebAccess(userId, { provider: 'admin_manual', amount: '4.99' });
+        Alert.alert('Web-Zugang freigeschaltet', `Der Web-Zugang für "${userName}" wurde erfolgreich freigeschaltet!`);
+      }
+      loadData();
+    } catch (e: any) {
+      Alert.alert('Fehler', e?.message || 'Aktion fehlgeschlagen.');
+    }
+  };
+
+  const handleGenerateWebKeys = async () => {
+    try {
+      const newKeys = await mockDb.generateAndSaveWebKeys(3);
+      const list = await mockDb.getWebKeys();
+      setWebKeysList(list);
+      Alert.alert('3 Keys generiert! 🎉', `Neu generierte 4,99 € PayPal Lizenz-Codes:\n\n${newKeys.join('\n')}`);
+    } catch (e: any) {
+      Alert.alert('Fehler', 'Keys konnten nicht generiert werden.');
+    }
+  };
+
   const handleEditRoleClick = (role: RoleDefinition) => {
     setEditingRoleId(role.id);
     setFormRoleName(role.name);
@@ -1708,6 +1835,55 @@ export default function AdminScreen() {
         }
       ]
     );
+  };
+
+  const handleTimeoutUser = (targetUserId: string, targetUserName: string) => {
+    if (!currentUser) return;
+    Alert.alert(
+      '⏱️ 1 Tag Timeout verhängen',
+      `Möchtest du ${targetUserName} für 24 Stunden im Chat stummschalten?\n\nDer Nutzer kann für 1 Tag keine Nachrichten mehr senden.`,
+      [
+        { text: 'Abbrechen', style: 'cancel' },
+        {
+          text: '1 Tag Timeout',
+          style: 'destructive',
+          onPress: async () => {
+            await mockDb.setChatBan(targetUserId, targetUserName, 'timeout_1d', currentUser);
+            const bans = await mockDb.getChatBans();
+            setChatBans(bans);
+            Alert.alert('Timeout aktiv ✅', `${targetUserName} wurde für 24 Stunden stummgeschaltet.`);
+          }
+        }
+      ]
+    );
+  };
+
+  const handleBanUser = (targetUserId: string, targetUserName: string) => {
+    if (!currentUser) return;
+    Alert.alert(
+      '🚫 Im Chat bannen',
+      `Möchtest du ${targetUserName} dauerhaft aus dem Chat verbannen?`,
+      [
+        { text: 'Abbrechen', style: 'cancel' },
+        {
+          text: 'Dauerhaft bannen',
+          style: 'destructive',
+          onPress: async () => {
+            await mockDb.setChatBan(targetUserId, targetUserName, 'permanent', currentUser);
+            const bans = await mockDb.getChatBans();
+            setChatBans(bans);
+            Alert.alert('Gebannt ✅', `${targetUserName} wurde im Chat gesperrt.`);
+          }
+        }
+      ]
+    );
+  };
+
+  const handleUnbanUser = async (targetUserId: string, targetUserName: string) => {
+    await mockDb.removeChatBan(targetUserId);
+    const bans = await mockDb.getChatBans();
+    setChatBans(bans);
+    Alert.alert('Entsperrt ✅', `Die Sperre für ${targetUserName} wurde aufgehoben.`);
   };
 
   if (loading) {
@@ -2192,6 +2368,7 @@ export default function AdminScreen() {
                                     {!!displayAuthor && (
                                       <Text style={{ fontSize: 11, color: colors.textMuted }}>
                                         ✍️ Erstellt von: <Text style={{ fontWeight: '600', color: colors.text }}>{displayAuthor}</Text>
+                                        {q.creatorRole === 'user' ? ' (Schüler)' : (q.creatorRole === 'moderator' ? ' (Mod)' : (q.creatorRole === 'admin' ? ' (Ausbilder)' : ''))}
                                         {isAuthor ? ' (Du)' : ''}
                                       </Text>
                                     )}
@@ -3030,6 +3207,7 @@ export default function AdminScreen() {
                                       {!!displayAuthor && (
                                         <Text style={{ fontSize: 11, color: colors.textMuted }}>
                                           ✍️ Erstellt von: <Text style={{ fontWeight: '600', color: colors.text }}>{displayAuthor}</Text>
+                                          {f.creatorRole === 'user' ? ' (Schüler)' : (f.creatorRole === 'moderator' ? ' (Mod)' : (f.creatorRole === 'admin' ? ' (Ausbilder)' : ''))}
                                           {isAuthor ? ' (Du)' : ''}
                                         </Text>
                                       )}
@@ -3296,9 +3474,11 @@ export default function AdminScreen() {
               {categories.map((c) => (
                 <View key={c.name} style={[styles.itemCard, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
                   <View style={styles.cardHeader}>
-                    <View style={[styles.row, { flex: 1, marginRight: 8 }]}>
-                      <View style={[styles.catIconColor, { backgroundColor: c.color }]} />
-                      <Text style={[styles.itemTitle, { color: colors.text, flex: 1 }]} numberOfLines={1}>{c.name}</Text>
+                    <View style={[styles.row, { flex: 1, marginRight: 8, alignItems: 'center' }]}>
+                      <View style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: `${c.color}22`, alignItems: 'center', justifyContent: 'center', marginRight: 10 }}>
+                        <CategoryIcon icon={c.icon} size={18} color={c.color} />
+                      </View>
+                      <Text style={[styles.itemTitle, { color: colors.text, flex: 1, marginLeft: 0 }]} numberOfLines={1}>{c.name}</Text>
                     </View>
                     <View style={[styles.headerActions, { flexShrink: 0, paddingTop: 2 }]}>
                       <TouchableOpacity 
@@ -3318,9 +3498,12 @@ export default function AdminScreen() {
                     </View>
                   </View>
                   <Text style={[styles.itemDescText, { color: colors.textMuted }]}>{c.desc}</Text>
-                  <Text style={{ fontSize: 11, color: colors.primary, marginTop: 6 }}>
-                    Icon: {c.icon}
-                  </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8, gap: 6 }}>
+                    <CategoryIcon icon={c.icon} size={14} color={c.color} />
+                    <Text style={{ fontSize: 12, color: c.color, fontWeight: '600' }}>
+                      {c.icon}
+                    </Text>
+                  </View>
                 </View>
               ))}
             </ScrollView>
@@ -3387,25 +3570,116 @@ export default function AdminScreen() {
               </View>
 
               {/* Icon-Auswahl */}
-              <Text style={[styles.formLabel, { color: colors.text, marginTop: 16 }]}>Icon-Typ</Text>
-              <View style={styles.chipGrid}>
-                {PRESET_ICONS.map(icon => (
-                  <TouchableOpacity
-                    key={icon}
-                    style={[
-                      styles.pickerChip,
-                      { 
-                        backgroundColor: formCatIcon === icon ? colors.primary : colors.cardBg,
-                        borderColor: colors.border
-                      }
-                    ]}
-                    onPress={() => setFormCatIcon(icon)}
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 18, marginBottom: 8 }}>
+                <Text style={[styles.formLabel, { color: colors.text, marginBottom: 0 }]}>Kategorie-Symbol</Text>
+                <TouchableOpacity
+                  style={[styles.addCustomIconHeaderBtn, { backgroundColor: `${colors.primary}15`, borderColor: `${colors.primary}40` }]}
+                  onPress={() => setShowAddIconModal(true)}
+                >
+                  <Plus size={14} color={colors.primary} />
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: colors.primary, marginLeft: 4 }}>
+                    + Eigenes Symbol
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Aktuell gewähltes Icon Preview */}
+              <View style={[styles.selectedIconCard, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
+                <View style={[styles.selectedIconCircle, { backgroundColor: formCatColor }]}>
+                  <CategoryIcon icon={formCatIcon} size={24} color="#ffffff" />
+                </View>
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <Text style={{ fontSize: 10, color: colors.textMuted, fontWeight: '700', letterSpacing: 0.5 }}>AUSGEWÄHLTES SYMBOL</Text>
+                  <Text style={{ fontSize: 15, fontWeight: 'bold', color: colors.text, marginTop: 2 }}>{formCatIcon}</Text>
+                </View>
+              </View>
+
+              {/* Tabs */}
+              <View style={styles.iconFilterTabsRow}>
+                <TouchableOpacity 
+                  style={[styles.iconFilterTab, iconPickerTab === 'railway' && { backgroundColor: colors.primary, borderColor: colors.primary }]}
+                  onPress={() => setIconPickerTab('railway')}
+                >
+                  <Text style={[styles.iconFilterTabText, { color: iconPickerTab === 'railway' ? '#ffffff' : colors.text }]}>
+                    🚂 Eisenbahn ({RAILWAY_ICONS_DEF.length})
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.iconFilterTab, iconPickerTab === 'popular' && { backgroundColor: colors.primary, borderColor: colors.primary }]}
+                  onPress={() => setIconPickerTab('popular')}
+                >
+                  <Text style={[styles.iconFilterTabText, { color: iconPickerTab === 'popular' ? '#ffffff' : colors.text }]}>
+                    💡 Allgemein
+                  </Text>
+                </TouchableOpacity>
+                {customIcons.length > 0 && (
+                  <TouchableOpacity 
+                    style={[styles.iconFilterTab, iconPickerTab === 'custom' && { backgroundColor: colors.primary, borderColor: colors.primary }]}
+                    onPress={() => setIconPickerTab('custom')}
                   >
-                    <Text style={{ color: formCatIcon === icon ? '#ffffff' : colors.text, fontSize: 12 }}>
-                      {icon}
+                    <Text style={[styles.iconFilterTabText, { color: iconPickerTab === 'custom' ? '#ffffff' : colors.text }]}>
+                      ⭐ Eigene ({customIcons.length})
                     </Text>
                   </TouchableOpacity>
-                ))}
+                )}
+                <TouchableOpacity 
+                  style={[styles.iconFilterTab, iconPickerTab === 'all' && { backgroundColor: colors.primary, borderColor: colors.primary }]}
+                  onPress={() => setIconPickerTab('all')}
+                >
+                  <Text style={[styles.iconFilterTabText, { color: iconPickerTab === 'all' ? '#ffffff' : colors.text }]}>
+                    Alle
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Icon Grid */}
+              <View style={styles.iconGridContainer}>
+                {displayedIcons.map((item) => {
+                  const isSelected = formCatIcon.toLowerCase() === item.name.toLowerCase();
+                  return (
+                    <TouchableOpacity
+                      key={item.name}
+                      style={[
+                        styles.iconTile,
+                        { 
+                          backgroundColor: isSelected ? `${formCatColor}20` : colors.cardBg,
+                          borderColor: isSelected ? formCatColor : colors.border,
+                          borderWidth: isSelected ? 2 : 1
+                        }
+                      ]}
+                      onPress={() => setFormCatIcon(item.name)}
+                    >
+                      <View style={[styles.iconTileInner, isSelected && { transform: [{ scale: 1.08 }] }]}>
+                        <CategoryIcon 
+                          icon={item.name} 
+                          size={24} 
+                          color={isSelected ? formCatColor : colors.text} 
+                        />
+                      </View>
+                      <Text 
+                        style={[
+                          styles.iconTileLabel, 
+                          { color: isSelected ? colors.text : colors.textMuted, fontWeight: isSelected ? '700' : '500' }
+                        ]} 
+                        numberOfLines={1}
+                      >
+                        {item.label}
+                      </Text>
+                      {item.isCustom && (item as any).item && (
+                        <TouchableOpacity 
+                          style={styles.deleteCustomIconBtn}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          onPress={(e) => {
+                            e.stopPropagation();
+                            handleDeleteCustomIcon((item as any).item);
+                          }}
+                        >
+                          <Trash2 size={11} color={colors.error} />
+                        </TouchableOpacity>
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
 
               <View style={styles.formActions}>
@@ -3453,6 +3727,16 @@ export default function AdminScreen() {
                 Rollen ({roles.length})
               </Text>
             </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={[styles.subTabBtn, userSubTab === 'webkeys' && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
+              onPress={() => setUserSubTab('webkeys')}
+            >
+              <KeyRound size={16} color={userSubTab === 'webkeys' ? colors.primary : colors.textMuted} />
+              <Text style={[styles.subTabText, { color: userSubTab === 'webkeys' ? colors.primary : colors.textMuted, fontWeight: userSubTab === 'webkeys' ? 'bold' : 'normal' }]}>
+                Web-Keys ({webKeysList.length})
+              </Text>
+            </TouchableOpacity>
           </View>
 
           {userSubTab === 'users' && (
@@ -3478,11 +3762,22 @@ export default function AdminScreen() {
                           {u.name} {isMe && <Text style={{ color: colors.primary, fontSize: 11 }}>(Du)</Text>}
                         </Text>
                         <Text style={[styles.userEmail, { color: colors.textMuted }]}>{u.email}</Text>
-                        {u.title ? (
-                          <Text style={{ fontSize: 11, color: colors.primary, marginTop: 4, fontWeight: 'bold' }}>
-                            Titel: {u.title}
-                          </Text>
-                        ) : null}
+                        <View style={{ flexDirection: 'row', gap: 6, marginTop: 4, flexWrap: 'wrap', alignItems: 'center' }}>
+                          {u.title ? (
+                            <Text style={{ fontSize: 11, color: colors.primary, fontWeight: 'bold' }}>
+                              Titel: {u.title}
+                            </Text>
+                          ) : null}
+                          {mockDb.isUserWebUnlocked(u, roles) ? (
+                            <View style={{ backgroundColor: isDark ? '#064e3b' : '#dcfce7', borderColor: '#10b981', borderWidth: 1, borderRadius: 4, paddingHorizontal: 6, paddingVertical: 1 }}>
+                              <Text style={{ fontSize: 10, color: '#10b981', fontWeight: 'bold' }}>🖥️ Web freigeschaltet</Text>
+                            </View>
+                          ) : (
+                            <View style={{ backgroundColor: isDark ? '#1e293b' : '#f1f5f9', borderColor: colors.border, borderWidth: 1, borderRadius: 4, paddingHorizontal: 6, paddingVertical: 1 }}>
+                              <Text style={{ fontSize: 10, color: colors.textMuted }}>🖥️ Kein Web</Text>
+                            </View>
+                          )}
+                        </View>
                       </View>
                       <View style={[
                         styles.roleBadge, 
@@ -3576,6 +3871,89 @@ export default function AdminScreen() {
                         </Text>
                       </TouchableOpacity>
                     </View>
+
+                    {/* Chat Moderation (Timeout / Bann) */}
+                    {!isMe && (
+                      <View style={[styles.titleActionRow, { borderTopColor: colors.background, flexDirection: 'column', alignItems: 'stretch', gap: 6 }]}>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <Text style={[styles.actionLabel, { color: colors.textMuted }]}>
+                            Chat-Status:
+                          </Text>
+                          {(() => {
+                            const ban = chatBans.find(b => b.targetUserId === u.id);
+                            const isRestricted = ban && (ban.type === 'permanent' || (ban.type === 'timeout_1d' && (!ban.timeoutUntil || Date.now() < ban.timeoutUntil)));
+                            if (!isRestricted) {
+                              return <Text style={{ fontSize: 11, color: '#10b981', fontWeight: 'bold' }}>🟢 Aktiv</Text>;
+                            }
+                            if (ban.type === 'timeout_1d') {
+                              return <Text style={{ fontSize: 11, color: '#f59e0b', fontWeight: 'bold' }}>⏱️ 1-Tag Timeout aktiv</Text>;
+                            }
+                            return <Text style={{ fontSize: 11, color: '#ef4444', fontWeight: 'bold' }}>🚫 Im Chat gebannt</Text>;
+                          })()}
+                        </View>
+                        <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
+                          {(() => {
+                            const ban = chatBans.find(b => b.targetUserId === u.id);
+                            const isRestricted = ban && (ban.type === 'permanent' || (ban.type === 'timeout_1d' && (!ban.timeoutUntil || Date.now() < ban.timeoutUntil)));
+                            if (isRestricted) {
+                              return (
+                                <TouchableOpacity
+                                  style={{ flex: 1, backgroundColor: '#10b981', paddingVertical: 6, borderRadius: 6, alignItems: 'center', justifyContent: 'center' }}
+                                  onPress={() => handleUnbanUser(u.id, u.name)}
+                                >
+                                  <Text style={{ color: '#ffffff', fontSize: 11, fontWeight: 'bold' }}>🟢 Sperre aufheben</Text>
+                                </TouchableOpacity>
+                              );
+                            }
+                            return (
+                              <>
+                                <TouchableOpacity
+                                  style={{ flex: 1, backgroundColor: '#f59e0b', paddingVertical: 6, borderRadius: 6, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 4 }}
+                                  onPress={() => handleTimeoutUser(u.id, u.name)}
+                                >
+                                  <Clock size={12} color="#ffffff" />
+                                  <Text style={{ color: '#ffffff', fontSize: 11, fontWeight: 'bold' }}>1 Tag Timeout</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                  style={{ flex: 1, backgroundColor: '#ef4444', paddingVertical: 6, borderRadius: 6, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 4 }}
+                                  onPress={() => handleBanUser(u.id, u.name)}
+                                >
+                                  <Ban size={12} color="#ffffff" />
+                                  <Text style={{ color: '#ffffff', fontSize: 11, fontWeight: 'bold' }}>Chat-Bann</Text>
+                                </TouchableOpacity>
+                              </>
+                            );
+                          })()}
+                        </View>
+                      </View>
+                    )}
+
+                    {/* Web-Plattform (4,99 € Zugang) verwalten */}
+                    {!isMe && (
+                      <View style={[styles.titleActionRow, { borderTopColor: colors.background, alignItems: 'center', justifyContent: 'space-between' }]}>
+                        <Text style={[styles.actionLabel, { color: colors.textMuted }]}>
+                          Web-Version:
+                        </Text>
+                        <TouchableOpacity
+                          style={{
+                            backgroundColor: mockDb.isUserWebUnlocked(u, roles) ? (isDark ? '#7f1d1d35' : '#fee2e2') : (isDark ? '#064e3b35' : '#ecfdf5'),
+                            borderWidth: 1,
+                            borderColor: mockDb.isUserWebUnlocked(u, roles) ? '#fca5a5' : '#86efac',
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            paddingHorizontal: 10,
+                            paddingVertical: 6,
+                            borderRadius: 6,
+                            gap: 4
+                          }}
+                          onPress={() => handleToggleWebAccess(u.id, u.name, mockDb.isUserWebUnlocked(u, roles))}
+                        >
+                          <Text style={{ color: mockDb.isUserWebUnlocked(u, roles) ? '#ef4444' : '#10b981', fontSize: 11, fontWeight: 'bold' }}>
+                            {mockDb.isUserWebUnlocked(u, roles) ? '🚫 Web-Zugang entziehen' : '⚡ Web freischalten (4,99 €)'}
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
 
                     {/* Benutzer dauerhaft löschen (nur für andere Accounts) */}
                     {!isMe && (
@@ -3744,6 +4122,116 @@ export default function AdminScreen() {
                           <Trash2 size={15} color="#ffffff" />
                         </TouchableOpacity>
                       )}
+                    </View>
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
+          )}
+
+          {userSubTab === 'webkeys' && (
+            <ScrollView 
+              keyboardDismissMode="on-drag"
+              contentContainerStyle={[styles.scrollContent, { paddingBottom: 60 }]} 
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
+              {/* KEY GENERATOR KARTE */}
+              <View style={[styles.card, { backgroundColor: colors.cardBg, borderColor: colors.border, marginBottom: 20 }]}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                  <KeyRound size={22} color={colors.primary} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.cardTitle, { color: colors.text, marginBottom: 2 }]}>
+                      Web-Zugang Lizenz-Codes (4,99 €)
+                    </Text>
+                    <Text style={{ fontSize: 12, color: colors.textMuted }}>
+                      Aktivierungscodes für PayPal-Käufer. Jeder Code schaltet einen Account dauerhaft im Web frei.
+                    </Text>
+                  </View>
+                </View>
+
+                <TouchableOpacity
+                  style={{
+                    backgroundColor: colors.primary,
+                    paddingVertical: 12,
+                    paddingHorizontal: 16,
+                    borderRadius: 10,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8,
+                    marginTop: 8
+                  }}
+                  onPress={handleGenerateWebKeys}
+                  activeOpacity={0.8}
+                >
+                  <Plus size={16} color="#ffffff" />
+                  <Text style={{ color: '#ffffff', fontWeight: 'bold', fontSize: 14 }}>
+                    + 3 neue Lizenz-Keys generieren
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              <Text style={[styles.secTitle, { color: colors.text }]}>
+                Verfügbare & eingelöste Codes ({webKeysList.length})
+              </Text>
+
+              {webKeysList.map((k, idx) => (
+                <View
+                  key={idx}
+                  style={[
+                    styles.userCard,
+                    {
+                      backgroundColor: colors.cardBg,
+                      borderColor: k.isRedeemed ? colors.border : '#10b981',
+                      borderWidth: k.isRedeemed ? 1 : 1.5,
+                      marginBottom: 10,
+                      opacity: k.isRedeemed ? 0.7 : 1
+                    }
+                  ]}
+                >
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 16, fontWeight: 'bold', letterSpacing: 1.2, color: colors.text }}>
+                        {k.key}
+                      </Text>
+                      <Text style={{ fontSize: 11, color: colors.textMuted, marginTop: 4 }}>
+                        {k.isRedeemed 
+                          ? `Eingelöst von Benutzer: ${k.redeemedBy || 'Unbekannt'}`
+                          : 'Gültig für 1x Web-Freischaltung (4,99 €)'}
+                      </Text>
+                    </View>
+
+                    <View style={{ alignItems: 'flex-end', gap: 6 }}>
+                      {k.isRedeemed ? (
+                        <View style={{ backgroundColor: '#f1f5f9', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 }}>
+                          <Text style={{ fontSize: 11, fontWeight: 'bold', color: '#64748b' }}>Bereits eingelöst</Text>
+                        </View>
+                      ) : (
+                        <View style={{ backgroundColor: '#dcfce7', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, borderWidth: 1, borderColor: '#86efac' }}>
+                          <Text style={{ fontSize: 11, fontWeight: 'bold', color: '#166534' }}>⚡ Bereit zum Senden</Text>
+                        </View>
+                      )}
+
+                      <TouchableOpacity
+                        style={{
+                          backgroundColor: isDark ? '#1e293b' : '#e2e8f0',
+                          paddingHorizontal: 10,
+                          paddingVertical: 5,
+                          borderRadius: 6,
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          gap: 4
+                        }}
+                        onPress={() => {
+                          if (Platform.OS === 'web' && typeof navigator !== 'undefined' && navigator.clipboard) {
+                            navigator.clipboard.writeText(k.key);
+                          }
+                          Alert.alert('Code kopiert 📋', `Der Lizenz-Key wurde kopiert:\n\n${k.key}`);
+                        }}
+                      >
+                        <Text style={{ fontSize: 11, fontWeight: '600', color: colors.text }}>📋 Kopieren</Text>
+                      </TouchableOpacity>
                     </View>
                   </View>
                 </View>
@@ -4200,22 +4688,42 @@ export default function AdminScreen() {
 
                     {/* Admin Aktionen */}
                     {report.status === 'pending' && (
-                      <View style={{ flexDirection: 'row', gap: 10 }}>
-                        <TouchableOpacity
-                          style={[styles.smallActionBtn, { flex: 1, backgroundColor: colors.background, borderColor: colors.border, borderWidth: 1 }]}
-                          onPress={() => handleDismissChatReport(report.id)}
-                        >
-                          <Check size={14} color="#10b981" style={{ marginRight: 6 }} />
-                          <Text style={{ color: colors.text, fontWeight: 'bold', fontSize: 12 }}>Meldung verwerfen</Text>
-                        </TouchableOpacity>
+                      <View style={{ gap: 8 }}>
+                        <View style={{ flexDirection: 'row', gap: 10 }}>
+                          <TouchableOpacity
+                            style={[styles.smallActionBtn, { flex: 1, backgroundColor: colors.background, borderColor: colors.border, borderWidth: 1 }]}
+                            onPress={() => handleDismissChatReport(report.id)}
+                          >
+                            <Check size={14} color="#10b981" style={{ marginRight: 6 }} />
+                            <Text style={{ color: colors.text, fontWeight: 'bold', fontSize: 12 }}>Meldung verwerfen</Text>
+                          </TouchableOpacity>
 
-                        <TouchableOpacity
-                          style={[styles.smallActionBtn, { flex: 1, backgroundColor: '#ef4444' }]}
-                          onPress={() => handleDeleteReportedChatMessage(report.id, report.messageId)}
-                        >
-                          <Trash2 size={14} color="#ffffff" style={{ marginRight: 6 }} />
-                          <Text style={{ color: '#ffffff', fontWeight: 'bold', fontSize: 12 }}>Nachricht löschen</Text>
-                        </TouchableOpacity>
+                          <TouchableOpacity
+                            style={[styles.smallActionBtn, { flex: 1, backgroundColor: '#ef4444' }]}
+                            onPress={() => handleDeleteReportedChatMessage(report.id, report.messageId)}
+                          >
+                            <Trash2 size={14} color="#ffffff" style={{ marginRight: 6 }} />
+                            <Text style={{ color: '#ffffff', fontWeight: 'bold', fontSize: 12 }}>Nachricht löschen</Text>
+                          </TouchableOpacity>
+                        </View>
+
+                        <View style={{ flexDirection: 'row', gap: 10 }}>
+                          <TouchableOpacity
+                            style={[styles.smallActionBtn, { flex: 1, backgroundColor: '#f59e0b' }]}
+                            onPress={() => handleTimeoutUser(report.messageSenderId, report.messageSenderName)}
+                          >
+                            <Clock size={14} color="#ffffff" style={{ marginRight: 6 }} />
+                            <Text style={{ color: '#ffffff', fontWeight: 'bold', fontSize: 12 }}>⏱️ 1 Tag Timeout</Text>
+                          </TouchableOpacity>
+
+                          <TouchableOpacity
+                            style={[styles.smallActionBtn, { flex: 1, backgroundColor: '#b91c1c' }]}
+                            onPress={() => handleBanUser(report.messageSenderId, report.messageSenderName)}
+                          >
+                            <Ban size={14} color="#ffffff" style={{ marginRight: 6 }} />
+                            <Text style={{ color: '#ffffff', fontWeight: 'bold', fontSize: 12 }}>🚫 Chat-Bann</Text>
+                          </TouchableOpacity>
+                        </View>
                       </View>
                     )}
                   </View>
@@ -4902,6 +5410,112 @@ export default function AdminScreen() {
           )}
         </TouchableOpacity>
       </Modal>
+
+      {/* MODAL: ZUSÄTZLICHES SYMBOL HINZUFÜGEN */}
+      <Modal
+        visible={showAddIconModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowAddIconModal(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={[styles.customIconModalBox, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
+            <View style={styles.customIconModalHeader}>
+              <Text style={[styles.modalTitleText, { color: colors.text }]}>Zusätzliches Symbol hinzufügen</Text>
+              <TouchableOpacity onPress={() => setShowAddIconModal(false)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <X size={20} color={colors.textMuted} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={{ fontSize: 13, color: colors.textMuted, marginBottom: 14, lineHeight: 18 }}>
+              Wähle ein Eisenbahn- oder Technik-Emoji oder einen Lucide-Icon-Namen aus. Das Symbol wird gespeichert und steht dauerhaft für Kategorien zur Verfügung.
+            </Text>
+
+            {/* Typ-Auswahl */}
+            <View style={styles.iconTypeToggleRow}>
+              <TouchableOpacity
+                style={[
+                  styles.iconTypeToggleBtn,
+                  newIconType === 'lucide' && { backgroundColor: colors.primary, borderColor: colors.primary }
+                ]}
+                onPress={() => setNewIconType('lucide')}
+              >
+                <Text style={[styles.iconTypeToggleText, { color: newIconType === 'lucide' ? '#ffffff' : colors.text }]}>
+                  Lucide Icon (z.B. TrainFront)
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.iconTypeToggleBtn,
+                  newIconType === 'emoji' && { backgroundColor: colors.primary, borderColor: colors.primary }
+                ]}
+                onPress={() => setNewIconType('emoji')}
+              >
+                <Text style={[styles.iconTypeToggleText, { color: newIconType === 'emoji' ? '#ffffff' : colors.text }]}>
+                  Emoji (z.B. 🚂, 🚦, ⛽)
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Input */}
+            <Text style={[styles.formLabel, { color: colors.text, marginTop: 12 }]}>
+              {newIconType === 'emoji' ? 'Emoji' : 'Icon-Name'}
+            </Text>
+            <TextInput
+              style={[styles.input, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
+              placeholder={newIconType === 'emoji' ? 'z.B. 🚂 oder 🚦 oder ⛽' : 'z.B. TrainFront, Flame, Zap, Shield, Key'}
+              placeholderTextColor={colors.textMuted}
+              value={newIconInput}
+              onChangeText={setNewIconInput}
+              autoCapitalize={newIconType === 'emoji' ? 'none' : 'words'}
+            />
+
+            <Text style={[styles.formLabel, { color: colors.text, marginTop: 12 }]}>
+              Anzeigename / Beschriftung (optional)
+            </Text>
+            <TextInput
+              style={[styles.input, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
+              placeholder="z.B. Schnellzug, Hochspannung, Diesel..."
+              placeholderTextColor={colors.textMuted}
+              value={newIconLabel}
+              onChangeText={setNewIconLabel}
+            />
+
+            {/* Vorschau */}
+            <View style={[styles.iconPreviewBox, { backgroundColor: colors.background, borderColor: colors.border }]}>
+              <Text style={{ fontSize: 12, color: colors.textMuted, marginRight: 12 }}>Vorschau:</Text>
+              <CategoryIcon icon={newIconInput.trim() || 'Lokomotive'} size={28} color={formCatColor} />
+              <Text style={{ fontSize: 14, fontWeight: 'bold', color: colors.text, marginLeft: 12 }}>
+                {newIconLabel.trim() || newIconInput.trim() || 'Vorschau'}
+              </Text>
+            </View>
+
+            {/* Buttons */}
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 18 }}>
+              <TouchableOpacity
+                style={[styles.formBtn, styles.cancelBtn, { borderColor: colors.border, flex: 1 }]}
+                onPress={() => setShowAddIconModal(false)}
+              >
+                <Text style={{ color: colors.text, fontWeight: 'bold' }}>Abbrechen</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.formBtn, styles.saveBtn, { backgroundColor: colors.primary, flex: 1.4 }]}
+                onPress={handleAddCustomIcon}
+                disabled={addingIcon}
+              >
+                {addingIcon ? (
+                  <ActivityIndicator size="small" color="#ffffff" />
+                ) : (
+                  <>
+                    <Check size={16} color="#ffffff" />
+                    <Text style={{ color: '#ffffff', fontWeight: 'bold' }}>Hinzufügen</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -5418,5 +6032,128 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     marginTop: 10,
+  },
+  selectedIconCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 12,
+  },
+  selectedIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addCustomIconHeaderBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  iconFilterTabsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: 12,
+  },
+  iconFilterTab: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#6b728030',
+  },
+  iconFilterTabText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  iconGridContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 16,
+  },
+  iconTile: {
+    width: '23%',
+    minWidth: 70,
+    aspectRatio: 1,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 6,
+    position: 'relative',
+  },
+  iconTileInner: {
+    marginBottom: 4,
+  },
+  iconTileLabel: {
+    fontSize: 10,
+    textAlign: 'center',
+  },
+  deleteCustomIconBtn: {
+    position: 'absolute',
+    top: 3,
+    right: 3,
+    backgroundColor: '#ef444422',
+    borderRadius: 6,
+    padding: 2,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  customIconModalBox: {
+    width: '100%',
+    maxWidth: 440,
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 18,
+  },
+  customIconModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  modalTitleText: {
+    fontSize: 17,
+    fontWeight: 'bold',
+  },
+  iconTypeToggleRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 6,
+  },
+  iconTypeToggleBtn: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#6b728030',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconTypeToggleText: {
+    fontSize: 12,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  iconPreviewBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    marginTop: 14,
   },
 });

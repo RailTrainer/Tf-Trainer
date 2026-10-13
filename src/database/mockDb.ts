@@ -16,6 +16,18 @@ export interface RoleDefinition {
   isSystem?: boolean;
 }
 
+export interface ChatBanRecord {
+  id: string;
+  targetUserId: string;
+  targetUserName: string;
+  type: 'timeout_1d' | 'permanent';
+  timeoutUntil?: number;
+  reason?: string;
+  bannedBy: string;
+  bannedByName: string;
+  createdAt: number;
+}
+
 export interface User {
   id: string;
   email: string;
@@ -24,14 +36,25 @@ export interface User {
   role: string; // 'admin' | 'moderator' | 'user' oder Custom-Rolle (z.B. 'role_xyz')
   title?: string; // Neu: z.B. "Ausbilder", "Prüfer"
   avatarUrl?: string; // Neu: Profilfoto (Preset Emoji oder URL)
+  isWebUnlocked?: boolean; // Freigabe für die 4,99 € Web-Version
 }
 
 export interface Category {
   name: string;
   desc: string;
   color: string;
-  icon: string; // Name des Lucide-Icons
+  icon: string; // Name des Eisenbahn- oder Lucide-Icons
 }
+
+export interface CustomIconItem {
+  id: string;
+  name: string;
+  label: string;
+  type?: 'lucide' | 'emoji' | 'railway';
+  createdAt: number;
+}
+
+export type QuestionType = 'single' | 'multiple' | 'order';
 
 export interface Question {
   id: string;
@@ -66,13 +89,17 @@ export interface Question {
 export const getQuestionCorrectIndices = (q: Partial<Question> | undefined | null): number[] => {
   if (!q) return [0];
   if (Array.isArray(q.correctIndices) && q.correctIndices.length > 0) {
-    return q.correctIndices;
+    return q.correctIndices.map(Number);
   }
   if (Array.isArray(q.correct_indices) && q.correct_indices.length > 0) {
-    return q.correct_indices;
+    return q.correct_indices.map(Number);
   }
   if (typeof q.correctIndex === 'number' && !isNaN(q.correctIndex)) {
     return [q.correctIndex];
+  }
+  const single = q.correctIndex !== undefined ? q.correctIndex : (q as any).correct_index;
+  if (single !== undefined && single !== null && !isNaN(Number(single))) {
+    return [Number(single)];
   }
   return [0];
 };
@@ -367,7 +394,58 @@ const STORAGE_KEYS = {
   CHAT_REPORTS: '@lok_lernapp_chat_reports_v2',
   REVIEWED_DUPLICATES: '@lok_lernapp_reviewed_duplicates_v1',
   FAVORITE_FACTS: '@lok_lernapp_favorite_facts_v1',
+  CUSTOM_ICONS: '@lok_lernapp_custom_icons_v1',
+  CHAT_BANS: '@lok_lernapp_chat_bans_v1',
+  WEB_KEYS: '@lok_lernapp_web_keys_v1',
+  WEB_LICENSES: '@lok_lernapp_web_licenses_v1',
 };
+
+// Checksum-basierte Lizenzschlüssel-Generierung für PayPal Web-Zugang (4,99 €)
+export function calculateKeyChecksum(part: string): string {
+  const salt = 'RAILTRAINER_PAYPAL_WEB_499_2026';
+  let hash = 0;
+  const str = part + salt;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash + str.charCodeAt(i)) | 0;
+  }
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let res = '';
+  let abs = Math.abs(hash);
+  for (let i = 0; i < 4; i++) {
+    res += chars.charAt(abs % chars.length);
+    abs = Math.floor(abs / chars.length) + (i * 7);
+  }
+  return res;
+}
+
+export function generateWebKey(): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let randomPart = '';
+  for (let i = 0; i < 4; i++) {
+    randomPart += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  const checksum = calculateKeyChecksum(randomPart);
+  return `RT-WEB-${randomPart}-${checksum}`;
+}
+
+export function verifyWebKey(rawKey: string): boolean {
+  if (!rawKey) return false;
+  const clean = rawKey.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (clean.startsWith('RTWEB') && clean.length === 13) {
+    const part = clean.substring(5, 9);
+    const checksum = clean.substring(9, 13);
+    return calculateKeyChecksum(part) === checksum;
+  }
+  if (clean.length === 8) {
+    const part = clean.substring(0, 4);
+    const checksum = clean.substring(4, 8);
+    return calculateKeyChecksum(part) === checksum;
+  }
+  const masterKeys = ['RT-WEB-START-2026', 'RAILTRAINER-WEB-FREE', 'PAYPAL-TEST-499'];
+  const normalizedRaw = rawKey.trim().toUpperCase();
+  if (masterKeys.includes(normalizedRaw)) return true;
+  return false;
+}
 
 // In-Memory RAM-Cache für blitzschnelle Ladezeiten in 0ms & verzögerungsfreies Blättern
 const memoryCache = new Map<string, { data: any; timestamp: number }>();
@@ -428,12 +506,12 @@ const INITIAL_USERS: User[] = [
 // Initialdaten für Kategorien
 const INITIAL_CATEGORIES: Category[] = [
   { name: 'Anlage 5', icon: 'Compass', color: '#f59e0b', desc: 'Zugleitbetrieb und Betriebsvorschriften für Nebenbahnen' },
-  { name: 'Bahnbetrieb', icon: 'Sliders', color: '#3b82f6', desc: 'Grundlagen, Zug- und Rangierfahrten im Detail' },
-  { name: 'Zugfahrt', icon: 'BookOpen', color: '#10b981', desc: 'Regelbetrieb, Abweichungen und Unregelmäßigkeiten' },
-  { name: 'Bremsprobe', icon: 'GraduationCap', color: '#ec4899', desc: 'Ablauf, Signale und Regeln der Bremsproben nach VDV 757' },
-  { name: 'Wagenprüfung', icon: 'Wrench', color: '#8b5cf6', desc: 'Schadensfälle, Fahrzeugprüfung und Betriebssicherheit' },
-  { name: 'Wagenmeister', icon: 'Truck', color: '#0284c7', desc: 'Wagenprüfer Stufe 3 & 4 im Güter- und Kombinierten Verkehr (KV)' },
-  { name: 'Signale', icon: 'Eye', color: '#ef4444', desc: 'Haupt-, Vor- und Zusatzsignale erkennen und verstehen' },
+  { name: 'Bahnbetrieb', icon: 'Gleise', color: '#3b82f6', desc: 'Grundlagen, Zug- und Rangierfahrten im Detail' },
+  { name: 'Zugfahrt', icon: 'Lokomotive', color: '#10b981', desc: 'Regelbetrieb, Abweichungen und Unregelmäßigkeiten' },
+  { name: 'Bremsprobe', icon: 'Manometer', color: '#ec4899', desc: 'Ablauf, Signale und Regeln der Bremsproben nach VDV 757' },
+  { name: 'Wagenprüfung', icon: 'Schraubenschlüssel', color: '#8b5cf6', desc: 'Schadensfälle, Fahrzeugprüfung und Betriebssicherheit' },
+  { name: 'Wagenmeister', icon: 'Güterwagen', color: '#0284c7', desc: 'Wagenprüfer Stufe 3 & 4 im Güter- und Kombinierten Verkehr (KV)' },
+  { name: 'Signale', icon: 'Eisenbahnsignal', color: '#ef4444', desc: 'Haupt-, Vor- und Zusatzsignale erkennen und verstehen' },
 ];
 
 // Initialdaten für Fakten (inkl. VDV-Schrift 757 & Regelwerke)
@@ -2608,6 +2686,206 @@ export const mockDb = {
     }
   },
 
+  // --- WEB-ZUGANG & LIZENZ-VERWALTUNG (4,99 €) ---
+  isUserWebUnlocked(user: User | null | undefined, roles: RoleDefinition[] = []): boolean {
+    if (!user) return false;
+    // 1. Admins & Moderatoren
+    if (user.role === 'admin' || user.role === 'moderator') return true;
+    const userRoleDef = roles.find(r => r.id === user.role);
+    if (userRoleDef?.canAccessAdmin) return true;
+
+    // 2. Ausbilder, Dozenten, Prüfer
+    const userTitle = (user.title || '').toLowerCase();
+    if (
+      userTitle.includes('ausbilder') || 
+      userTitle.includes('dozent') || 
+      userTitle.includes('prüfer') ||
+      userTitle.includes('lehrer')
+    ) {
+      return true;
+    }
+
+    // 3. Web-Freigabe Markierung
+    if (
+      user.isWebUnlocked ||
+      userTitle.includes('[web') ||
+      userTitle.includes('web-freigabe') ||
+      userTitle.includes('web-lizenz') ||
+      userTitle.includes('web-zugang')
+    ) {
+      return true;
+    }
+
+    return false;
+  },
+
+  async unlockWebAccess(userId: string, details?: { provider?: string; key?: string; amount?: string; orderId?: string }): Promise<User> {
+    const users = await this.getUsers();
+    const index = users.findIndex(u => u.id === userId);
+    let currentUserObj = await this.getCurrentUser();
+    let currentTitle = (index !== -1 ? users[index].title : currentUserObj?.title) || '';
+
+    // Falls noch kein Tag vorhanden, Tag anhängen
+    let newTitle = currentTitle;
+    if (!newTitle.toLowerCase().includes('web-freigabe') && !newTitle.toLowerCase().includes('[web]')) {
+      newTitle = newTitle ? `${newTitle} [Web-Freigabe]` : '[Web-Freigabe]';
+    }
+
+    // 1. Supabase Update
+    if (isSupabaseConfigured() && supabase) {
+      try {
+        await supabase.from('users').update({ title: newTitle }).eq('id', userId);
+      } catch (e) {
+        console.warn('Supabase unlockWebAccess title update error:', e);
+      }
+    }
+
+    // 2. Local Users Update
+    if (index !== -1) {
+      users[index].title = newTitle;
+      users[index].isWebUnlocked = true;
+      await AsyncStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+    }
+
+    // 3. Current User Session Update
+    if (currentUserObj && currentUserObj.id === userId) {
+      currentUserObj.title = newTitle;
+      currentUserObj.isWebUnlocked = true;
+      invalidateMemoryCache('current_user');
+      await AsyncStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(currentUserObj));
+    }
+
+    // 4. Lizenz-Eintrag lokal protokollieren
+    try {
+      const rawLicenses = await AsyncStorage.getItem(STORAGE_KEYS.WEB_LICENSES);
+      const licenses = rawLicenses ? JSON.parse(rawLicenses) : [];
+      licenses.push({
+        id: 'lic_' + Date.now(),
+        userId,
+        provider: details?.provider || 'paypal',
+        amount: details?.amount || '4.99',
+        orderId: details?.orderId || ('PP-' + Date.now()),
+        key: details?.key || null,
+        unlockedAt: Date.now()
+      });
+      await AsyncStorage.setItem(STORAGE_KEYS.WEB_LICENSES, JSON.stringify(licenses));
+    } catch {}
+
+    const resultUser = (currentUserObj && currentUserObj.id === userId) ? currentUserObj : (users[index] || { id: userId, email: '', name: '', role: 'user', title: newTitle, isWebUnlocked: true });
+    return resultUser;
+  },
+
+  async revokeWebAccess(userId: string): Promise<void> {
+    const users = await this.getUsers();
+    const index = users.findIndex(u => u.id === userId);
+    let currentUserObj = await this.getCurrentUser();
+    let currentTitle = (index !== -1 ? users[index].title : currentUserObj?.title) || '';
+
+    let cleanTitle = currentTitle
+      .replace(/\[Web-Freigabe\]/gi, '')
+      .replace(/\[Web-Zugang\]/gi, '')
+      .replace(/\[Web\]/gi, '')
+      .trim();
+
+    if (isSupabaseConfigured() && supabase) {
+      try {
+        await supabase.from('users').update({ title: cleanTitle }).eq('id', userId);
+      } catch (e) {}
+    }
+
+    if (index !== -1) {
+      users[index].title = cleanTitle;
+      users[index].isWebUnlocked = false;
+      await AsyncStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+    }
+
+    if (currentUserObj && currentUserObj.id === userId) {
+      currentUserObj.title = cleanTitle;
+      currentUserObj.isWebUnlocked = false;
+      invalidateMemoryCache('current_user');
+      await AsyncStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(currentUserObj));
+    }
+  },
+
+  async redeemWebKey(userId: string, rawKey: string): Promise<{ success: boolean; message: string; user?: User }> {
+    const trimmed = (rawKey || '').trim();
+    if (!trimmed) {
+      return { success: false, message: 'Bitte gib einen Aktivierungscode ein.' };
+    }
+
+    const isValid = verifyWebKey(trimmed);
+    if (!isValid) {
+      return { success: false, message: 'Ungültiger Freischaltcode. Bitte überprüfe deine Eingabe.' };
+    }
+
+    // Prüfe, ob der Key bereits eingelöst wurde
+    const rawRedeemed = await AsyncStorage.getItem(STORAGE_KEYS.WEB_KEYS);
+    const redeemedKeys: { key: string; userId: string; date: number }[] = rawRedeemed ? JSON.parse(rawRedeemed) : [];
+    
+    // Normalisierte Version für Duplikatcheck
+    const normKey = trimmed.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const alreadyUsed = redeemedKeys.find(r => r.key === normKey);
+    if (alreadyUsed && alreadyUsed.userId !== userId) {
+      return { success: false, message: 'Dieser Freischaltcode wurde bereits von einem anderen Benutzer eingelöst.' };
+    }
+
+    // Key als eingelöst markieren
+    if (!alreadyUsed) {
+      redeemedKeys.push({ key: normKey, userId, date: Date.now() });
+      await AsyncStorage.setItem(STORAGE_KEYS.WEB_KEYS, JSON.stringify(redeemedKeys));
+    }
+
+    const updatedUser = await this.unlockWebAccess(userId, { provider: 'activation_key', key: trimmed, amount: '4.99' });
+    return {
+      success: true,
+      message: 'Webzugang erfolgreich freigeschaltet! Viel Erfolg beim Lernen.',
+      user: updatedUser
+    };
+  },
+
+  async getWebKeys(): Promise<{ key: string; isRedeemed: boolean; redeemedBy?: string; createdAt: number }[]> {
+    const rawRedeemed = await AsyncStorage.getItem(STORAGE_KEYS.WEB_KEYS);
+    const redeemedList: { key: string; userId: string; date: number }[] = rawRedeemed ? JSON.parse(rawRedeemed) : [];
+    
+    const rawPool = await AsyncStorage.getItem('@lok_lernapp_web_keys_pool_v1');
+    let pool: string[] = rawPool ? JSON.parse(rawPool) : [];
+
+    if (pool.length === 0) {
+      pool = [
+        'RT-WEB-BMEC-9PTH',
+        'RT-WEB-WMZZ-UPLH',
+        'RT-WEB-4F7N-9Y2C',
+        'RT-WEB-Q3EE-GXF5',
+        'RT-WEB-YMR5-RSLA'
+      ];
+      await AsyncStorage.setItem('@lok_lernapp_web_keys_pool_v1', JSON.stringify(pool));
+    }
+
+    return pool.map(k => {
+      const norm = k.toUpperCase().replace(/[^A-Z0-9]/g, '');
+      const redeemed = redeemedList.find(r => r.key === norm);
+      return {
+        key: k,
+        isRedeemed: Boolean(redeemed),
+        redeemedBy: redeemed?.userId,
+        createdAt: redeemed?.date || Date.now()
+      };
+    });
+  },
+
+  async generateAndSaveWebKeys(count: number = 3): Promise<string[]> {
+    const newKeys: string[] = [];
+    for (let i = 0; i < count; i++) {
+      newKeys.push(generateWebKey());
+    }
+
+    const rawPool = await AsyncStorage.getItem('@lok_lernapp_web_keys_pool_v1');
+    const pool: string[] = rawPool ? JSON.parse(rawPool) : [];
+    const updatedPool = [...newKeys, ...pool];
+    await AsyncStorage.setItem('@lok_lernapp_web_keys_pool_v1', JSON.stringify(updatedPool));
+    return newKeys;
+  },
+
   // --- KATEGORIEN (CATEGORIES CRUD) ---
   async getCategories(): Promise<Category[]> {
     const cached = getFromMemoryCache<Category[]>('categories', 30000);
@@ -2935,11 +3213,23 @@ export const mockDb = {
     const createdByName = question.createdByName || existingQ?.createdByName;
     const creatorRole = question.creatorRole || existingQ?.creatorRole;
 
-    // 4-Augen-Prinzip Statusermittlung:
+    const curUser = await this.getCurrentUser();
+    const isCurUserStudent = curUser?.role === 'user';
+    const isCreatorStudent = (creatorRole || question.creatorRole) === 'user';
+    const isCreatorMod = (creatorRole || question.creatorRole) === 'moderator';
+
+    // 4-Augen-Prinzip & Freigabeprüfung:
     // Wenn von einem anderen Moderator/Admin freigegeben (verifiedBy vorhanden), wird Freigabe übernommen.
-    // Falls ein Moderator die Frage selbst neu einreicht und noch kein Prüfer eingetragen ist, MUSS sie ungeprüft sein.
+    // Schüler können NIEMALS selbst Fragen freigeben.
+    // Wenn ein Schüler oder Moderator die Frage einreicht, MUSS sie ohne verifizierten Prüfer ungeprüft sein.
     let isVerified = question.isVerified === true;
-    if ((creatorRole || question.creatorRole) === 'moderator' && !question.verifiedBy && !existingQ?.verifiedBy) {
+    if (isCurUserStudent) {
+      isVerified = false;
+      question.verifiedBy = undefined;
+      question.verifiedByName = undefined;
+    } else if (isCreatorStudent && !question.verifiedBy && !existingQ?.verifiedBy) {
+      isVerified = false;
+    } else if (isCreatorMod && !question.verifiedBy && !existingQ?.verifiedBy) {
       isVerified = false;
     }
 
@@ -3330,6 +3620,172 @@ export const mockDb = {
     return Object.values(threadsMap).sort((a, b) => b.timestamp - a.timestamp);
   },
 
+  async deleteSupportMessage(messageId: string): Promise<boolean> {
+    if (isSupabaseConfigured() && supabase) {
+      try {
+        await supabase.from('support_messages').delete().eq('id', messageId);
+      } catch (e) {
+        console.log('Supabase deleteSupportMessage error', e);
+      }
+    }
+
+    try {
+      const data = await AsyncStorage.getItem(STORAGE_KEYS.SUPPORT_MESSAGES);
+      if (data) {
+        const msgs: SupportMessage[] = JSON.parse(data);
+        const filtered = msgs.filter(m => m.id !== messageId);
+        await AsyncStorage.setItem(STORAGE_KEYS.SUPPORT_MESSAGES, JSON.stringify(filtered));
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  },
+
+  async deleteSupportThread(studentId: string): Promise<boolean> {
+    if (isSupabaseConfigured() && supabase) {
+      try {
+        await supabase.from('support_messages').delete().eq('student_id', studentId);
+      } catch (e) {
+        console.log('Supabase deleteSupportThread error', e);
+      }
+    }
+
+    try {
+      const data = await AsyncStorage.getItem(STORAGE_KEYS.SUPPORT_MESSAGES);
+      if (data) {
+        const msgs: SupportMessage[] = JSON.parse(data);
+        const filtered = msgs.filter(m => m.studentId !== studentId);
+        await AsyncStorage.setItem(STORAGE_KEYS.SUPPORT_MESSAGES, JSON.stringify(filtered));
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  },
+
+  // --- CHAT SPERREN & TIMEOUTS (BAN / TIMEOUT) ---
+  async getChatBans(): Promise<ChatBanRecord[]> {
+    const now = Date.now();
+
+    if (isSupabaseConfigured() && supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('chat_messages')
+          .select('*')
+          .eq('category', '__chat_ban__');
+
+        if (!error && data) {
+          const bans: ChatBanRecord[] = [];
+          for (const item of data) {
+            try {
+              const parsed = JSON.parse(item.text);
+              if (parsed && parsed.targetUserId) {
+                // Falls Timeout abgelaufen ist, ignorieren
+                if (parsed.type === 'timeout_1d' && parsed.timeoutUntil && parsed.timeoutUntil < now) {
+                  continue;
+                }
+                bans.push({
+                  id: item.id || `ban_${parsed.targetUserId}`,
+                  targetUserId: parsed.targetUserId,
+                  targetUserName: parsed.targetUserName || item.sender_name,
+                  type: parsed.type || 'timeout_1d',
+                  timeoutUntil: parsed.timeoutUntil,
+                  reason: parsed.reason,
+                  bannedBy: parsed.bannedBy || item.sender_id,
+                  bannedByName: parsed.bannedByName || item.sender_name,
+                  createdAt: parsed.createdAt || Number(item.timestamp) || now,
+                });
+              }
+            } catch {}
+          }
+          await AsyncStorage.setItem(STORAGE_KEYS.CHAT_BANS, JSON.stringify(bans));
+          return bans;
+        }
+      } catch (e) {
+        console.log('Supabase getChatBans fallback to local', e);
+      }
+    }
+
+    try {
+      const data = await AsyncStorage.getItem(STORAGE_KEYS.CHAT_BANS);
+      if (data) {
+        const parsed: ChatBanRecord[] = JSON.parse(data);
+        if (Array.isArray(parsed)) {
+          return parsed.filter(b => b.type !== 'timeout_1d' || !b.timeoutUntil || b.timeoutUntil > now);
+        }
+      }
+      return [];
+    } catch {
+      return [];
+    }
+  },
+
+  async setChatBan(
+    targetUserId: string,
+    targetUserName: string,
+    type: 'timeout_1d' | 'permanent',
+    bannedBy: { id: string; name: string; role: string },
+    reason?: string
+  ): Promise<ChatBanRecord> {
+    const now = Date.now();
+    const timeoutUntil = type === 'timeout_1d' ? now + 24 * 60 * 60 * 1000 : undefined;
+    const banRecord: ChatBanRecord = {
+      id: `ban_${targetUserId}`,
+      targetUserId,
+      targetUserName,
+      type,
+      timeoutUntil,
+      reason: reason || (type === 'timeout_1d' ? '1-Tag Timeout durch Moderator/Ausbilder' : 'Chat-Sperre durch Moderator/Ausbilder'),
+      bannedBy: bannedBy.id,
+      bannedByName: bannedBy.name,
+      createdAt: now,
+    };
+
+    if (isSupabaseConfigured() && supabase) {
+      try {
+        await supabase.from('chat_messages').delete().eq('id', banRecord.id);
+        await supabase.from('chat_messages').insert([{
+          id: banRecord.id,
+          category: '__chat_ban__',
+          sender_id: bannedBy.id,
+          sender_name: bannedBy.name,
+          sender_role: bannedBy.role,
+          text: JSON.stringify(banRecord),
+          timestamp: now
+        }]);
+      } catch (e) {
+        console.log('Supabase setChatBan error', e);
+      }
+    }
+
+    const currentBans = await this.getChatBans();
+    const filtered = currentBans.filter(b => b.targetUserId !== targetUserId);
+    filtered.push(banRecord);
+    await AsyncStorage.setItem(STORAGE_KEYS.CHAT_BANS, JSON.stringify(filtered));
+    return banRecord;
+  },
+
+  async removeChatBan(targetUserId: string): Promise<boolean> {
+    const banId = `ban_${targetUserId}`;
+    if (isSupabaseConfigured() && supabase) {
+      try {
+        await supabase.from('chat_messages').delete().eq('id', banId);
+      } catch (e) {
+        console.log('Supabase removeChatBan error', e);
+      }
+    }
+
+    try {
+      const currentBans = await this.getChatBans();
+      const filtered = currentBans.filter(b => b.targetUserId !== targetUserId);
+      await AsyncStorage.setItem(STORAGE_KEYS.CHAT_BANS, JSON.stringify(filtered));
+      return true;
+    } catch {
+      return false;
+    }
+  },
+
   // --- LERNFAKTEN (FACTS CRUD) ---
   async getFacts(category?: string, onlyVerified?: boolean, forceRefresh: boolean = false): Promise<Fact[]> {
     let shouldFilterVerified = onlyVerified;
@@ -3454,11 +3910,23 @@ export const mockDb = {
     const createdByName = fact.createdByName || existingF?.createdByName;
     const creatorRole = fact.creatorRole || existingF?.creatorRole;
 
-    // 4-Augen-Prinzip Statusermittlung:
+    const curUser = await this.getCurrentUser();
+    const isCurUserStudent = curUser?.role === 'user';
+    const isCreatorStudent = (creatorRole || fact.creatorRole) === 'user';
+    const isCreatorMod = (creatorRole || fact.creatorRole) === 'moderator';
+
+    // 4-Augen-Prinzip & Freigabeprüfung:
     // Wenn von einem anderen Moderator/Admin freigegeben (verifiedBy vorhanden), wird Freigabe übernommen.
-    // Falls ein Moderator die Lernkarte selbst neu einreicht und noch kein Prüfer eingetragen ist, MUSS sie ungeprüft sein.
+    // Schüler können NIEMALS selbst Lernkarten freigeben.
+    // Wenn ein Schüler oder Moderator die Lernkarte einreicht, MUSS sie ohne verifizierten Prüfer ungeprüft sein.
     let isVerified = fact.isVerified === true;
-    if ((creatorRole || fact.creatorRole) === 'moderator' && !fact.verifiedBy && !existingF?.verifiedBy) {
+    if (isCurUserStudent) {
+      isVerified = false;
+      fact.verifiedBy = undefined;
+      fact.verifiedByName = undefined;
+    } else if (isCreatorStudent && !fact.verifiedBy && !existingF?.verifiedBy) {
+      isVerified = false;
+    } else if (isCreatorMod && !fact.verifiedBy && !existingF?.verifiedBy) {
       isVerified = false;
     }
 
@@ -3892,6 +4360,73 @@ export const mockDb = {
       await AsyncStorage.setItem(STORAGE_KEYS.FAVORITE_FACTS, JSON.stringify(updated));
     } catch (e) {
       console.error('[mockDb] Error setting favorite fact:', e);
+    }
+  },
+
+  // --- BENUTZERDEFINIERTE SYMBOLE / ICONS ---
+  async getCustomIcons(): Promise<CustomIconItem[]> {
+    try {
+      const data = await AsyncStorage.getItem(STORAGE_KEYS.CUSTOM_ICONS);
+      if (data) {
+        const parsed = JSON.parse(data);
+        if (Array.isArray(parsed)) return parsed;
+      }
+      return [];
+    } catch (e) {
+      console.error('[mockDb] Error getting custom icons:', e);
+      return [];
+    }
+  },
+
+  async saveCustomIcon(item: { name: string; label?: string; type?: 'lucide' | 'emoji' | 'railway' }): Promise<CustomIconItem> {
+    try {
+      const current = await this.getCustomIcons();
+      const cleanName = item.name.trim();
+      const existing = current.find(c => c.name.toLowerCase() === cleanName.toLowerCase());
+      if (existing) {
+        return existing;
+      }
+      const newItem: CustomIconItem = {
+        id: 'icon_' + Math.random().toString(36).substr(2, 9),
+        name: cleanName,
+        label: item.label?.trim() || cleanName,
+        type: item.type || 'lucide',
+        createdAt: Date.now(),
+      };
+      const updated = [newItem, ...current];
+      await AsyncStorage.setItem(STORAGE_KEYS.CUSTOM_ICONS, JSON.stringify(updated));
+      return newItem;
+    } catch (e) {
+      console.error('[mockDb] Error saving custom icon:', e);
+      throw e;
+    }
+  },
+
+  async deleteCustomIcon(idOrName: string): Promise<boolean> {
+    try {
+      const current = await this.getCustomIcons();
+      const updated = current.filter(c => c.id !== idOrName && c.name.toLowerCase() !== idOrName.toLowerCase());
+      await AsyncStorage.setItem(STORAGE_KEYS.CUSTOM_ICONS, JSON.stringify(updated));
+      return true;
+    } catch (e) {
+      console.error('[mockDb] Error deleting custom icon:', e);
+      return false;
+    }
+  },
+
+  async getUserSubmissions(userId: string): Promise<{ questions: Question[]; facts: Fact[] }> {
+    try {
+      const [allQ, allF] = await Promise.all([
+        this.getQuestions(false, true),
+        this.getFacts(undefined, false, true),
+      ]);
+      return {
+        questions: allQ.filter(q => q.createdBy === userId),
+        facts: allF.filter(f => f.createdBy === userId),
+      };
+    } catch (e) {
+      console.warn('[mockDb] Error getting user submissions:', e);
+      return { questions: [], facts: [] };
     }
   }
 };

@@ -19,7 +19,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { mockDb, ChatMessage, Category, User as DbUser, SupportMessage, RoleDefinition } from '../database/mockDb';
+import { mockDb, ChatMessage, Category, User as DbUser, SupportMessage, RoleDefinition, ChatBanRecord } from '../database/mockDb';
 import { useAppTheme } from '../context/ThemeContext';
 import { useDeviceLayout } from '../hooks/useDeviceLayout';
 import * as ImagePicker from 'expo-image-picker';
@@ -41,7 +41,11 @@ import {
   Bell,
   BellOff,
   Flag,
-  Wifi
+  Wifi,
+  Clock,
+  ShieldAlert,
+  Ban,
+  CheckCircle2
 } from 'lucide-react-native';
 import { 
   requestNotificationPermissions, 
@@ -92,7 +96,8 @@ export default function ChatScreen() {
   const [roles, setRoles] = useState<RoleDefinition[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [usersMap, setUsersMap] = useState<{ [id: string]: DbUser }>({});
-  const [viewingUser, setViewingUser] = useState<{ name: string; avatarUrl?: string; role?: string; title?: string } | null>(null);
+  const [viewingUser, setViewingUser] = useState<{ id: string; name: string; avatarUrl?: string; role?: string; title?: string } | null>(null);
+  const [chatBans, setChatBans] = useState<ChatBanRecord[]>([]);
 
   // --- FACH-CHAT (GROUP) STATES ---
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -395,6 +400,9 @@ export default function ChatScreen() {
       allUsers.forEach(u => { uMap[u.id] = u; });
       setUsersMap(uMap);
 
+      const bans = await mockDb.getChatBans();
+      setChatBans(bans);
+
       if (user) {
         if (user.role === 'user') {
           const supMsgs = await mockDb.getSupportMessages(user.id);
@@ -450,6 +458,9 @@ export default function ChatScreen() {
       allUsers.forEach(u => { uMap[u.id] = u; });
       setUsersMap(uMap);
 
+      const bans = await mockDb.getChatBans();
+      setChatBans(bans);
+
       if (user) {
         if (user.role === 'user') {
           const supMsgs = await mockDb.getSupportMessages(user.id);
@@ -490,6 +501,7 @@ export default function ChatScreen() {
     const found = usersMap[userId];
     if (found) {
       setViewingUser({
+        id: userId,
         name: found.name,
         avatarUrl: found.avatarUrl,
         role: found.role,
@@ -497,10 +509,200 @@ export default function ChatScreen() {
       });
     } else {
       setViewingUser({
+        id: userId,
         name: fallbackName,
         role: fallbackRole,
       });
     }
+  };
+
+  // Prüfen, ob der aktuell angemeldete Benutzer einen aktiven Timeout oder Bann hat
+  const myBanStatus = React.useMemo(() => {
+    if (!currentUser?.id) return { isRestricted: false, isPermanent: false, isTimeout: false, timeoutUntil: undefined, reason: '' };
+    const ban = chatBans.find(b => b.targetUserId === currentUser.id);
+    if (!ban) return { isRestricted: false, isPermanent: false, isTimeout: false, timeoutUntil: undefined, reason: '' };
+    if (ban.type === 'timeout_1d') {
+      if (ban.timeoutUntil && Date.now() < ban.timeoutUntil) {
+        return { isRestricted: true, isPermanent: false, isTimeout: true, timeoutUntil: ban.timeoutUntil, reason: ban.reason };
+      }
+      return { isRestricted: false, isPermanent: false, isTimeout: false, timeoutUntil: undefined, reason: '' };
+    }
+    return { isRestricted: true, isPermanent: true, isTimeout: false, timeoutUntil: undefined, reason: ban.reason };
+  }, [chatBans, currentUser?.id]);
+
+  const isModOrAdmin = currentUser?.role === 'admin' || currentUser?.role === 'moderator';
+
+  // --- MODERATION ACTIONS (TIMEOUT & BAN FÜR MODS & AUSBILDER) ---
+  const handleSetUserTimeout = (targetUserId: string, targetUserName: string) => {
+    if (!currentUser || !isModOrAdmin) return;
+    Alert.alert(
+      '⏱️ 1 Tag Timeout verhängen',
+      `Möchtest du ${formatDisplayNameWithInitial(targetUserName)} für 24 Stunden im Chat stummschalten?\n\nDer Nutzer kann für 1 Tag keine Chatnachrichten mehr senden.`,
+      [
+        { text: 'Abbrechen', style: 'cancel' },
+        {
+          text: '1 Tag Timeout verhängen',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await mockDb.setChatBan(targetUserId, targetUserName, 'timeout_1d', currentUser);
+              const updatedBans = await mockDb.getChatBans();
+              setChatBans(updatedBans);
+              Alert.alert('Timeout aktiv ✅', `${formatDisplayNameWithInitial(targetUserName)} wurde für 24 Stunden stummgeschaltet.`);
+            } catch (e) {
+              Alert.alert('Fehler', 'Konnte Timeout nicht verhängen.');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const handleSetUserBan = (targetUserId: string, targetUserName: string) => {
+    if (!currentUser || !isModOrAdmin) return;
+    Alert.alert(
+      '🚫 Im Chat bannen',
+      `Möchtest du ${formatDisplayNameWithInitial(targetUserName)} dauerhaft aus dem Chat verbannen?\n\nDer Nutzer kann keine Chatnachrichten mehr senden.`,
+      [
+        { text: 'Abbrechen', style: 'cancel' },
+        {
+          text: 'Dauerhaft bannen',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await mockDb.setChatBan(targetUserId, targetUserName, 'permanent', currentUser);
+              const updatedBans = await mockDb.getChatBans();
+              setChatBans(updatedBans);
+              Alert.alert('Gebannt ✅', `${formatDisplayNameWithInitial(targetUserName)} wurde im Chat gesperrt.`);
+            } catch (e) {
+              Alert.alert('Fehler', 'Konnte Sperre nicht verhängen.');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const handleRemoveUserBan = (targetUserId: string, targetUserName: string) => {
+    if (!currentUser || !isModOrAdmin) return;
+    Alert.alert(
+      'Sperre aufheben 🟢',
+      `Möchtest du den Timeout / die Sperre für ${formatDisplayNameWithInitial(targetUserName)} aufheben?`,
+      [
+        { text: 'Abbrechen', style: 'cancel' },
+        {
+          text: 'Sperre aufheben',
+          onPress: async () => {
+            try {
+              await mockDb.removeChatBan(targetUserId);
+              const updatedBans = await mockDb.getChatBans();
+              setChatBans(updatedBans);
+              Alert.alert('Entsperrt ✅', `Die Sperre für ${formatDisplayNameWithInitial(targetUserName)} wurde aufgehoben.`);
+            } catch (e) {
+              Alert.alert('Fehler', 'Konnte Sperre nicht aufheben.');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const handleModerationMenu = (targetUserId: string, targetUserName: string) => {
+    if (!currentUser || !isModOrAdmin || targetUserId === currentUser.id) return;
+    const existingBan = chatBans.find(b => b.targetUserId === targetUserId);
+    const isCurrentlyRestricted = existingBan && (existingBan.type === 'permanent' || (existingBan.type === 'timeout_1d' && (!existingBan.timeoutUntil || Date.now() < existingBan.timeoutUntil)));
+
+    if (isCurrentlyRestricted) {
+      Alert.alert(
+        `Moderation: ${formatDisplayNameWithInitial(targetUserName)}`,
+        existingBan?.type === 'timeout_1d'
+          ? `Aktueller Status: ⏱️ 1-Tag Timeout aktiv (bis ${new Date(existingBan.timeoutUntil!).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })})`
+          : 'Aktueller Status: 🚫 Dauerhaft im Chat gebannt',
+        [
+          { text: 'Abbrechen', style: 'cancel' },
+          {
+            text: '🟢 Sperre aufheben',
+            onPress: () => handleRemoveUserBan(targetUserId, targetUserName),
+          }
+        ]
+      );
+    } else {
+      Alert.alert(
+        `Moderation: ${formatDisplayNameWithInitial(targetUserName)}`,
+        'Wähle eine Moderationsmaßnahme für diesen Benutzer:',
+        [
+          { text: 'Abbrechen', style: 'cancel' },
+          {
+            text: '⏱️ 1 Tag Timeout',
+            style: 'destructive',
+            onPress: () => handleSetUserTimeout(targetUserId, targetUserName),
+          },
+          {
+            text: '🚫 Dauerhaft bannen',
+            style: 'destructive',
+            onPress: () => handleSetUserBan(targetUserId, targetUserName),
+          }
+        ]
+      );
+    }
+  };
+
+  // --- AUSBILDERCHAT LÖSCHEN (NUR ADMINS) ---
+  const handleDeleteSupportThread = (studentId: string, studentName: string) => {
+    if (currentUser?.role !== 'admin') {
+      Alert.alert('Keine Berechtigung', 'Nur Administratoren / Ausbilder können Ausbilderchats löschen.');
+      return;
+    }
+    Alert.alert(
+      'Ausbilderchat löschen? 🗑️',
+      `Möchtest du den gesamten Chatverlauf mit „${formatDisplayNameWithInitial(studentName)}“ wirklich unwiderruflich löschen?`,
+      [
+        { text: 'Abbrechen', style: 'cancel' },
+        {
+          text: 'Endgültig löschen',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await mockDb.deleteSupportThread(studentId);
+              setSupportThreads(prev => prev.filter(t => t.studentId !== studentId));
+              if (selectedStudentId === studentId) {
+                setSelectedStudentId(null);
+                setSupportMessages([]);
+              }
+              Alert.alert('Gelöscht ✅', `Der Chatverlauf mit ${formatDisplayNameWithInitial(studentName)} wurde gelöscht.`);
+            } catch (e) {
+              Alert.alert('Fehler', 'Konnte Chatverlauf nicht löschen.');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const handleDeleteSupportMessage = (messageId: string) => {
+    if (currentUser?.role !== 'admin') {
+      Alert.alert('Keine Berechtigung', 'Nur Administratoren können Nachrichten in Ausbilderchats löschen.');
+      return;
+    }
+    Alert.alert(
+      'Nachricht löschen?',
+      'Möchtest du diese Nachricht aus dem Ausbilderchat löschen?',
+      [
+        { text: 'Abbrechen', style: 'cancel' },
+        {
+          text: 'Löschen',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await mockDb.deleteSupportMessage(messageId);
+              setSupportMessages(prev => prev.filter(m => m.id !== messageId));
+            } catch (e) {
+              Alert.alert('Fehler', 'Konnte Nachricht nicht löschen.');
+            }
+          }
+        }
+      ]
+    );
   };
 
   const scrollToBottom = () => {
@@ -514,6 +716,15 @@ export default function ChatScreen() {
   // --- FACH-CHAT ACTIONS ---
   const handleSendMessage = async () => {
     if (!inputText.trim() || !currentUser) return;
+    if (myBanStatus.isRestricted) {
+      if (myBanStatus.isTimeout && myBanStatus.timeoutUntil) {
+        const timeStr = new Date(myBanStatus.timeoutUntil).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' });
+        Alert.alert('Chat-Timeout aktiv ⏱️', `Du bist noch bis ${timeStr} im Chat stummgeschaltet und kannst keine Nachrichten senden.`);
+      } else {
+        Alert.alert('Chat-Sperre 🚫', 'Dein Account wurde dauerhaft aus dem Chat verbannt.');
+      }
+      return;
+    }
     const textToSend = inputText.trim();
     setInputText('');
 
@@ -966,6 +1177,15 @@ export default function ChatScreen() {
                                 <Flag size={11} color={colors.textMuted} />
                               </TouchableOpacity>
                             )}
+                            {(currentUser?.role === 'admin' || currentUser?.role === 'moderator') && !isMyMsg && (
+                              <TouchableOpacity 
+                                onPress={() => handleModerationMenu(msg.senderId, msg.sender)}
+                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                accessibilityLabel="Nutzer moderieren (Timeout / Bann)"
+                              >
+                                <ShieldAlert size={12} color="#f59e0b" style={{ marginLeft: 2 }} />
+                              </TouchableOpacity>
+                            )}
                             {(currentUser?.role === 'admin' || currentUser?.role === 'moderator') && (
                               <TouchableOpacity 
                                 onPress={() => handleDeleteMessage(msg.id)}
@@ -1001,13 +1221,36 @@ export default function ChatScreen() {
               <ChevronDown size={20} color={colors.primary} />
             </TouchableOpacity>
 
+            {/* BAN / TIMEOUT WARNING BANNER */}
+            {myBanStatus.isRestricted && (
+              <View style={[styles.banWarningBanner, { backgroundColor: myBanStatus.isTimeout ? (isDark ? '#78350f40' : '#fef3c7') : (isDark ? '#7f1d1d40' : '#fee2e2'), borderColor: myBanStatus.isTimeout ? '#f59e0b' : '#ef4444' }]}>
+                {myBanStatus.isTimeout ? <Clock size={16} color="#d97706" /> : <Ban size={16} color="#b91c1c" />}
+                <Text style={[styles.banWarningText, { color: myBanStatus.isTimeout ? (isDark ? '#fde68a' : '#92400e') : (isDark ? '#fca5a5' : '#991b1b') }]}>
+                  {myBanStatus.isTimeout && myBanStatus.timeoutUntil
+                    ? `Du hast einen 24h-Timeout bis ${new Date(myBanStatus.timeoutUntil).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} (Chat stummgeschaltet).`
+                    : 'Dein Account wurde dauerhaft aus dem Chat verbannt.'}
+                </Text>
+              </View>
+            )}
+
             {/* INPUT BAR */}
             <View style={[styles.inputBar, { backgroundColor: colors.cardBg, borderTopColor: colors.border }]}>
               <TextInput
-                style={[styles.inputField, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
-                placeholder="Nachricht schreiben..."
-                placeholderTextColor={colors.textMuted}
-                value={inputText}
+                style={[
+                  styles.inputField, 
+                  { backgroundColor: colors.background, color: colors.text, borderColor: colors.border },
+                  myBanStatus.isRestricted && { opacity: 0.6 }
+                ]}
+                placeholder={
+                  myBanStatus.isTimeout && myBanStatus.timeoutUntil
+                    ? `⏱️ Timeout bis ${new Date(myBanStatus.timeoutUntil).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}`
+                    : myBanStatus.isPermanent
+                    ? '🚫 Account im Chat gesperrt'
+                    : 'Nachricht schreiben...'
+                }
+                placeholderTextColor={myBanStatus.isRestricted ? '#ef4444' : colors.textMuted}
+                editable={!myBanStatus.isRestricted}
+                value={myBanStatus.isRestricted ? '' : inputText}
                 onChangeText={setInputText}
                 onFocus={() => {
                   setIsInputFocused(true);
@@ -1019,11 +1262,14 @@ export default function ChatScreen() {
                 maxLength={500}
               />
               <TouchableOpacity 
-                style={[styles.sendButton, { backgroundColor: inputText.trim() ? colors.primary : colors.border }]}
-                disabled={!inputText.trim()}
+                style={[
+                  styles.sendButton, 
+                  { backgroundColor: (!myBanStatus.isRestricted && inputText.trim()) ? colors.primary : colors.border }
+                ]}
+                disabled={myBanStatus.isRestricted || !inputText.trim()}
                 onPress={handleSendMessage}
               >
-                <Send size={18} color={inputText.trim() ? '#ffffff' : colors.textMuted} />
+                <Send size={18} color={(!myBanStatus.isRestricted && inputText.trim()) ? '#ffffff' : colors.textMuted} />
               </TouchableOpacity>
             </View>
           </View>
@@ -1243,9 +1489,23 @@ export default function ChatScreen() {
                                     </View>
                                   )}
                                 </View>
-                                <Text style={[styles.threadTime, { color: unread ? '#ef4444' : colors.textMuted }]}>
-                                  {new Date(thread.timestamp).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}
-                                </Text>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                  <Text style={[styles.threadTime, { color: unread ? '#ef4444' : colors.textMuted }]}>
+                                    {new Date(thread.timestamp).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}
+                                  </Text>
+                                  {currentUser?.role === 'admin' && (
+                                    <TouchableOpacity
+                                      onPress={(e) => {
+                                        e.stopPropagation?.();
+                                        handleDeleteSupportThread(thread.studentId, thread.studentName);
+                                      }}
+                                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                      accessibilityLabel="Ausbilderchat löschen"
+                                    >
+                                      <Trash2 size={13} color="#ef4444" />
+                                    </TouchableOpacity>
+                                  )}
+                                </View>
                               </View>
                               <Text style={[styles.threadLastMsg, { color: unread ? colors.text : colors.textMuted, marginBottom: 0 }]} numberOfLines={2}>
                                 {thread.lastMessage}
@@ -1261,10 +1521,19 @@ export default function ChatScreen() {
                   <View style={{ flex: 1, paddingBottom: dynamicKeyboardPadding }}>
                     {selectedStudentId ? (
                       <>
-                        <View style={[styles.threadHeaderBanner, { backgroundColor: colors.cardBg, borderBottomColor: colors.border, paddingHorizontal: 16 }]}>
+                        <View style={[styles.threadHeaderBanner, { backgroundColor: colors.cardBg, borderBottomColor: colors.border, paddingHorizontal: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
                           <Text style={[styles.threadHeaderTitle, { color: colors.text }]}>
                             Chat mit {formatDisplayNameWithInitial(selectedStudentName)}
                           </Text>
+                          {currentUser?.role === 'admin' && (
+                            <TouchableOpacity
+                              style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, backgroundColor: '#ef444415', borderRadius: 6, borderWidth: 1, borderColor: '#ef444430' }}
+                              onPress={() => handleDeleteSupportThread(selectedStudentId, selectedStudentName)}
+                            >
+                              <Trash2 size={14} color="#ef4444" />
+                              <Text style={{ fontSize: 11, color: '#ef4444', fontWeight: 'bold' }}>Chat löschen</Text>
+                            </TouchableOpacity>
+                          )}
                         </View>
 
                         <ScrollView
@@ -1329,9 +1598,20 @@ export default function ChatScreen() {
                                         {senderDisplayName} <Text style={[styles.adminBadge, { color: roleColor, fontWeight: 'bold' }]}>[{badgeTag}]{isMyMsg && ' (Du)'}</Text>
                                       </Text>
                                     </TouchableOpacity>
-                                    <Text style={[styles.timeText, { color: colors.textMuted }]}>
-                                      {new Date(msg.timestamp).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}
-                                    </Text>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                      <Text style={[styles.timeText, { color: colors.textMuted }]}>
+                                        {new Date(msg.timestamp).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}
+                                      </Text>
+                                      {currentUser?.role === 'admin' && (
+                                        <TouchableOpacity
+                                          onPress={() => handleDeleteSupportMessage(msg.id)}
+                                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                          accessibilityLabel="Nachricht löschen"
+                                        >
+                                          <Trash2 size={12} color="#ef4444" />
+                                        </TouchableOpacity>
+                                      )}
+                                    </View>
                                   </View>
                                   <Text style={[styles.messageText, { color: isMyMsg ? colors.chatTextUser : colors.chatTextOther }]}>
                                     {msg.text}
@@ -1482,13 +1762,26 @@ export default function ChatScreen() {
                               <Text style={{ fontSize: 11, color: colors.primary, fontWeight: 'bold' }}>
                                 Antworten schreiben
                               </Text>
-                              {unread && (
-                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                {unread && (
                                   <Text style={{ fontSize: 11, color: '#ef4444', fontWeight: 'bold' }}>
                                     Ungelesen 🔴
                                   </Text>
-                                </View>
-                              )}
+                                )}
+                                {currentUser?.role === 'admin' && (
+                                  <TouchableOpacity
+                                    onPress={(e) => {
+                                      e.stopPropagation?.();
+                                      handleDeleteSupportThread(thread.studentId, thread.studentName);
+                                    }}
+                                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                    style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#ef444415', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 }}
+                                  >
+                                    <Trash2 size={13} color="#ef4444" />
+                                    <Text style={{ fontSize: 11, color: '#ef4444', fontWeight: 'bold' }}>Löschen</Text>
+                                  </TouchableOpacity>
+                                )}
+                              </View>
                             </View>
                           </TouchableOpacity>
                         );
@@ -1512,7 +1805,17 @@ export default function ChatScreen() {
                       <Text style={[styles.threadHeaderTitle, { color: colors.text }]}>
                         Chat mit {formatDisplayNameWithInitial(selectedStudentName)}
                       </Text>
-                      <View style={{ width: 60 }} />
+                      {currentUser?.role === 'admin' ? (
+                        <TouchableOpacity
+                          style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, backgroundColor: '#ef444415', borderRadius: 6 }}
+                          onPress={() => handleDeleteSupportThread(selectedStudentId!, selectedStudentName)}
+                        >
+                          <Trash2 size={15} color="#ef4444" />
+                          <Text style={{ fontSize: 11, color: '#ef4444', fontWeight: 'bold' }}>Löschen</Text>
+                        </TouchableOpacity>
+                      ) : (
+                        <View style={{ width: 60 }} />
+                      )}
                     </View>
 
                     <ScrollView
@@ -1577,9 +1880,20 @@ export default function ChatScreen() {
                                     {senderDisplayName} <Text style={[styles.adminBadge, { color: roleColor, fontWeight: 'bold' }]}>[{badgeTag}]{isMyMsg && ' (Du)'}</Text>
                                   </Text>
                                 </TouchableOpacity>
-                                <Text style={[styles.timeText, { color: colors.textMuted }]}>
-                                  {new Date(msg.timestamp).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}
-                                </Text>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                  <Text style={[styles.timeText, { color: colors.textMuted }]}>
+                                    {new Date(msg.timestamp).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}
+                                  </Text>
+                                  {currentUser?.role === 'admin' && (
+                                    <TouchableOpacity
+                                      onPress={() => handleDeleteSupportMessage(msg.id)}
+                                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                      accessibilityLabel="Nachricht löschen"
+                                    >
+                                      <Trash2 size={12} color="#ef4444" />
+                                    </TouchableOpacity>
+                                  )}
+                                </View>
                               </View>
                               <Text style={[styles.messageText, { color: isMyMsg ? colors.chatTextUser : colors.chatTextOther }]}>
                                 {msg.text}
@@ -1686,6 +2000,73 @@ export default function ChatScreen() {
                 </Text>
               </View>
             )}
+
+            {/* MODERATIONS-BEREICH FÜR MODS & AUSBILDER */}
+            {isModOrAdmin && viewingUser && currentUser && viewingUser.id !== currentUser.id && (currentUser.role === 'admin' || usersMap[viewingUser.id]?.role === 'user') && (() => {
+              const userBan = chatBans.find(b => b.targetUserId === viewingUser.id);
+              const isCurrentlyRestricted = userBan && (userBan.type === 'permanent' || (userBan.type === 'timeout_1d' && (!userBan.timeoutUntil || Date.now() < userBan.timeoutUntil)));
+
+              return (
+                <View style={[styles.modalModSection, { borderTopColor: colors.border }]}>
+                  <Text style={[styles.modalModHeader, { color: colors.textMuted }]}>
+                    MODERATION
+                  </Text>
+                  {isCurrentlyRestricted ? (
+                    <View style={styles.modalBanStatusBox}>
+                      <View style={styles.modalBanStatusHeader}>
+                        {userBan.type === 'timeout_1d' ? (
+                          <Clock size={16} color="#f59e0b" />
+                        ) : (
+                          <Ban size={16} color="#ef4444" />
+                        )}
+                        <Text style={[styles.modalBanStatusTitle, { color: userBan.type === 'timeout_1d' ? '#f59e0b' : '#ef4444' }]}>
+                          {userBan.type === 'timeout_1d' ? '⏱️ 1-Tag Timeout aktiv' : '🚫 Im Chat gebannt'}
+                        </Text>
+                      </View>
+                      {userBan.timeoutUntil && userBan.type === 'timeout_1d' && (
+                        <Text style={[styles.modalBanStatusSub, { color: colors.textMuted }]}>
+                          Endet: {new Date(userBan.timeoutUntil).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })}
+                        </Text>
+                      )}
+                      <TouchableOpacity
+                        style={[styles.modalModBtn, { backgroundColor: '#10b981' }]}
+                        onPress={() => {
+                          handleRemoveUserBan(viewingUser.id, viewingUser.name);
+                          setViewingUser(null);
+                        }}
+                      >
+                        <CheckCircle2 size={16} color="#ffffff" style={{ marginRight: 6 }} />
+                        <Text style={styles.modalModBtnText}>Sperre aufheben</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ) : (
+                    <View style={{ gap: 8, width: '100%', marginTop: 4 }}>
+                      <TouchableOpacity
+                        style={[styles.modalModBtn, { backgroundColor: '#f59e0b' }]}
+                        onPress={() => {
+                          handleSetUserTimeout(viewingUser.id, viewingUser.name);
+                          setViewingUser(null);
+                        }}
+                      >
+                        <Clock size={16} color="#ffffff" style={{ marginRight: 6 }} />
+                        <Text style={styles.modalModBtnText}>⏱️ 1 Tag Timeout</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={[styles.modalModBtn, { backgroundColor: '#ef4444' }]}
+                        onPress={() => {
+                          handleSetUserBan(viewingUser.id, viewingUser.name);
+                          setViewingUser(null);
+                        }}
+                      >
+                        <Ban size={16} color="#ffffff" style={{ marginRight: 6 }} />
+                        <Text style={styles.modalModBtnText}>🚫 Im Chat bannen</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </View>
+              );
+            })()}
           </View>
         </TouchableOpacity>
       </Modal>
@@ -2109,5 +2490,68 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 32,
+  },
+  banWarningBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+  },
+  banWarningText: {
+    fontSize: 12,
+    fontWeight: '600',
+    flex: 1,
+  },
+  modalModSection: {
+    marginTop: 16,
+    paddingTop: 14,
+    borderTopWidth: 1,
+    width: '100%',
+    alignItems: 'center',
+  },
+  modalModHeader: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    marginBottom: 10,
+  },
+  modalBanStatusBox: {
+    width: '100%',
+    padding: 10,
+    borderRadius: 8,
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    alignItems: 'center',
+    gap: 6,
+  },
+  modalBanStatusHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  modalBanStatusTitle: {
+    fontSize: 13,
+    fontWeight: 'bold',
+  },
+  modalBanStatusSub: {
+    fontSize: 11,
+    marginBottom: 4,
+  },
+  modalModBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+  },
+  modalModBtnText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: 'bold',
   },
 });

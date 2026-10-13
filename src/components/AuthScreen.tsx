@@ -68,39 +68,10 @@ export default function AuthScreen({ onLoginSuccess }: AuthScreenProps) {
     try {
       if (mode === 'login') {
         const user = await mockDb.loginUser(email, password);
-        
-        // WEB-GATE: Nur für Ausbilder & Dozenten freigeschaltet
-        if (Platform.OS === 'web') {
-          const userTitle = (user.title || '').toLowerCase();
-          const isInstructor = user.role === 'admin' || 
-            user.role === 'moderator' || 
-            userTitle.includes('ausbilder') || 
-            userTitle.includes('dozent') || 
-            userTitle.includes('prüfer') ||
-            userTitle.includes('lehrer');
-
-          if (!isInstructor) {
-            await mockDb.logoutUser();
-            Alert.alert(
-              'Zugriff nur für Ausbilder 🎓',
-              'Die Webversion der RailTrainer-App ist exklusiv für Ausbilder & Dozenten zur Unterrichtsgestaltung freigeschaltet.\n\nBitte nutze als Schüler die offizielle RailTrainer Android- oder iOS-App auf deinem Smartphone.'
-            );
-            return;
-          }
-        }
-
         onLoginSuccess(user);
       } else {
         const user = await mockDb.registerUser(name, email, password);
-        
-        if (Platform.OS === 'web') {
-          Alert.alert(
-            'Account erstellt',
-            `Willkommen ${name}! Dein Account wurde angelegt. Bitte wende dich an die Administration, um deinen Ausbilder-Status für die Webversion freizuschalten, falls dies noch nicht geschehen ist.`
-          );
-        } else {
-          Alert.alert('Willkommen!', `Dein Account wurde erfolgreich erstellt, ${name}!`);
-        }
+        Alert.alert('Willkommen!', `Dein Account wurde erfolgreich erstellt, ${name}!`);
         onLoginSuccess(user);
       }
     } catch (e: any) {
@@ -187,16 +158,18 @@ export default function AuthScreen({ onLoginSuccess }: AuthScreenProps) {
                 resizeMode="cover"
               />
             </View>
-            <Text style={[styles.title, { color: colors.text }]}>RailTrainer</Text>
+            <Text style={[styles.title, { color: colors.text }]}>
+              {Platform.OS === 'web' ? 'Tf-Trainer' : 'RailTrainer'}
+            </Text>
             <Text style={[styles.subtitle, { color: colors.textMuted }]}>
-              Die Eisenbahn-Lernhilfe für den Quereinstieg
+              {Platform.OS === 'web' ? 'Die Eisenbahn-Lernhilfe für Triebfahrzeugführer & Quereinsteiger' : 'Die Eisenbahn-Lernhilfe für den Quereinstieg'}
             </Text>
 
             {Platform.OS === 'web' && (
               <View style={{ marginTop: 12, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20, backgroundColor: isDark ? '#1e3a8a40' : '#dbeafe', borderColor: colors.primary, borderWidth: 1 }}>
                 <GraduationCap size={15} color={colors.primary} />
                 <Text style={{ fontSize: 12, fontWeight: 'bold', color: colors.primary }}>
-                  Dozenten- & Unterrichtsversion
+                  Tf-Trainer Web-Edition
                 </Text>
               </View>
             )}
@@ -212,11 +185,11 @@ export default function AuthScreen({ onLoginSuccess }: AuthScreenProps) {
                 : (forgotStep === 'email' ? 'Passwort vergessen?' : 'Sicherheitscode eingeben')}
             </Text>
 
-            {/* INFO-BOX IM WEB: EXKLUSIV FÜR AUSBILDER */}
+            {/* INFO-BOX IM WEB: SYNCHRONISATION */}
             {Platform.OS === 'web' && mode === 'login' && (
-              <View style={{ marginBottom: 16, padding: 12, borderRadius: 10, backgroundColor: isDark ? '#1e293b90' : '#f8fafc', borderColor: colors.border, borderWidth: 1 }}>
+              <View style={{ marginBottom: 16, padding: 12, borderRadius: 10, backgroundColor: isDark ? '#1e3a8a90' : '#f8fafc', borderColor: colors.border, borderWidth: 1 }}>
                 <Text style={{ fontSize: 12, color: colors.textMuted, lineHeight: 18, textAlign: 'center' }}>
-                  🎓 <Text style={{ fontWeight: 'bold', color: colors.text }}>Für den Unterricht:</Text> Der Webzugriff ist für Ausbilder freigeschaltet. Bitte logge dich mit deinem Ausbilder-Account ein.
+                  🖥️ <Text style={{ fontWeight: 'bold', color: colors.text }}>Tf-Trainer Web:</Text> Melde dich mit deinem Konto an. Deine Fortschritte werden 1:1 mit deiner Smartphone-App synchronisiert!
                 </Text>
               </View>
             )}
@@ -406,7 +379,7 @@ export default function AuthScreen({ onLoginSuccess }: AuthScreenProps) {
 
           {/* COPYRIGHT */}
           <Text style={[styles.copyrightText, { color: colors.textMuted }]}>
-            RailTrainer © by Dennis Köster • Version 1.1.3
+            {Platform.OS === 'web' ? 'Tf-Trainer' : 'RailTrainer'} © by Dennis Köster • Version 1.1.5
           </Text>
         </ScrollView>
       </View>

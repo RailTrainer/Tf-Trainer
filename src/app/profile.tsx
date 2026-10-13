@@ -16,12 +16,14 @@ import {
   Platform
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { mockDb, User, QuizAttempt, Ticket } from '../database/mockDb';
+import { mockDb, User, QuizAttempt, Ticket, Category, Question, Fact } from '../database/mockDb';
 import * as ImagePicker from 'expo-image-picker';
 import * as Updates from 'expo-updates';
 import { useLocalSearchParams } from 'expo-router';
 import { optimizeImage, uploadAndOptimizeImage } from '../utils/imageOptimizer';
 import { useDynamicKeyboard } from '../hooks/useDynamicKeyboard';
+import { CreateFactModal } from '../components/CreateFactModal';
+import { CreateQuestionModal } from '../components/CreateQuestionModal';
 import { 
   LogOut, 
   User as UserIcon, 
@@ -59,7 +61,9 @@ import {
   GraduationCap,
   Image as ImageIcon,
   Smartphone,
-  KeyRound
+  KeyRound,
+  BookOpen,
+  Plus
 } from 'lucide-react-native';
 import { getIsChatMuted, setIsChatMuted, scheduleTestLockscreenNotification, registerForPushNotificationsAsync } from '../services/notificationService';
 import { useAppTheme } from '../context/ThemeContext';
@@ -96,6 +100,13 @@ export default function ProfileScreen() {
   const [submittingTicket, setSubmittingTicket] = useState(false);
   const [previewModalImage, setPreviewModalImage] = useState<string | null>(null);
 
+  // Eigene Einreichungen States
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [userSubmissions, setUserSubmissions] = useState<{ questions: Question[]; facts: Fact[] }>({ questions: [], facts: [] });
+  const [createFactModalVisible, setCreateFactModalVisible] = useState(false);
+  const [createQuestionModalVisible, setCreateQuestionModalVisible] = useState(false);
+  const [submissionsModalVisible, setSubmissionsModalVisible] = useState(false);
+
   // Automatisch Ticket-Modal öffnen, falls per Banner (/profile?openTicket=true) aufgerufen
   useEffect(() => {
     if (params?.openTicket === 'true') {
@@ -128,7 +139,7 @@ export default function ProfileScreen() {
         await Updates.fetchUpdateAsync();
         await Updates.reloadAsync();
       } else {
-        Alert.alert('Alles aktuell! ✅', 'Du nutzt bereits die neueste Version (Version 1.1.3).');
+        Alert.alert('Alles aktuell! ✅', 'Du nutzt bereits die neueste Version (Version 1.1.4).');
       }
     } catch (e: any) {
       Alert.alert('Update-Status', e.message || 'App ist auf dem neuesten Stand.');
@@ -164,8 +175,14 @@ export default function ProfileScreen() {
       const history = await mockDb.getQuizHistory();
       setQuizHistory(prev => (prev.length === history.length && prev[0]?.id === history[0]?.id ? prev : history));
       if (user) {
-        const userTickets = await mockDb.getTickets(user.id);
+        const [userTickets, cats, subs] = await Promise.all([
+          mockDb.getTickets(user.id),
+          mockDb.getCategories(),
+          mockDb.getUserSubmissions(user.id)
+        ]);
         setTickets(prev => (prev.length === userTickets.length && prev[0]?.id === userTickets[0]?.id ? prev : userTickets));
+        setCategories(cats);
+        setUserSubmissions(subs);
       }
     } catch (e) {
       console.error(e);
@@ -724,6 +741,67 @@ export default function ProfileScreen() {
               </View>
             )}
 
+            {/* WISSEN BEITRAGEN & EINREICHUNGEN CARD */}
+            <View style={[styles.ticketCompactCard, { backgroundColor: colors.cardBg, borderColor: colors.border, flexDirection: 'column', alignItems: 'stretch' }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <View style={[styles.ticketCompactIconBg, { backgroundColor: '#10b98118' }]}>
+                  <Sparkles size={22} color="#10b981" />
+                </View>
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <Text style={[styles.ticketCompactTitle, { color: colors.text }]}>
+                    Wissen beitragen & Community
+                  </Text>
+                  <Text style={[styles.ticketCompactSubtitle, { color: colors.textMuted }]}>
+                    Lernkarten & Quizfragen zur Freigabe einreichen
+                  </Text>
+                </View>
+              </View>
+
+              {/* ACTION BUTTONS */}
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
+                <TouchableOpacity
+                  style={[styles.contributeActionBtn, { backgroundColor: colors.primary + '18', borderColor: colors.primary }]}
+                  onPress={() => setCreateFactModalVisible(true)}
+                  activeOpacity={0.7}
+                >
+                  <Plus size={16} color={colors.primary} />
+                  <Text style={[styles.contributeActionBtnText, { color: colors.primary }]}>
+                    + Lernkarte
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.contributeActionBtn, { backgroundColor: '#10b98118', borderColor: '#10b981' }]}
+                  onPress={() => setCreateQuestionModalVisible(true)}
+                  activeOpacity={0.7}
+                >
+                  <Plus size={16} color="#10b981" />
+                  <Text style={[styles.contributeActionBtnText, { color: '#10b981' }]}>
+                    + Quizfrage
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* SUBMISSIONS STATUS OVERVIEW */}
+              {(userSubmissions.facts.length > 0 || userSubmissions.questions.length > 0) && (
+                <TouchableOpacity
+                  style={[styles.submissionStatusRow, { borderTopColor: colors.border }]}
+                  onPress={() => setSubmissionsModalVisible(true)}
+                  activeOpacity={0.7}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 12, color: colors.text, fontWeight: '600' }}>
+                      Deine Einreichungen ({userSubmissions.facts.length + userSubmissions.questions.length}):
+                    </Text>
+                    <Text style={{ fontSize: 11, color: colors.textMuted, marginTop: 2 }}>
+                      {userSubmissions.facts.length} Karten ({userSubmissions.facts.filter(f => f.isVerified).length} freigegeben) • {userSubmissions.questions.length} Fragen ({userSubmissions.questions.filter(q => q.isVerified).length} freigegeben)
+                    </Text>
+                  </View>
+                  <Text style={{ fontSize: 12, color: colors.primary, fontWeight: 'bold' }}>Details →</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
             {/* TICKET-SYSTEM / SUPPORT & FEEDBACK COMPACT BUTTON */}
             <TouchableOpacity
               style={[styles.ticketCompactCard, { backgroundColor: colors.cardBg, borderColor: colors.border }]}
@@ -919,7 +997,7 @@ export default function ProfileScreen() {
                 RailTrainer • © by Dennis Köster
               </Text>
               <Text style={{ textAlign: 'center', color: colors.textMuted, fontSize: 11, marginTop: 2 }}>
-                Interaktive Lern- & Wissensplattform (Version 1.1.3)
+                Interaktive Lern- & Wissensplattform (Version 1.1.4)
               </Text>
             </View>
 
@@ -1430,6 +1508,198 @@ export default function ProfileScreen() {
           )}
         </TouchableOpacity>
       </Modal>
+
+      {/* CREATE FACT MODAL */}
+      <CreateFactModal
+        visible={createFactModalVisible}
+        onClose={() => setCreateFactModalVisible(false)}
+        onSuccess={() => loadData()}
+        categories={categories}
+        currentUser={currentUser}
+      />
+
+      {/* CREATE QUESTION MODAL */}
+      <CreateQuestionModal
+        visible={createQuestionModalVisible}
+        onClose={() => setCreateQuestionModalVisible(false)}
+        onSuccess={() => loadData()}
+        categories={categories}
+        currentUser={currentUser}
+      />
+
+      {/* EIGENE EINREICHUNGEN DETAIL MODAL */}
+      <Modal
+        visible={submissionsModalVisible}
+        animationType="slide"
+        transparent={false}
+        onRequestClose={() => setSubmissionsModalVisible(false)}
+      >
+        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+          <View style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            paddingHorizontal: 16,
+            paddingVertical: 14,
+            borderBottomWidth: 1,
+            borderBottomColor: colors.border,
+            backgroundColor: colors.cardBg
+          }}>
+            <View>
+              <Text style={{ fontSize: 18, fontWeight: 'bold', color: colors.text }}>
+                Deine Einreichungen
+              </Text>
+              <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 2 }}>
+                Übersicht deiner eingereichten Lernkarten & Quizfragen
+              </Text>
+            </View>
+            <TouchableOpacity
+              onPress={() => setSubmissionsModalVisible(false)}
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 18,
+                backgroundColor: isDark ? '#374151' : '#f3f4f6',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+            >
+              <X size={20} color={colors.text} />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
+            {/* LERNKARTEN ABSCHNITT */}
+            <Text style={{ fontSize: 15, fontWeight: 'bold', color: colors.text, marginBottom: 10 }}>
+              📚 Eingereichte Lernkarten ({userSubmissions.facts.length})
+            </Text>
+            {userSubmissions.facts.length === 0 ? (
+              <Text style={{ color: colors.textMuted, fontSize: 13, fontStyle: 'italic', marginBottom: 20 }}>
+                Noch keine Lernkarten eingereicht.
+              </Text>
+            ) : (
+              <View style={{ gap: 10, marginBottom: 24 }}>
+                {userSubmissions.facts.map(f => (
+                  <View
+                    key={f.id}
+                    style={{
+                      backgroundColor: colors.cardBg,
+                      borderWidth: 1,
+                      borderColor: colors.border,
+                      borderRadius: 12,
+                      padding: 14
+                    }}
+                  >
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                      <View style={{ backgroundColor: colors.primary + '18', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 }}>
+                        <Text style={{ color: colors.primary, fontSize: 11, fontWeight: 'bold' }}>{f.category}</Text>
+                      </View>
+                      <View style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 4,
+                        backgroundColor: f.isVerified ? '#10b98120' : '#f59e0b20',
+                        paddingHorizontal: 8,
+                        paddingVertical: 3,
+                        borderRadius: 6
+                      }}>
+                        {f.isVerified ? (
+                          <>
+                            <CheckCircle2 size={13} color="#10b981" />
+                            <Text style={{ color: '#10b981', fontSize: 11, fontWeight: 'bold' }}>Freigegeben</Text>
+                          </>
+                        ) : (
+                          <>
+                            <Clock size={13} color="#f59e0b" />
+                            <Text style={{ color: '#f59e0b', fontSize: 11, fontWeight: 'bold' }}>In Prüfung</Text>
+                          </>
+                        )}
+                      </View>
+                    </View>
+
+                    <Text style={{ fontSize: 15, fontWeight: 'bold', color: colors.text }}>{f.title}</Text>
+                    <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: 4 }} numberOfLines={3}>{f.content}</Text>
+                    
+                    {f.reference && (
+                      <Text style={{ fontSize: 11, color: colors.primary, marginTop: 6, fontStyle: 'italic' }}>
+                        Quelle: {f.reference}
+                      </Text>
+                    )}
+                    {f.isVerified && f.verifiedByName && (
+                      <Text style={{ fontSize: 11, color: '#10b981', marginTop: 4 }}>
+                        🛡️ Geprüft & freigegeben von: {f.verifiedByName}
+                      </Text>
+                    )}
+                  </View>
+                ))}
+              </View>
+            )}
+
+            {/* QUIZFRAGEN ABSCHNITT */}
+            <Text style={{ fontSize: 15, fontWeight: 'bold', color: colors.text, marginBottom: 10 }}>
+              🎯 Eingereichte Quizfragen ({userSubmissions.questions.length})
+            </Text>
+            {userSubmissions.questions.length === 0 ? (
+              <Text style={{ color: colors.textMuted, fontSize: 13, fontStyle: 'italic', marginBottom: 20 }}>
+                Noch keine Quizfragen eingereicht.
+              </Text>
+            ) : (
+              <View style={{ gap: 10 }}>
+                {userSubmissions.questions.map(q => (
+                  <View
+                    key={q.id}
+                    style={{
+                      backgroundColor: colors.cardBg,
+                      borderWidth: 1,
+                      borderColor: colors.border,
+                      borderRadius: 12,
+                      padding: 14
+                    }}
+                  >
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                      <View style={{ backgroundColor: colors.primary + '18', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 }}>
+                        <Text style={{ color: colors.primary, fontSize: 11, fontWeight: 'bold' }}>{q.category}</Text>
+                      </View>
+                      <View style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 4,
+                        backgroundColor: q.isVerified ? '#10b98120' : '#f59e0b20',
+                        paddingHorizontal: 8,
+                        paddingVertical: 3,
+                        borderRadius: 6
+                      }}>
+                        {q.isVerified ? (
+                          <>
+                            <CheckCircle2 size={13} color="#10b981" />
+                            <Text style={{ color: '#10b981', fontSize: 11, fontWeight: 'bold' }}>Freigegeben</Text>
+                          </>
+                        ) : (
+                          <>
+                            <Clock size={13} color="#f59e0b" />
+                            <Text style={{ color: '#f59e0b', fontSize: 11, fontWeight: 'bold' }}>In Prüfung</Text>
+                          </>
+                        )}
+                      </View>
+                    </View>
+
+                    <Text style={{ fontSize: 14, fontWeight: 'bold', color: colors.text }}>{q.text}</Text>
+                    <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 4 }}>
+                      {q.options?.length} Antwortmöglichkeiten ({q.questionType === 'order' ? 'Reihenfolge' : q.questionType === 'multiple' ? 'Multiple Choice' : 'Single Choice'})
+                    </Text>
+
+                    {q.isVerified && q.verifiedByName && (
+                      <Text style={{ fontSize: 11, color: '#10b981', marginTop: 4 }}>
+                        🛡️ Geprüft & freigegeben von: {q.verifiedByName}
+                      </Text>
+                    )}
+                  </View>
+                ))}
+              </View>
+            )}
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -1827,5 +2097,27 @@ const styles = StyleSheet.create({
   impressumBullet: {
     fontSize: 12,
     lineHeight: 17,
+  },
+  contributeActionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 9,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  contributeActionBtnText: {
+    fontSize: 13,
+    fontWeight: 'bold',
+  },
+  submissionStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
   },
 });

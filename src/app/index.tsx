@@ -19,6 +19,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { mockDb, Question, Category, User, Fact } from '../database/mockDb';
 import { useAppTheme } from '../context/ThemeContext';
 import * as Icons from 'lucide-react-native';
+import CategoryIcon from '../components/CategoryIcon';
 
 function cleanText(str: string = ''): string {
   if (!str) return '';
@@ -46,11 +47,13 @@ import {
   Search,
   Bug,
   Sparkles,
-  Star
+  Star,
+  Plus
 } from 'lucide-react-native';
 
 import { useDynamicKeyboard } from '../hooks/useDynamicKeyboard';
 import { useDeviceLayout } from '../hooks/useDeviceLayout';
+import { CreateFactModal } from '../components/CreateFactModal';
 
 const AVATAR_PRESETS = ['🚂', '👮', '🛡️', '🔧', '🚄', '⭐', '🚇', '🎒'];
 
@@ -223,6 +226,7 @@ export default function LernenScreen() {
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
   const [favoriteFactIds, setFavoriteFactIds] = useState<string[]>([]);
   const [favoritesOnly, setFavoritesOnly] = useState(false);
+  const [createFactModalVisible, setCreateFactModalVisible] = useState(false);
 
   const categoryFacts = selectedCategory
     ? facts.filter(f => f.isVerified === true && f.category === selectedCategory)
@@ -372,6 +376,37 @@ export default function LernenScreen() {
             <ChevronRight size={18} color={colors.textMuted} />
           </TouchableOpacity>
 
+          {/* LERNKARTE EINREICHEN BANNER */}
+          <TouchableOpacity
+            activeOpacity={0.82}
+            onPress={() => setCreateFactModalVisible(true)}
+            style={[
+              styles.contributeBanner,
+              {
+                backgroundColor: isDark ? '#1e293b' : '#eff6ff',
+                borderColor: isDark ? '#334155' : '#bfdbfe',
+              }
+            ]}
+          >
+            <View style={[styles.contributeBannerIconBg, { backgroundColor: colors.primary + '25' }]}>
+              <Plus size={18} color={colors.primary} />
+            </View>
+            <View style={{ flex: 1, marginHorizontal: 10 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Text style={[styles.contributeBannerTitle, { color: colors.text }]}>
+                  Lernkarte einreichen
+                </Text>
+                <View style={{ backgroundColor: '#10b981', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, marginLeft: 6 }}>
+                  <Text style={{ color: '#ffffff', fontSize: 10, fontWeight: 'bold' }}>NEU</Text>
+                </View>
+              </View>
+              <Text style={[styles.contributeBannerText, { color: colors.textMuted }]}>
+                Wissen teilen: Reiche eigene Lernkarten ein – Ausbilder & Mods prüfen sie vor Freigabe.
+              </Text>
+            </View>
+            <ChevronRight size={18} color={colors.textMuted} />
+          </TouchableOpacity>
+
           {/* SUCHE-INPUT */}
           <View style={[styles.searchBox, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
             <Search size={18} color={colors.textMuted} style={{ marginRight: 8 }} />
@@ -460,7 +495,6 @@ export default function LernenScreen() {
               }
             ]}>
               {categories.map((cat) => {
-                const IconComponent = getIconComponent(cat.icon);
                 const themeFacts = facts.filter(f => f.isVerified === true && f.category === cat.name);
                 
                 return (
@@ -492,7 +526,7 @@ export default function LernenScreen() {
                       <>
                         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
                           <View style={[styles.rowIconBg, { backgroundColor: cat.color + '20', width: 44, height: 44, borderRadius: 12 }]}>
-                            <IconComponent size={24} color={cat.color} />
+                            <CategoryIcon icon={cat.icon} size={24} color={cat.color} />
                           </View>
                           <View style={{
                             backgroundColor: colors.primary + '18',
@@ -520,7 +554,7 @@ export default function LernenScreen() {
                       <>
                         <View style={styles.rowLeft}>
                           <View style={[styles.rowIconBg, { backgroundColor: cat.color + '20' }]}>
-                            <IconComponent size={20} color={cat.color} />
+                            <CategoryIcon icon={cat.icon} size={20} color={cat.color} />
                           </View>
                           <View style={{ flex: 1 }}>
                             <Text style={[styles.rowTitle, { color: colors.text }]}>{cat.name}</Text>
@@ -562,50 +596,66 @@ export default function LernenScreen() {
             <Text style={[styles.detailTitle, { color: colors.text }]} numberOfLines={1}>
               {selectedCategory}
             </Text>
-            {viewMode === 'list' ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              {viewMode === 'list' && (
+                <TouchableOpacity
+                  delayPressIn={0}
+                  onPress={() => setFavoritesOnly(prev => !prev)}
+                  style={[
+                    styles.headerFavFilterBtn,
+                    favoritesOnly && {
+                      backgroundColor: isDark ? '#854d0e40' : '#fef9c3',
+                      borderColor: '#eab308',
+                    }
+                  ]}
+                  activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityLabel="Favoriten filtern"
+                >
+                  <Star
+                    size={14}
+                    color={favoritesOnly ? '#eab308' : (categoryFavCount > 0 ? '#eab308' : colors.textMuted)}
+                    fill={favoritesOnly || categoryFavCount > 0 ? '#eab308' : 'none'}
+                  />
+                  <Text style={[
+                    styles.headerFavFilterText,
+                    { color: favoritesOnly ? (isDark ? '#fde047' : '#a16207') : colors.textMuted },
+                    favoritesOnly && { fontWeight: '700' }
+                  ]}>
+                    Favoriten
+                  </Text>
+                  {categoryFavCount > 0 && (
+                    <View style={[
+                      styles.favFilterBadge,
+                      { backgroundColor: favoritesOnly ? '#eab308' : (isDark ? '#374151' : '#e5e7eb') }
+                    ]}>
+                      <Text style={[
+                        styles.favFilterBadgeText,
+                        { color: favoritesOnly ? '#000000' : colors.text }
+                      ]}>
+                        {categoryFavCount}
+                      </Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              )}
+
               <TouchableOpacity
-                delayPressIn={0}
-                onPress={() => setFavoritesOnly(prev => !prev)}
+                onPress={() => setCreateFactModalVisible(true)}
                 style={[
-                  styles.headerFavFilterBtn,
-                  favoritesOnly && {
-                    backgroundColor: isDark ? '#854d0e40' : '#fef9c3',
-                    borderColor: '#eab308',
-                  }
+                  styles.headerAddCardBtn,
+                  { backgroundColor: colors.primary + '18', borderColor: colors.primary }
                 ]}
                 activeOpacity={0.7}
                 accessibilityRole="button"
-                accessibilityLabel="Favoriten filtern"
+                accessibilityLabel="Lernkarte einreichen"
               >
-                <Star
-                  size={15}
-                  color={favoritesOnly ? '#eab308' : (categoryFavCount > 0 ? '#eab308' : colors.textMuted)}
-                  fill={favoritesOnly || categoryFavCount > 0 ? '#eab308' : 'none'}
-                />
-                <Text style={[
-                  styles.headerFavFilterText,
-                  { color: favoritesOnly ? (isDark ? '#fde047' : '#a16207') : colors.textMuted },
-                  favoritesOnly && { fontWeight: '700' }
-                ]}>
-                  Favoriten
+                <Plus size={14} color={colors.primary} />
+                <Text style={[styles.headerAddCardBtnText, { color: colors.primary }]}>
+                  + Karte
                 </Text>
-                {categoryFavCount > 0 && (
-                  <View style={[
-                    styles.favFilterBadge,
-                    { backgroundColor: favoritesOnly ? '#eab308' : (isDark ? '#374151' : '#e5e7eb') }
-                  ]}>
-                    <Text style={[
-                      styles.favFilterBadgeText,
-                      { color: favoritesOnly ? '#000000' : colors.text }
-                    ]}>
-                      {categoryFavCount}
-                    </Text>
-                  </View>
-                )}
               </TouchableOpacity>
-            ) : (
-              <View style={{ width: 60 }} />
-            )}
+            </View>
           </View>
 
           {(() => {
@@ -618,9 +668,19 @@ export default function LernenScreen() {
                   <Text style={{ color: colors.text, marginTop: 12, fontWeight: 'bold' }}>
                     Noch keine Lernkarten eingetragen.
                   </Text>
-                  <Text style={{ color: colors.textMuted, textAlign: 'center', marginTop: 4, paddingHorizontal: 40 }}>
-                    Ausbilder können im Adminbereich neue Lernkarten für diese Kategorie hinzufügen.
+                  <Text style={{ color: colors.textMuted, textAlign: 'center', marginTop: 4, paddingHorizontal: 30, lineHeight: 18 }}>
+                    Reiche jetzt die erste Lernkarte für dieses Thema ein! Ausbilder & Moderatoren prüfen und geben sie für alle Schüler frei.
                   </Text>
+                  <TouchableOpacity
+                    style={[styles.emptyAddBtn, { backgroundColor: colors.primary }]}
+                    onPress={() => setCreateFactModalVisible(true)}
+                    activeOpacity={0.8}
+                  >
+                    <Plus size={16} color="#ffffff" style={{ marginRight: 6 }} />
+                    <Text style={{ color: '#ffffff', fontWeight: 'bold', fontSize: 14 }}>
+                      Lernkarte einreichen
+                    </Text>
+                  </TouchableOpacity>
                 </View>
               );
             }
@@ -1052,6 +1112,16 @@ export default function LernenScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* LERNKARTE EINREICHEN MODAL */}
+      <CreateFactModal
+        visible={createFactModalVisible}
+        onClose={() => setCreateFactModalVisible(false)}
+        onSuccess={() => loadData()}
+        categories={categories}
+        defaultCategory={selectedCategory || undefined}
+        currentUser={currentUser}
+      />
     </SafeAreaView>
   );
 }
@@ -1485,6 +1555,52 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 2,
     lineHeight: 16,
+  },
+  contributeBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    marginBottom: 16,
+  },
+  contributeBannerIconBg: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  contributeBannerTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  contributeBannerText: {
+    fontSize: 12,
+    marginTop: 2,
+    lineHeight: 16,
+  },
+  headerAddCardBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  headerAddCardBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  emptyAddBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 10,
+    marginTop: 16,
   },
   starBtn: {
     width: 32,
