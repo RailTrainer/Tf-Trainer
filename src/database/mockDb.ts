@@ -2179,15 +2179,12 @@ export const mockDb = {
     let isWebUnlocked = false;
     let title = '';
 
-    // Web-Registrierung: Zwingende Prüfung des 4,99 € PayPal-Lizenzschlüssels
-    if (Platform.OS === 'web') {
-      const trimmedKey = (webKey || '').trim();
-      if (!trimmedKey) {
-        throw new Error('Für die Web-Registrierung ist ein gültiger Freischalt-Key (4,99 € via PayPal) erforderlich.');
-      }
+    // Falls ein Freischaltcode angegeben wurde, direkt prüfen & freischalten
+    const trimmedKey = (webKey || '').trim();
+    if (trimmedKey) {
       const isValid = verifyWebKey(trimmedKey);
       if (!isValid) {
-        throw new Error('Der eingegebene Freischaltcode ist ungültig. Bitte prüfe die Eingabe.');
+        throw new Error('Der eingegebene Freischaltcode ist ungültig. Bitte prüfe die Eingabe oder lasse das Feld leer.');
       }
 
       // Prüfe, ob der Key bereits eingelöst wurde

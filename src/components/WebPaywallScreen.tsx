@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   Text,
@@ -44,6 +44,7 @@ export default function WebPaywallScreen({ currentUser, onUnlocked, onLogout }: 
   const [activationCode, setActivationCode] = useState('');
   const [loadingPaypal, setLoadingPaypal] = useState(false);
   const [loadingKey, setLoadingKey] = useState(false);
+  const [checkingStatus, setCheckingStatus] = useState(false);
   const [showCodeInput, setShowCodeInput] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
@@ -53,6 +54,40 @@ export default function WebPaywallScreen({ currentUser, onUnlocked, onLogout }: 
     paypalBlue: '#0070ba',
     paypalDarkBlue: '#003087',
   };
+
+  // Freischalt-Status aus der Datenbank (z.B. nach Admin-Klick) prüfen
+  const checkUnlockStatus = async (silent: boolean = false) => {
+    if (!silent) setCheckingStatus(true);
+    try {
+      const users = await mockDb.getUsers();
+      const me = users.find(u => u.id === currentUser.id || u.email.toLowerCase() === currentUser.email.toLowerCase());
+      if (me && mockDb.isUserWebUnlocked(me)) {
+        setSuccessMessage('Dein Web-Zugang wurde erfolgreich freigeschaltet! 🎉');
+        setTimeout(() => {
+          onUnlocked(me);
+        }, 1200);
+        return true;
+      } else if (!silent) {
+        Alert.alert(
+          'Noch nicht freigeschaltet ⏳',
+          'Dein Account wartet noch auf die Freigabe durch den Admin oder die Eingabe eines Codes. Sobald deine Zahlung bestätigt wurde, wirst du freigegeben.'
+        );
+      }
+    } catch {
+      if (!silent) Alert.alert('Hinweis', 'Konnte Status nicht abfragen.');
+    } finally {
+      if (!silent) setCheckingStatus(false);
+    }
+    return false;
+  };
+
+  useEffect(() => {
+    // Automatisch alle 8 Sekunden prüfen, falls der Admin den Nutzer in der App freischaltet
+    const interval = setInterval(() => {
+      checkUnlockStatus(true);
+    }, 8000);
+    return () => clearInterval(interval);
+  }, []);
 
   // PayPal Weiterleitung zur Zahlung (4,99 €)
   const handlePaypalCheckout = async () => {
@@ -202,6 +237,37 @@ export default function WebPaywallScreen({ currentUser, onUnlocked, onLogout }: 
             <Text style={[styles.secureNote, { color: colors.textMuted }]}>
               🔒 Sichere PayPal-Zahlung an dschmitz112@web.de (4,99 €)
             </Text>
+
+            {/* FREISCHALTUNG PRÜFEN BUTTON */}
+            <TouchableOpacity
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                paddingVertical: 10,
+                paddingHorizontal: 14,
+                borderRadius: 8,
+                backgroundColor: isDark ? '#1e293b' : '#f8fafc',
+                borderWidth: 1,
+                borderColor: colors.border,
+                marginTop: 10,
+                gap: 8,
+              }}
+              onPress={() => checkUnlockStatus(false)}
+              disabled={checkingStatus || Boolean(successMessage)}
+              activeOpacity={0.7}
+            >
+              {checkingStatus ? (
+                <ActivityIndicator size="small" color={colors.primary} />
+              ) : (
+                <>
+                  <RefreshCw size={14} color={colors.primary} />
+                  <Text style={{ fontSize: 12, color: colors.text, fontWeight: '600' }}>
+                    🔄 Freischaltung prüfen (nach Zahlung / durch Admin)
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
           </View>
 
           {/* TRENNLINIE */}

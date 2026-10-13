@@ -64,13 +64,6 @@ export default function AuthScreen({ onLoginSuccess }: AuthScreenProps) {
         Alert.alert('Fehler', 'Das Passwort muss mindestens 6 Zeichen lang sein.');
         return;
       }
-      if (Platform.OS === 'web' && !webKey.trim()) {
-        Alert.alert(
-          '🔒 Freischaltcode erforderlich',
-          'Für die Web-Version ist ein gültiger Lizenz-Key (4,99 € via PayPal) erforderlich.\n\nKlicke auf den gelben PayPal-Button, falls du noch keinen Key erworben hast.'
-        );
-        return;
-      }
     }
 
     setLoading(true);
@@ -80,7 +73,7 @@ export default function AuthScreen({ onLoginSuccess }: AuthScreenProps) {
         onLoginSuccess(user);
       } else {
         const user = await mockDb.registerUser(name, email, password, webKey);
-        Alert.alert('Willkommen!', `Dein Account wurde erfolgreich erstellt und freigeschaltet, ${name}!`);
+        Alert.alert('Willkommen!', `Dein Account wurde erfolgreich erstellt, ${name}!`);
         onLoginSuccess(user);
       }
     } catch (e: any) {
@@ -237,7 +230,7 @@ export default function AuthScreen({ onLoginSuccess }: AuthScreenProps) {
                   </Text>
                 </View>
                 <Text style={{ fontSize: 12, color: colors.textMuted, lineHeight: 18, marginBottom: 12 }}>
-                  Um einen neuen Web-Account zu erstellen, wird ein Freischalt-Key benötigt. Noch keinen Key? Kaufe ihn jetzt sicher via PayPal:
+                  Registriere dich mit deinem Namen & E-Mail. Du kannst direkt per PayPal zahlen oder einen Freischaltcode nutzen:
                 </Text>
 
                 <TouchableOpacity
@@ -362,22 +355,22 @@ export default function AuthScreen({ onLoginSuccess }: AuthScreenProps) {
               </View>
             )}
 
-            {/* FREISCHALTCODE / PAYPAL-KEY (nur bei Web-Registrierung) */}
+            {/* FREISCHALTCODE / PAYPAL-KEY (optional bei Web-Registrierung) */}
             {Platform.OS === 'web' && mode === 'register' && (
               <View style={styles.inputWrapper}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                   <Text style={[styles.inputLabel, { color: colors.text, marginBottom: 0 }]}>
-                    Freischaltcode / PayPal-Key *
+                    Freischaltcode / PayPal-Key (Optional)
                   </Text>
-                  <View style={{ backgroundColor: '#2563eb20', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
-                    <Text style={{ fontSize: 11, color: '#3b82f6', fontWeight: 'bold' }}>4,99 € Pflicht</Text>
+                  <View style={{ backgroundColor: '#10b98120', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                    <Text style={{ fontSize: 11, color: '#10b981', fontWeight: 'bold' }}>Optional</Text>
                   </View>
                 </View>
                 <View style={[styles.inputContainer, { borderColor: webKey.trim() ? colors.primary : colors.inputBorder, backgroundColor: colors.inputBg }]}>
                   <KeyRound size={18} color={webKey.trim() ? colors.primary : colors.textMuted} style={styles.inputIcon} />
                   <TextInput
                     style={[styles.input, { color: colors.text, fontWeight: 'bold', letterSpacing: 1 }]}
-                    placeholder="z.B. RT-WEB-XXXX-YYYY"
+                    placeholder="z.B. RT-WEB-XXXX-YYYY (falls vorhanden)"
                     placeholderTextColor={colors.textMuted}
                     value={webKey}
                     onChangeText={setWebKey}
@@ -385,7 +378,7 @@ export default function AuthScreen({ onLoginSuccess }: AuthScreenProps) {
                   />
                 </View>
                 <Text style={{ fontSize: 11, color: colors.textMuted, marginTop: 4 }}>
-                  Den Code erhältst du nach Zahlung von 4,99 € via PayPal oder von deinem Dozenten.
+                  Hast du schon einen Key? Hier eintragen für Sofort-Freischaltung. Ansonsten kannst du dich ohne Code registrieren und dein Zugang wird nach PayPal-Eingang freigeschaltet.
                 </Text>
               </View>
             )}
