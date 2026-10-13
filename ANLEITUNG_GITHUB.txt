@@ -1,0 +1,26 @@
+======================================================
+  TF-TRAINER - BEREINIGTER GITHUB-UPLOAD ORDNER
+======================================================
+
+Dieser Ordner enthält alle notwendigen Dateien für GitHub:
+- Quellcode (src/)
+- Neues Tf-Trainer Logo & Grafiken (assets/)
+- Web-Freischaltung & PayPal-Logik
+- Konfigurationen (package.json, app.json, tsconfig.json)
+
+NICHT enthalten (weil sie NICHT auf GitHub gehören):
+- node_modules (wird automatisch via 'npm install' erzeugt)
+- .expo (lokaler Cache)
+- Große APK/AAB-Dateien (von GitHub blockiert)
+
+------------------------------------------------------
+WIE DU DIESE DATEIEN AUF GITHUB HOCHLÄDST:
+------------------------------------------------------
+Option 1: Über die GitHub-Website
+1. Gehe in dein Repository auf GitHub.com
+2. Klicke auf "Add file" -> "Upload files"
+3. Ziehe die Dateien/Ordner aus diesem Ordner in das Upload-Fenster
+4. Klicke unten auf "Commit changes"
+
+Option 2: Über GitHub Desktop oder Git
+Diesen Ordner als Arbeitsverzeichnis auswählen, Änderungen committen und auf "Push origin" klicken.
