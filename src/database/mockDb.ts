@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase, isSupabaseConfigured } from '../services/supabaseClient';
 import { broadcastChatPushNotification, sendDirectSupportPushNotification, registerForPushNotificationsAsync } from '../services/notificationService';
@@ -427,6 +428,12 @@ export function generateWebKey(): string {
   const checksum = calculateKeyChecksum(randomPart);
   return `RT-WEB-${randomPart}-${checksum}`;
 }
+
+export const PAYPAL_CONFIG = {
+  paymentUrl: 'https://www.paypal.com/paypalme/railtrainer/4.99',
+  price: '4,99 €',
+  currency: 'EUR',
+};
 
 export function verifyWebKey(rawKey: string): boolean {
   if (!rawKey) return false;
@@ -2162,15 +2169,47 @@ export const mockDb = {
     return user;
   },
 
-  async registerUser(name: string, email: string, password: string): Promise<User> {
+  PAYPAL_CONFIG,
+
+  async registerUser(name: string, email: string, password: string, webKey?: string): Promise<User> {
     const cleanEmail = email.trim().toLowerCase();
     const hashedPassword = hashPassword(password);
+
+    let isWebUnlocked = false;
+    let title = '';
+
+    // Web-Registrierung: Zwingende Prüfung des 4,99 € PayPal-Lizenzschlüssels
+    if (Platform.OS === 'web') {
+      const trimmedKey = (webKey || '').trim();
+      if (!trimmedKey) {
+        throw new Error('Für die Web-Registrierung ist ein gültiger Freischalt-Key (4,99 € via PayPal) erforderlich.');
+      }
+      const isValid = verifyWebKey(trimmedKey);
+      if (!isValid) {
+        throw new Error('Der eingegebene Freischaltcode ist ungültig. Bitte prüfe die Eingabe.');
+      }
+
+      // Prüfe, ob der Key bereits eingelöst wurde
+      const rawRedeemed = await AsyncStorage.getItem(STORAGE_KEYS.WEB_KEYS);
+      const redeemedKeys: { key: string; userId: string; date: number }[] = rawRedeemed ? JSON.parse(rawRedeemed) : [];
+      const normKey = trimmedKey.toUpperCase().replace(/[^A-Z0-9]/g, '');
+      const alreadyUsed = redeemedKeys.find(r => r.key === normKey);
+      if (alreadyUsed) {
+        throw new Error('Dieser Freischaltcode wurde bereits von einem anderen Benutzer verwendet.');
+      }
+
+      isWebUnlocked = true;
+      title = '[Web-Freigabe]';
+    }
+
     const newUser: User = {
       id: 'u_' + Math.random().toString(36).substr(2, 9),
       email: cleanEmail,
       password: hashedPassword,
       name: name.trim(),
-      role: 'user'
+      role: 'user',
+      title: title,
+      isWebUnlocked: isWebUnlocked,
     };
 
     if (isSupabaseConfigured() && supabase) {
@@ -2189,7 +2228,7 @@ export const mockDb = {
           email: newUser.email,
           password: newUser.password,
           role: newUser.role,
-          title: '',
+          title: newUser.title,
           avatar_url: ''
         }]);
         if (error) {
@@ -2207,6 +2246,30 @@ export const mockDb = {
     const exists = users.some(u => u.email.toLowerCase() === cleanEmail);
     if (exists && !isSupabaseConfigured()) {
       throw new Error('Diese E-Mail-Adresse ist bereits registriert.');
+    }
+
+    // Wenn Key genutzt wurde, als eingelöst abspeichern & protokollieren
+    if (webKey && isWebUnlocked) {
+      const rawRedeemed = await AsyncStorage.getItem(STORAGE_KEYS.WEB_KEYS);
+      const redeemedKeys: { key: string; userId: string; date: number }[] = rawRedeemed ? JSON.parse(rawRedeemed) : [];
+      const normKey = webKey.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+      redeemedKeys.push({ key: normKey, userId: newUser.id, date: Date.now() });
+      await AsyncStorage.setItem(STORAGE_KEYS.WEB_KEYS, JSON.stringify(redeemedKeys));
+
+      try {
+        const rawLicenses = await AsyncStorage.getItem(STORAGE_KEYS.WEB_LICENSES);
+        const licenses = rawLicenses ? JSON.parse(rawLicenses) : [];
+        licenses.push({
+          id: 'lic_' + Date.now(),
+          userId: newUser.id,
+          provider: 'paypal_key_registration',
+          amount: '4.99',
+          orderId: 'REG-' + Date.now(),
+          key: webKey.trim(),
+          unlockedAt: Date.now()
+        });
+        await AsyncStorage.setItem(STORAGE_KEYS.WEB_LICENSES, JSON.stringify(licenses));
+      } catch {}
     }
 
     users.push(newUser);

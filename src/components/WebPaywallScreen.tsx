@@ -54,27 +54,18 @@ export default function WebPaywallScreen({ currentUser, onUnlocked, onLogout }: 
     paypalDarkBlue: '#003087',
   };
 
-  // PayPal Sofort-Freischaltung (4,99 €)
+  // PayPal Weiterleitung zur Zahlung (4,99 €)
   const handlePaypalCheckout = async () => {
     setLoadingPaypal(true);
     try {
-      // Simuliert den PayPal Checkout Dialog & automatische Autorisierung
-      // In Produktion: PayPal Smart Button oder Order Webhook
-      const orderId = 'PAYPAL-' + Math.random().toString(36).substring(2, 10).toUpperCase();
-      
-      // Freischaltung in Supabase & lokal
-      const updatedUser = await mockDb.unlockWebAccess(currentUser.id, {
-        provider: 'paypal',
-        amount: '4.99',
-        orderId: orderId,
-      });
-
-      setSuccessMessage('Zahlung via PayPal erfolgreich autorisiert! 🎉 Dein Webzugang ist ab sofort freigeschaltet.');
-      setTimeout(() => {
-        onUnlocked(updatedUser);
-      }, 1200);
+      await Linking.openURL(mockDb.PAYPAL_CONFIG.paymentUrl);
+      setShowCodeInput(true);
+      Alert.alert(
+        'PayPal geöffnet 💳',
+        'Die PayPal-Zahlungsseite wurde in einem neuen Fenster geöffnet.\n\nSobald du die 4,99 € gezahlt hast, erhältst du deinen Lizenzschlüssel (per E-Mail / Mitteilung). Gib ihn einfach unten ein, um deinen Zugang sofort freizuschalten!'
+      );
     } catch (e: any) {
-      Alert.alert('Fehler', e.message || 'Die PayPal-Zahlung konnte nicht abgeschlossen werden.');
+      Alert.alert('Fehler', 'Konnte den PayPal-Link nicht öffnen.');
     } finally {
       setLoadingPaypal(false);
     }

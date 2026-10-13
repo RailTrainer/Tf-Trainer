@@ -10,13 +10,14 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  Image
+  Image,
+  Linking
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { mockDb, User } from '../database/mockDb';
 import { useAppTheme } from '../context/ThemeContext';
 import { useDeviceLayout } from '../hooks/useDeviceLayout';
-import { Mail, Lock, User as UserIcon, KeyRound, ShieldCheck, RefreshCw, GraduationCap } from 'lucide-react-native';
+import { Mail, Lock, User as UserIcon, KeyRound, ShieldCheck, RefreshCw, GraduationCap, ExternalLink } from 'lucide-react-native';
 import { useDynamicKeyboard } from '../hooks/useDynamicKeyboard';
 
 interface AuthScreenProps {
@@ -36,6 +37,7 @@ export default function AuthScreen({ onLoginSuccess }: AuthScreenProps) {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [webKey, setWebKey] = useState('');
   const [loading, setLoading] = useState(false);
 
   const colors = {
@@ -62,6 +64,13 @@ export default function AuthScreen({ onLoginSuccess }: AuthScreenProps) {
         Alert.alert('Fehler', 'Das Passwort muss mindestens 6 Zeichen lang sein.');
         return;
       }
+      if (Platform.OS === 'web' && !webKey.trim()) {
+        Alert.alert(
+          '🔒 Freischaltcode erforderlich',
+          'Für die Web-Version ist ein gültiger Lizenz-Key (4,99 € via PayPal) erforderlich.\n\nKlicke auf den gelben PayPal-Button, falls du noch keinen Key erworben hast.'
+        );
+        return;
+      }
     }
 
     setLoading(true);
@@ -70,8 +79,8 @@ export default function AuthScreen({ onLoginSuccess }: AuthScreenProps) {
         const user = await mockDb.loginUser(email, password);
         onLoginSuccess(user);
       } else {
-        const user = await mockDb.registerUser(name, email, password);
-        Alert.alert('Willkommen!', `Dein Account wurde erfolgreich erstellt, ${name}!`);
+        const user = await mockDb.registerUser(name, email, password, webKey);
+        Alert.alert('Willkommen!', `Dein Account wurde erfolgreich erstellt und freigeschaltet, ${name}!`);
         onLoginSuccess(user);
       }
     } catch (e: any) {
@@ -211,6 +220,50 @@ export default function AuthScreen({ onLoginSuccess }: AuthScreenProps) {
               </View>
             )}
 
+            {/* WEB-HINWEIS & PAYPAL-KAUF BEI REGISTRIERUNG */}
+            {Platform.OS === 'web' && mode === 'register' && (
+              <View style={{ 
+                marginBottom: 16, 
+                padding: 14, 
+                borderRadius: 12, 
+                backgroundColor: isDark ? '#1e293b' : '#eff6ff', 
+                borderWidth: 1, 
+                borderColor: '#3b82f6' 
+              }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                  <ShieldCheck size={20} color="#3b82f6" />
+                  <Text style={{ fontSize: 14, fontWeight: 'bold', color: colors.text }}>
+                    Web-Zugang: Einmalig 4,99 €
+                  </Text>
+                </View>
+                <Text style={{ fontSize: 12, color: colors.textMuted, lineHeight: 18, marginBottom: 12 }}>
+                  Um einen neuen Web-Account zu erstellen, wird ein Freischalt-Key benötigt. Noch keinen Key? Kaufe ihn jetzt sicher via PayPal:
+                </Text>
+
+                <TouchableOpacity
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: '#ffc439',
+                    paddingVertical: 10,
+                    paddingHorizontal: 14,
+                    borderRadius: 8,
+                    gap: 8,
+                  }}
+                  onPress={() => {
+                    Linking.openURL(mockDb.PAYPAL_CONFIG.paymentUrl);
+                  }}
+                  activeOpacity={0.85}
+                >
+                  <Text style={{ color: '#003087', fontWeight: 'bold', fontSize: 13 }}>
+                    💳 Für 4,99 € per PayPal kaufen
+                  </Text>
+                  <ExternalLink size={15} color="#003087" />
+                </TouchableOpacity>
+              </View>
+            )}
+
             {/* NAME (nur bei Registrierung) */}
             {mode === 'register' && (
               <View style={styles.inputWrapper}>
@@ -303,6 +356,34 @@ export default function AuthScreen({ onLoginSuccess }: AuthScreenProps) {
                     autoCapitalize="none"
                   />
                 </View>
+              </View>
+            )}
+
+            {/* FREISCHALTCODE / PAYPAL-KEY (nur bei Web-Registrierung) */}
+            {Platform.OS === 'web' && mode === 'register' && (
+              <View style={styles.inputWrapper}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <Text style={[styles.inputLabel, { color: colors.text, marginBottom: 0 }]}>
+                    Freischaltcode / PayPal-Key *
+                  </Text>
+                  <View style={{ backgroundColor: '#2563eb20', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                    <Text style={{ fontSize: 11, color: '#3b82f6', fontWeight: 'bold' }}>4,99 € Pflicht</Text>
+                  </View>
+                </View>
+                <View style={[styles.inputContainer, { borderColor: webKey.trim() ? colors.primary : colors.inputBorder, backgroundColor: colors.inputBg }]}>
+                  <KeyRound size={18} color={webKey.trim() ? colors.primary : colors.textMuted} style={styles.inputIcon} />
+                  <TextInput
+                    style={[styles.input, { color: colors.text, fontWeight: 'bold', letterSpacing: 1 }]}
+                    placeholder="z.B. RT-WEB-XXXX-YYYY"
+                    placeholderTextColor={colors.textMuted}
+                    value={webKey}
+                    onChangeText={setWebKey}
+                    autoCapitalize="characters"
+                  />
+                </View>
+                <Text style={{ fontSize: 11, color: colors.textMuted, marginTop: 4 }}>
+                  Den Code erhältst du nach Zahlung von 4,99 € via PayPal oder von deinem Dozenten.
+                </Text>
               </View>
             )}
 
