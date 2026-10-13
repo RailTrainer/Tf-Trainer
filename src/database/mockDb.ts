@@ -431,6 +431,7 @@ export function generateWebKey(): string {
 
 export const PAYPAL_CONFIG = {
   businessEmail: 'dschmitz112@web.de',
+  clientId: 'sb', // PayPal Client-ID: 'sb' (Sandbox zum Testen) oder deine echte Live Client-ID
   paymentUrl: 'https://www.paypal.com/cgi-bin/webscr?cmd=_xclick&business=dschmitz112%40web.de&item_name=Tf-Trainer%20Web-Zugang%20Lizenz&amount=4.99&currency_code=EUR',
   price: '4,99 €',
   currency: 'EUR',

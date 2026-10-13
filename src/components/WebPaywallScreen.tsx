@@ -46,6 +46,8 @@ export default function WebPaywallScreen({ currentUser, onUnlocked, onLogout }: 
   const [loadingKey, setLoadingKey] = useState(false);
   const [checkingStatus, setCheckingStatus] = useState(false);
   const [showCodeInput, setShowCodeInput] = useState(false);
+  const [showSmartButtons, setShowSmartButtons] = useState(false);
+  const [smartButtonLoading, setSmartButtonLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const colors = {
@@ -106,7 +108,77 @@ export default function WebPaywallScreen({ currentUser, onUnlocked, onLogout }: 
     }
   };
 
-  // Lizenzcode / Freischalt-Key einlösen
+  // Weg 3: Offizieller PayPal Smart Button Checkout (Echtzeit-Verifizierung)
+  const initPayPalSmartButtons = () => {
+    if (typeof window === 'undefined') return;
+    setSmartButtonLoading(true);
+    setShowSmartButtons(true);
+
+    const scriptId = 'paypal-sdk-smart-button';
+    const existing = document.getElementById(scriptId);
+
+    const renderButtons = () => {
+      const container = document.getElementById('paypal-smart-container');
+      if (container && (window as any).paypal) {
+        container.innerHTML = '';
+        (window as any).paypal.Buttons({
+          style: {
+            layout: 'vertical',
+            color: 'gold',
+            shape: 'rect',
+            label: 'paypal'
+          },
+          createOrder: (_data: any, actions: any) => {
+            return actions.order.create({
+              purchase_units: [{
+                description: 'Tf-Trainer Web-Zugang',
+                amount: {
+                  currency_code: 'EUR',
+                  value: '4.99'
+                }
+              }]
+            });
+          },
+          onApprove: async (data: any, actions: any) => {
+            try {
+              const details = await actions.order.capture();
+              const updated = await mockDb.unlockWebAccess(currentUser.id, {
+                provider: 'paypal_smart_button',
+                orderId: details.id || data.orderID,
+                amount: '4.99'
+              });
+              setSuccessMessage('Zahlung via PayPal erfolgreich autorisiert! 🎉 Dein Web-Zugang ist sofort freigeschaltet.');
+              setTimeout(() => {
+                onUnlocked(updated);
+              }, 1200);
+            } catch (err: any) {
+              Alert.alert('Fehler', 'Zahlung konnte nicht erfasst werden.');
+            }
+          },
+          onError: (_err: any) => {
+            Alert.alert('PayPal Hinweis', 'Die Zahlung wurde abgebrochen oder ist fehlgeschlagen.');
+          }
+        }).render('#paypal-smart-container');
+        setSmartButtonLoading(false);
+      }
+    };
+
+    if (existing && (window as any).paypal) {
+      setTimeout(renderButtons, 200);
+    } else {
+      const script = document.createElement('script');
+      script.id = scriptId;
+      script.src = `https://www.paypal.com/sdk/js?client-id=${mockDb.PAYPAL_CONFIG.clientId}&currency=EUR`;
+      script.onload = () => {
+        setTimeout(renderButtons, 250);
+      };
+      script.onerror = () => {
+        setSmartButtonLoading(false);
+        Alert.alert('Hinweis', 'PayPal Smart Buttons konnten nicht geladen werden.');
+      };
+      document.body.appendChild(script);
+    }
+  };
   const handleRedeemCode = async () => {
     if (!activationCode.trim()) {
       Alert.alert('Hinweis', 'Bitte gib deinen Lizenzschlüssel ein.');
@@ -268,6 +340,48 @@ export default function WebPaywallScreen({ currentUser, onUnlocked, onLogout }: 
                 </>
               )}
             </TouchableOpacity>
+
+            {/* WEG 3: AUTOMATISCHE PAYPAL SMART BUTTONS */}
+            {Platform.OS === 'web' && (
+              <View style={{ marginTop: 14, width: '100%' }}>
+                {!showSmartButtons ? (
+                  <TouchableOpacity
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      paddingVertical: 10,
+                      paddingHorizontal: 12,
+                      borderRadius: 8,
+                      backgroundColor: isDark ? '#1e3a8a30' : '#eff6ff',
+                      borderWidth: 1,
+                      borderColor: '#3b82f6',
+                      gap: 6,
+                    }}
+                    onPress={initPayPalSmartButtons}
+                    activeOpacity={0.8}
+                  >
+                    <Sparkles size={15} color="#3b82f6" />
+                    <Text style={{ fontSize: 12, color: '#3b82f6', fontWeight: 'bold' }}>
+                      ⚡ Option 3: PayPal Direkt-Checkout (Sofort-Freischaltung)
+                    </Text>
+                  </TouchableOpacity>
+                ) : (
+                  <View style={{ marginTop: 8, padding: 12, borderRadius: 10, backgroundColor: isDark ? '#1e293b' : '#f8fafc', borderWidth: 1, borderColor: colors.border }}>
+                    <Text style={{ fontSize: 12, fontWeight: 'bold', color: colors.text, marginBottom: 8, textAlign: 'center' }}>
+                      ⚡ Offizieller PayPal Direkt-Checkout (4,99 €)
+                    </Text>
+                    {smartButtonLoading && <ActivityIndicator color={colors.primary} size="small" style={{ marginVertical: 12 }} />}
+                    <View style={{ minHeight: 45 }}>
+                      <div id="paypal-smart-container" style={{ minHeight: 45 }} />
+                    </View>
+                    <Text style={{ fontSize: 11, color: colors.textMuted, textAlign: 'center', marginTop: 6 }}>
+                      Zahlung wird in Echtzeit verifiziert und schaltet deinen Account sofort frei.
+                    </Text>
+                  </View>
+                )}
+              </View>
+            )}
           </View>
 
           {/* TRENNLINIE */}
