@@ -200,7 +200,7 @@ export default function WebPaywallScreen({ currentUser, onUnlocked, onLogout }: 
               )}
             </TouchableOpacity>
             <Text style={[styles.secureNote, { color: colors.textMuted }]}>
-              🔒 Sichere Zahlung • Automatische Freigabe in Echtzeit
+              🔒 Sichere PayPal-Zahlung an dschmitz112@web.de (4,99 €)
             </Text>
           </View>
 

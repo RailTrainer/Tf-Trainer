@@ -261,6 +261,9 @@ export default function AuthScreen({ onLoginSuccess }: AuthScreenProps) {
                   </Text>
                   <ExternalLink size={15} color="#003087" />
                 </TouchableOpacity>
+                <Text style={{ fontSize: 11, color: colors.textMuted, textAlign: 'center', marginTop: 8 }}>
+                  Empfänger: dschmitz112@web.de • Betrag: 4,99 €
+                </Text>
               </View>
             )}
 

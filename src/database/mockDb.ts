@@ -430,7 +430,8 @@ export function generateWebKey(): string {
 }
 
 export const PAYPAL_CONFIG = {
-  paymentUrl: 'https://www.paypal.com/paypalme/railtrainer/4.99',
+  businessEmail: 'dschmitz112@web.de',
+  paymentUrl: 'https://www.paypal.com/cgi-bin/webscr?cmd=_xclick&business=dschmitz112%40web.de&item_name=Tf-Trainer%20Web-Zugang%20Lizenz&amount=4.99&currency_code=EUR',
   price: '4,99 €',
   currency: 'EUR',
 };
