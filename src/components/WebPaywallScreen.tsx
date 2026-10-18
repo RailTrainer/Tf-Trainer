@@ -28,7 +28,8 @@ import {
   Lock, 
   HelpCircle,
   ExternalLink,
-  ChevronRight
+  ChevronRight,
+  Info
 } from 'lucide-react-native';
 
 interface WebPaywallScreenProps {
@@ -99,7 +100,7 @@ export default function WebPaywallScreen({ currentUser, onUnlocked, onLogout }: 
       setShowCodeInput(true);
       Alert.alert(
         'PayPal geöffnet 💳',
-        'Die PayPal-Zahlungsseite wurde geöffnet.\n\nSobald die 4,99 € gesendet wurden, schaltet der Admin deinen Account frei (oder du gibst den Lizenzcode ein). Klicke danach einfach auf "Freischaltung prüfen"!'
+        `Die PayPal-Zahlungsseite wurde geöffnet.\n\n⚠️ WICHTIGER HINWEIS:\nBitte achte darauf, dass im PayPal-Hinweis/Verwendungszweck deine Registrierungs-E-Mail angegeben ist:\n\n${currentUser.email}\n\nNur so kann die Zahlung sofort deinem Account zugeordnet und freigeschaltet werden!`
       );
     } catch (e: any) {
       Alert.alert('Fehler', 'Konnte den PayPal-Link nicht öffnen.');
@@ -237,6 +238,42 @@ export default function WebPaywallScreen({ currentUser, onUnlocked, onLogout }: 
             <Text style={[styles.secureNote, { color: colors.textMuted }]}>
               🔒 Sichere PayPal-Zahlung an dschmitz112@web.de (4,99 €)
             </Text>
+
+            {/* WICHTIGER HINWEIS: EMAIL-ZUORDNUNG */}
+            <View style={{
+              width: '100%',
+              backgroundColor: isDark ? '#451a0335' : '#fffbeb',
+              borderColor: isDark ? '#d97706' : '#f59e0b',
+              borderWidth: 1.5,
+              borderRadius: 12,
+              padding: 14,
+              marginTop: 14,
+              marginBottom: 4,
+            }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                <Info size={16} color="#d97706" />
+                <Text style={{ fontSize: 13, fontWeight: 'bold', color: isDark ? '#fbbf24' : '#b45309' }}>
+                  Wichtig für die Zuordnung deiner Zahlung:
+                </Text>
+              </View>
+              <Text style={{ fontSize: 12, color: colors.text, lineHeight: 18 }}>
+                Bitte gib bei PayPal im Hinweis-/Mitteilungsfeld unbedingt deine Registrierungs-E-Mail an, damit der Admin deine Zahlung sofort freischalten kann:
+              </Text>
+              <View style={{
+                backgroundColor: isDark ? '#1e293b' : '#ffffff',
+                borderColor: colors.border,
+                borderWidth: 1,
+                borderRadius: 8,
+                paddingHorizontal: 12,
+                paddingVertical: 7,
+                marginTop: 8,
+                alignSelf: 'flex-start',
+              }}>
+                <Text style={{ fontSize: 13, fontWeight: 'bold', color: colors.primary }}>
+                  📧 {currentUser.email}
+                </Text>
+              </View>
+            </View>
 
             {/* FREISCHALTUNG PRÜFEN BUTTON */}
             <TouchableOpacity
