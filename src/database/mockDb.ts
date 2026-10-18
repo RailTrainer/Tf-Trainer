@@ -450,9 +450,6 @@ export function verifyWebKey(rawKey: string): boolean {
     const checksum = clean.substring(4, 8);
     return calculateKeyChecksum(part) === checksum;
   }
-  const masterKeys = ['RT-WEB-START-2026', 'RAILTRAINER-WEB-FREE', 'PAYPAL-TEST-499'];
-  const normalizedRaw = rawKey.trim().toUpperCase();
-  if (masterKeys.includes(normalizedRaw)) return true;
   return false;
 }
 
@@ -1586,13 +1583,13 @@ const INITIAL_QUESTIONS: Question[] = [
     category: 'Wagenprüfung',
     text: 'Wie macht sich eine Flachstelle an einem Güterwagen im Betrieb bemerkbar?',
     options: [
-      'Durch ein kontinuierliches Zischen der Bremsleitung',
-      'Durch ein rhythmisches, schlagendes Klopfen während der Fahrt',
-      'Der Wagen neigt sich stark zur Seite',
-      'Die Wagenbeleuchtung fällt aus'
-    ],
+      "Durch eine stetige Rauchentwicklung am Radsatzlagergehäuse",
+      "Durch ein rhythmisches, geschwindigkeitsabhängiges Klopfen oder Schlagen während der Fahrt",
+      "Durch Bauteilschäden wie eine gelockerte Abhebesicherung oder gebrochene Bremsfangschlingen infolge der Stoßbelastung",
+      "Durch ein kontinuierliches Zischen an den Luftabsperrhähnen der Hauptluftleitung"
+],
     correctIndex: 1,
-    explanation: 'Eine Flachstelle entsteht durch das Blockieren der Radsätze beim Bremsen. Im Betrieb führt dies zu einem charakteristischen rhythmischen Klopfen, das Schienen und Fahrzeuge schädigen kann.'
+    explanation: 'Eine Flachstelle entsteht durch das Blockieren der Radsätze beim Bremsen (z. B. durch falsch eingestellte Lastwechsel, ungünstige Reibwertverhältnisse oder eine feste Handbremse). Im Fahrbetrieb führt sie zu einem charakteristischen rhythmischen Klopfen, das Schienen und Fahrzeuge schädigen kann und Stoßbelastungen auf Bauteile wie Abhebesicherungen ausübt.'
   },
   {
     id: 'q7',
