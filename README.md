@@ -37,6 +37,18 @@ npm start
 
 Umgebungsvariablen werden vom Code derzeit nicht benötigt (Supabase-Konfiguration steht in `src/services/supabaseClient.ts`). Lokale Env-Dateien (`.env*.local`) sind gitignored.
 
+### Ersten Admin anlegen
+
+Das Schema (`supabase/supabase_schema.sql`) legt keinen Admin- oder Test-Account an, und der Client seedet keine Admins. Den ersten Admin registrierst du über die normale App-Registrierung und stufst ihn danach im Supabase-SQL-Editor hoch:
+
+```sql
+UPDATE public.users SET role = 'admin' WHERE email = '<admin-email>';
+```
+
+### Passwort zurücksetzen
+
+Der Reset läuft ausschließlich über Supabase-Auth-OTP (`sendPasswordResetOtp` / `verifyOtpAndResetPassword` in `src/database/mockDb.ts`). Ohne Supabase-Verbindung ist kein Reset möglich.
+
 ## npm-Scripts
 
 | Script | Zweck |

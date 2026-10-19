@@ -19,6 +19,9 @@
 - Keine Secrets, Keys oder Zugangsdaten committen; keine neuen Dateien im Repo-Root ablegen (Daten nach `data/`, SQL nach `supabase/`, Skripte nach `scripts/`, Grafiken nach `docs/store/`).
 - Vor Expo-bezogenen Änderungen die versionierten Expo-Docs lesen (siehe AGENTS.md).
 
+## Auth
+- Passwort-Reset nur über Supabase-Auth-OTP (`src/database/mockDb.ts`); keine Master-Codes, Seed-Admins oder Test-Konten einführen. Zufallswerte über `generateRandomSecret` (`src/utils/crypto.ts`).
+
 ## Prüfen
 ```bash
 npx tsc --noEmit

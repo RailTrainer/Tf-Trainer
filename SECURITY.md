@@ -16,6 +16,11 @@ Unterstützt wird jeweils die aktuelle Version (derzeit 1.1.x, siehe `package.js
 - Der Supabase-Service-Role-Key darf nie in Client-Code oder Repo gelangen. Im Client ist ausschließlich der öffentliche (publishable/anon) Key vorgesehen.
 - Wurde ein Secret versehentlich committet: Secret rotieren, nicht nur entfernen.
 
+## Konten und Passwort-Reset
+
+- Das Repo enthält keine Seed-Konten (weder im Client noch in `supabase/supabase_schema.sql`). Der erste Admin wird über die App-Registrierung angelegt und per SQL hochgestuft (siehe README).
+- Passwort-Reset erfolgt nur über Supabase-Auth-OTP; es gibt keinen lokalen Fallback und keinen festen Code.
+
 ## Supabase
 
 Der Zugriff auf Daten muss serverseitig über Row Level Security (RLS) abgesichert sein, da der Client-Key öffentlich ist. Die Policies stehen in `supabase/` (`supabase_schema.sql`, `supabase_web_schema.sql`, `supabase_security_fix.sql`).
