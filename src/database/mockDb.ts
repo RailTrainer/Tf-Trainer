@@ -6,7 +6,7 @@ import quizletSignals from './quizlet_signals.json';
 import anlage5Cards from './anlage5_cards.json';
 import bremsprobeCards from './bremsprobe_cards.json';
 import docxQuestions from './docx_questions.json';
-import { hashPassword, verifyPassword, isSha256Hash } from '../utils/crypto';
+import { hashPassword, verifyPassword, isSha256Hash, generateRandomSecret } from '../utils/crypto';
 
 export interface RoleDefinition {
   id: string;
@@ -487,26 +487,6 @@ export const INITIAL_ROLES: RoleDefinition[] = [
   { id: 'admin', name: 'Ausbilder', color: '#ef4444', canAccessAdmin: true, canManageUsers: true, isSystem: true },
   { id: 'moderator', name: 'Mod', color: '#f97316', canAccessAdmin: true, canManageUsers: false, isSystem: true },
   { id: 'user', name: 'Schüler', color: '#10b981', canAccessAdmin: false, canManageUsers: false, isSystem: true },
-];
-
-// Initialdaten für Benutzer
-const INITIAL_USERS: User[] = [
-  {
-    id: 'u_admin',
-    name: 'Administrator',
-    email: 'admin@railtrainer.de',
-    password: 'bf3d0317371cbae0fd67facd948171421a5ebd3a785e3a6e30b57fc6b2306956',
-    role: 'admin',
-    title: 'Administrator'
-  },
-  {
-    id: 'u_admin_bahn',
-    name: 'Administrator',
-    email: 'admin@bahn.de',
-    password: 'bf3d0317371cbae0fd67facd948171421a5ebd3a785e3a6e30b57fc6b2306956',
-    role: 'admin',
-    title: 'Administrator'
-  }
 ];
 
 // Initialdaten für Kategorien
@@ -2355,35 +2335,34 @@ export const mockDb = {
     const cleanEmail = email.trim().toLowerCase();
     if (!cleanEmail) throw new Error('Bitte gib deine registrierte E-Mail-Adresse ein.');
 
+    // Der Code wird ausschließlich von Supabase Auth erzeugt und geprüft – kein lokaler Fallback.
+    if (!isSupabaseConfigured() || !supabase) {
+      throw new Error('Das Zurücksetzen des Passworts ist nur mit Internetverbindung möglich.');
+    }
+
     const users = await this.getUsers();
     const user = users.find(u => u.email.toLowerCase() === cleanEmail);
     if (!user) {
       throw new Error('Kein Account mit dieser E-Mail-Adresse gefunden. Bitte überprüfe deine Eingabe.');
     }
 
-    // 6-stelligen Fallback-Code generieren
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = Date.now() + 15 * 60 * 1000; // 15 Minuten gültig
-    await AsyncStorage.setItem(`@reset_otp_${cleanEmail}`, JSON.stringify({ code, expiresAt }));
-
     // Supabase Auth Recovery E-Mail anfordern (sendet echten Code per SMTP)
-    if (isSupabaseConfigured() && supabase) {
+    try {
+      // Falls der Nutzer noch nicht in Supabase Auth (auth.users) existiert, synchronisieren.
+      // Zufälliges Wegwerf-Passwort: Das echte Passwort wird erst nach erfolgreicher OTP-Prüfung gesetzt.
       try {
-        // Falls der Nutzer noch nicht in Supabase Auth (auth.users) existiert, synchronisieren
-        try {
-          await supabase.auth.signUp({
-            email: cleanEmail,
-            password: user.password || 'RailTrainer2026!',
-          });
-        } catch {}
+        await supabase.auth.signUp({
+          email: cleanEmail,
+          password: generateRandomSecret(),
+        });
+      } catch {}
 
-        const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail);
-        if (error) {
-          console.log('Supabase resetPasswordForEmail info:', error.message);
-        }
-      } catch (e: any) {
-        console.log('Supabase recover email trigger error:', e);
+      const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail);
+      if (error) {
+        console.log('Supabase resetPasswordForEmail info:', error.message);
       }
+    } catch (e: any) {
+      console.log('Supabase recover email trigger error:', e);
     }
 
     return {
@@ -2427,28 +2406,12 @@ export const mockDb = {
       }
     }
 
-    // 2. Fallback auf lokalen OTP / Mastercode prüfen
-    if (!otpVerified) {
-      const storedData = await AsyncStorage.getItem(`@reset_otp_${cleanEmail}`);
-      if (storedData) {
-        const { code: expectedCode, expiresAt } = JSON.parse(storedData);
-        if (Date.now() <= expiresAt && (cleanCode === expectedCode || cleanCode === '999888')) {
-          otpVerified = true;
-        }
-      } else if (cleanCode === '999888') {
-        otpVerified = true;
-      }
-    }
-
     if (!otpVerified) {
       throw new Error('Der eingegebene Bestätigungscode ist ungültig oder abgelaufen. Bitte prüfe dein Postfach.');
     }
 
-    // 3. Passwort in DB und lokalem Speicher aktualisieren
+    // 2. Passwort in DB und lokalem Speicher aktualisieren
     await this.resetPassword(cleanEmail, newPassword);
-
-    // Gespeicherten OTP löschen
-    await AsyncStorage.removeItem(`@reset_otp_${cleanEmail}`);
 
     return await this.resetPasswordAndLogin(cleanEmail, newPassword);
   },
@@ -2657,20 +2620,15 @@ export const mockDb = {
           }
           return u;
         });
-        const hasAdmin = users.some(u => u.role === 'admin' || u.email === 'admin@railtrainer.de' || u.email === 'admin@bahn.de');
-        if (!hasAdmin) {
-          users.unshift(INITIAL_USERS[0]);
-          modified = true;
-        }
         if (modified) {
           await AsyncStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
         }
         return users;
       }
-      await AsyncStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(INITIAL_USERS));
-      return INITIAL_USERS;
+      // Keine Seed-Benutzer im Client: Admins werden ausschließlich serverseitig angelegt.
+      return [];
     } catch {
-      return INITIAL_USERS;
+      return [];
     }
   },
 
