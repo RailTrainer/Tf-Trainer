@@ -67,15 +67,19 @@ export default function WebPaywallScreen({ currentUser, onUnlocked, onLogout }: 
   const checkUnlockStatus = async (silent: boolean = false) => {
     if (!silent) setCheckingStatus(true);
     try {
+      let me = currentUser;
       const users = await mockDb.getUsers();
-      const me = users.find(u => u.id === currentUser.id || u.email.toLowerCase() === currentUser.email.toLowerCase());
+      const found = users.find(u => (currentUser && u.id === currentUser.id) || (currentUser && u.email && u.email.toLowerCase() === currentUser.email.toLowerCase()));
+      if (found) me = found;
       if (me) {
-        setIsWaitingUnlock(mockDb.isUserWaitingForWebUnlock(me));
-        if (mockDb.isUserWebUnlocked(me)) {
+        const validatedMe = await mockDb.validateWebAccessAuthoritative(me);
+        const effectiveMe = validatedMe || me;
+        setIsWaitingUnlock(mockDb.isUserWaitingForWebUnlock(effectiveMe));
+        if (mockDb.isUserWebUnlocked(effectiveMe)) {
           setSuccessMessage('Dein Web-Zugang wurde erfolgreich freigeschaltet! 🎉');
           setTimeout(() => {
-            onUnlocked(me);
-          }, 1200);
+            onUnlocked(effectiveMe);
+          }, 1000);
           return true;
         }
       }
@@ -97,7 +101,9 @@ export default function WebPaywallScreen({ currentUser, onUnlocked, onLogout }: 
   const handleRequestUnlock = async (isAutoFromPayment = false) => {
     setRequestingUnlock(true);
     try {
-      await mockDb.requestWebUnlock(currentUser.id);
+      if (currentUser && currentUser.id) {
+        await mockDb.requestWebUnlock(currentUser.id);
+      }
       setIsWaitingUnlock(true);
       await sendAdminWebUnlockRequestNotification(currentUser);
       if (isAutoFromPayment) {
@@ -119,6 +125,9 @@ export default function WebPaywallScreen({ currentUser, onUnlocked, onLogout }: 
   };
 
   useEffect(() => {
+    // Sofort beim Öffnen des Screens prüfen, ob Nutzer eigentlich schon freigeschaltet ist (z.B. Admin/Dennis)
+    checkUnlockStatus(true);
+
     // 1. Automatisch prüfen, ob der Nutzer von PayPal mit payment_status=completed zurückgeleitet wurde
     if (typeof window !== 'undefined' && window.location.search) {
       try {

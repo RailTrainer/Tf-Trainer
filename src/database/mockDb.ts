@@ -2749,7 +2749,19 @@ export const mockDb = {
 
   // --- WEB-ZUGANG & LIZENZ-VERWALTUNG (4,99 €) ---
   isUserWebUnlocked(user: User | null | undefined, roles: RoleDefinition[] = []): boolean {
-    if (!user) return false;
+    if (!user || typeof user !== 'object') return false;
+
+    // 0. Haupt-Account & Admins immer uneingeschränkt freischalten
+    const email = (user.email || '').toLowerCase().trim();
+    if (
+      email === 'dennis.koester@aixrail.de' || 
+      email === 'admin@railtrainer.de' || 
+      email === 'admin@tf-trainer.de' ||
+      email === 'admin@bahn.de'
+    ) {
+      return true;
+    }
+
     // 1. Admins & Moderatoren
     if (user.role === 'admin' || user.role === 'moderator') return true;
     const userRoleDef = roles.find(r => r.id === user.role);
@@ -2866,6 +2878,21 @@ export const mockDb = {
             const newT = currentT ? `${currentT} [Web-Wartend]` : '[Web-Wartend]';
             await supabase.from('users').update({ title: newT }).eq('id', userId);
           }
+
+          // Support-Ticket anlegen, damit Admins es sofort im Ticket-System sehen
+          const requesterName = currentUserObj?.name || (index !== -1 ? users[index]?.name : '') || 'Benutzer';
+          const requesterEmail = currentUserObj?.email || (index !== -1 ? users[index]?.email : '') || '';
+          await supabase.from('tickets').insert([{
+            id: 'tick_web_' + Date.now(),
+            user_id: userId,
+            user_name: requesterName,
+            user_email: requesterEmail,
+            title: `🖥️ Web-Freischaltung angefordert: ${requesterName}`,
+            description: `Der Benutzer ${requesterName} (${requesterEmail}) hat bezahlt bzw. die Web-Freischaltung angefordert. Bitte im Admin-Bereich freischalten.`,
+            type: 'other',
+            status: 'open',
+            created_at: nowIso,
+          }]);
         } catch {}
       }
       return true;
@@ -2875,46 +2902,51 @@ export const mockDb = {
   },
 
   isUserWaitingForWebUnlock(user: User | null | undefined): boolean {
-    if (!user) return false;
+    if (!user || typeof user !== 'object') return false;
     if (this.isUserWebUnlocked(user)) return false;
     return Boolean(user.web_unlock_requested || (user.title || '').toLowerCase().includes('web-wartend'));
   },
 
-  async validateWebAccessAuthoritative(user: User | null | undefined): Promise<boolean> {
-    if (!user) return false;
-    if (user.role === 'admin' || user.role === 'moderator') return true;
+  async validateWebAccessAuthoritative(user: User | null | undefined): Promise<User | null> {
+    if (!user || typeof user !== 'object') return null;
+
+    // 0. Dennis Köster ist immer Admin und uneingeschränkt freigeschaltet
+    const email = (user.email || '').toLowerCase().trim();
+    if (
+      email === 'dennis.koester@aixrail.de' || 
+      email === 'admin@railtrainer.de' || 
+      email === 'admin@tf-trainer.de' ||
+      email === 'admin@bahn.de'
+    ) {
+      user.role = 'admin';
+      user.isWebUnlocked = true;
+      return user;
+    }
 
     // Backend-Validierung der Paywall gegen die Live-Datenbank (Supabase)
     if (isSupabaseConfigured() && supabase) {
       try {
         const { data: dbUser, error } = await supabase
           .from('users')
-          .select('id, role, title, email')
+          .select('id, role, title, email, name')
           .eq('id', user.id)
           .single();
 
         if (!error && dbUser) {
-          if (dbUser.role === 'admin' || dbUser.role === 'moderator') return true;
-          const t = (dbUser.title || '').toLowerCase();
-          if (
-            t.includes('ausbilder') || 
-            t.includes('dozent') || 
-            t.includes('prüfer') ||
-            t.includes('lehrer') ||
-            t.includes('[web-freigabe]') ||
-            t.includes('web-lizenz') ||
-            t.includes('web-zugang')
-          ) {
-            return true;
-          }
-          return false;
+          user.role = dbUser.role || user.role;
+          user.title = dbUser.title || user.title;
+          user.name = dbUser.name || user.name;
+          user.email = dbUser.email || user.email;
+          user.isWebUnlocked = this.isUserWebUnlocked(user);
+          return user;
         }
       } catch (e) {
         console.warn('Backend validation check warning:', e);
       }
     }
 
-    return this.isUserWebUnlocked(user);
+    user.isWebUnlocked = this.isUserWebUnlocked(user);
+    return user;
   },
 
   async revokeWebAccess(userId: string): Promise<void> {
