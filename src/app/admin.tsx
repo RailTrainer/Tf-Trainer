@@ -3748,14 +3748,88 @@ export default function AdminScreen() {
               keyboardShouldPersistTaps="handled"
             >
               <Text style={[styles.secTitle, { color: colors.text }]}>Eingetragene Benutzer ({users.length})</Text>
+
+              {/* HINWEIS-BANNER FÜR BENUTZER, DIE AUF WEB-FREISCHALTUNG WARTEN */}
+              {(() => {
+                const waitingList = users.filter(u => mockDb.isUserWaitingForWebUnlock(u) && !mockDb.isUserWebUnlocked(u, roles));
+                if (waitingList.length === 0) return null;
+                return (
+                  <View style={{
+                    backgroundColor: isDark ? '#451a0360' : '#fffbeb',
+                    borderColor: isDark ? '#d97706' : '#f59e0b',
+                    borderWidth: 1.5,
+                    borderRadius: 12,
+                    padding: 14,
+                    marginBottom: 16,
+                  }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                      <Text style={{ fontSize: 16 }}>⏳</Text>
+                      <Text style={{ fontSize: 14, fontWeight: 'bold', color: isDark ? '#fbbf24' : '#b45309', flex: 1 }}>
+                        {waitingList.length === 1 
+                          ? '1 Benutzer wartet auf Web-Freischaltung!' 
+                          : `${waitingList.length} Benutzer warten auf Web-Freischaltung!`}
+                      </Text>
+                    </View>
+                    <Text style={{ fontSize: 12, color: colors.text, marginBottom: 10 }}>
+                      Die folgenden Benutzer haben gezahlt oder eine Web-Freischaltung angefordert:
+                    </Text>
+                    {waitingList.map(wu => (
+                      <View key={wu.id} style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        paddingVertical: 8,
+                        paddingHorizontal: 12,
+                        backgroundColor: isDark ? '#1e293b' : '#ffffff',
+                        borderRadius: 8,
+                        borderWidth: 1,
+                        borderColor: isDark ? '#d97706' : '#fcd34d',
+                        marginBottom: 6,
+                        gap: 8,
+                      }}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ fontSize: 13, fontWeight: 'bold', color: colors.text }}>{wu.name}</Text>
+                          <Text style={{ fontSize: 11, color: colors.textMuted }}>{wu.email}</Text>
+                        </View>
+                        <TouchableOpacity
+                          style={{
+                            backgroundColor: '#10b981',
+                            paddingVertical: 6,
+                            paddingHorizontal: 12,
+                            borderRadius: 6,
+                          }}
+                          onPress={() => handleToggleWebAccess(wu.id, wu.name, false)}
+                          activeOpacity={0.8}
+                        >
+                          <Text style={{ color: '#ffffff', fontSize: 12, fontWeight: 'bold' }}>
+                            🔓 Jetzt freischalten
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+                  </View>
+                );
+              })()}
+
               {users.map((u) => {
                 const isMe = u.id === currentUser.id;
                 const userRoleDef = roles.find(r => r.id === u.role);
                 const roleName = userRoleDef?.name || u.role.toUpperCase();
                 const roleColor = userRoleDef?.color || '#3b82f6';
+                const isWaiting = mockDb.isUserWaitingForWebUnlock(u) && !mockDb.isUserWebUnlocked(u, roles);
 
                 return (
-                  <View key={u.id} style={[styles.userCard, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
+                  <View 
+                    key={u.id} 
+                    style={[
+                      styles.userCard, 
+                      { 
+                        backgroundColor: isWaiting ? (isDark ? '#451a0325' : '#fffbeb') : colors.cardBg, 
+                        borderColor: isWaiting ? '#f59e0b' : colors.border,
+                        borderWidth: isWaiting ? 2 : 1,
+                      }
+                    ]}
+                  >
                     <View style={styles.userHeader}>
                       <View style={{ flex: 1, paddingRight: 8 }}>
                         <Text style={[styles.userName, { color: colors.text }]}>
@@ -3771,6 +3845,10 @@ export default function AdminScreen() {
                           {mockDb.isUserWebUnlocked(u, roles) ? (
                             <View style={{ backgroundColor: isDark ? '#064e3b' : '#dcfce7', borderColor: '#10b981', borderWidth: 1, borderRadius: 4, paddingHorizontal: 6, paddingVertical: 1 }}>
                               <Text style={{ fontSize: 10, color: '#10b981', fontWeight: 'bold' }}>🖥️ Web freigeschaltet</Text>
+                            </View>
+                          ) : isWaiting ? (
+                            <View style={{ backgroundColor: isDark ? '#78350f' : '#fef3c7', borderColor: '#f59e0b', borderWidth: 1, borderRadius: 4, paddingHorizontal: 6, paddingVertical: 1 }}>
+                              <Text style={{ fontSize: 10, color: isDark ? '#fef08a' : '#b45309', fontWeight: 'bold' }}>⏳ WARTET AUF FREISCHALTUNG</Text>
                             </View>
                           ) : (
                             <View style={{ backgroundColor: isDark ? '#1e293b' : '#f1f5f9', borderColor: colors.border, borderWidth: 1, borderRadius: 4, paddingHorizontal: 6, paddingVertical: 1 }}>
@@ -3936,9 +4014,17 @@ export default function AdminScreen() {
                         </Text>
                         <TouchableOpacity
                           style={{
-                            backgroundColor: mockDb.isUserWebUnlocked(u, roles) ? (isDark ? '#7f1d1d35' : '#fee2e2') : (isDark ? '#064e3b35' : '#ecfdf5'),
+                            backgroundColor: mockDb.isUserWebUnlocked(u, roles) 
+                              ? (isDark ? '#7f1d1d35' : '#fee2e2') 
+                              : isWaiting 
+                                ? '#10b981' 
+                                : (isDark ? '#064e3b35' : '#ecfdf5'),
                             borderWidth: 1,
-                            borderColor: mockDb.isUserWebUnlocked(u, roles) ? '#fca5a5' : '#86efac',
+                            borderColor: mockDb.isUserWebUnlocked(u, roles) 
+                              ? '#fca5a5' 
+                              : isWaiting 
+                                ? '#059669' 
+                                : '#86efac',
                             flexDirection: 'row',
                             alignItems: 'center',
                             paddingHorizontal: 10,
@@ -3948,8 +4034,20 @@ export default function AdminScreen() {
                           }}
                           onPress={() => handleToggleWebAccess(u.id, u.name, mockDb.isUserWebUnlocked(u, roles))}
                         >
-                          <Text style={{ color: mockDb.isUserWebUnlocked(u, roles) ? '#ef4444' : '#10b981', fontSize: 11, fontWeight: 'bold' }}>
-                            {mockDb.isUserWebUnlocked(u, roles) ? '🚫 Web-Zugang entziehen' : '⚡ Web freischalten (4,99 €)'}
+                          <Text style={{ 
+                            color: mockDb.isUserWebUnlocked(u, roles) 
+                              ? '#ef4444' 
+                              : isWaiting 
+                                ? '#ffffff' 
+                                : '#10b981', 
+                            fontSize: 11, 
+                            fontWeight: 'bold' 
+                          }}>
+                            {mockDb.isUserWebUnlocked(u, roles) 
+                              ? '🚫 Web-Zugang entziehen' 
+                              : isWaiting 
+                                ? '🔓 WARTET: Jetzt freischalten!' 
+                                : '⚡ Web freischalten (4,99 €)'}
                           </Text>
                         </TouchableOpacity>
                       </View>

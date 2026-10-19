@@ -34,6 +34,8 @@ jobs:
         run: |
           npx expo export --platform web
           touch dist/.nojekyll
+          cp -r admin-portal dist/admin-portal
+          cp admin-portal/play.html dist/play.html 2>/dev/null || true
 
       - name: Upload GitHub Pages Artifact
         uses: actions/upload-pages-artifact@v3

@@ -38,6 +38,8 @@ export interface User {
   title?: string; // Neu: z.B. "Ausbilder", "Prüfer"
   avatarUrl?: string; // Neu: Profilfoto (Preset Emoji oder URL)
   isWebUnlocked?: boolean; // Freigabe für die 4,99 € Web-Version
+  web_unlock_requested?: boolean; // Wartet auf Freischaltung durch den Admin
+  web_unlock_requested_at?: string; // Zeitstempel der Zahlungs-/Freischaltanfrage
 }
 
 export interface Category {
@@ -2027,7 +2029,7 @@ const INITIAL_TICKETS: Ticket[] = [];
 const INITIAL_NEWS: NewsItem[] = [
   {
     id: 'news_1',
-    title: 'Willkommen bei RailTrainer',
+    title: 'Willkommen bei Tf-Trainer',
     content: 'Willkommen auf der offiziellen Lern- und Wissensplattform für den Eisenbahnbetriebsdienst. Nutze die interaktiven Lernkarten und die Prüfungssimulation zur gezielten Vorbereitung.',
     category: 'announcement',
     authorId: 'u_admin',
@@ -2743,7 +2745,10 @@ export const mockDb = {
     let currentTitle = (index !== -1 ? users[index].title : currentUserObj?.title) || '';
 
     // Falls noch kein Tag vorhanden, Tag anhängen
-    let newTitle = currentTitle;
+    let newTitle = currentTitle
+      .replace(/\[Web-Wartend\]/gi, '')
+      .replace(/\[Wartet auf Web-Freischaltung\]/gi, '')
+      .trim();
     if (!newTitle.toLowerCase().includes('web-freigabe') && !newTitle.toLowerCase().includes('[web]')) {
       newTitle = newTitle ? `${newTitle} [Web-Freigabe]` : '[Web-Freigabe]';
     }
@@ -2761,6 +2766,7 @@ export const mockDb = {
     if (index !== -1) {
       users[index].title = newTitle;
       users[index].isWebUnlocked = true;
+      users[index].web_unlock_requested = false;
       await AsyncStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
     }
 
@@ -2768,6 +2774,7 @@ export const mockDb = {
     if (currentUserObj && currentUserObj.id === userId) {
       currentUserObj.title = newTitle;
       currentUserObj.isWebUnlocked = true;
+      currentUserObj.web_unlock_requested = false;
       invalidateMemoryCache('current_user');
       await AsyncStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(currentUserObj));
     }
@@ -2788,8 +2795,84 @@ export const mockDb = {
       await AsyncStorage.setItem(STORAGE_KEYS.WEB_LICENSES, JSON.stringify(licenses));
     } catch {}
 
-    const resultUser = (currentUserObj && currentUserObj.id === userId) ? currentUserObj : (users[index] || { id: userId, email: '', name: '', role: 'user', title: newTitle, isWebUnlocked: true });
+    const resultUser = (currentUserObj && currentUserObj.id === userId) ? currentUserObj : (users[index] || { id: userId, email: '', name: '', role: 'user', title: newTitle, isWebUnlocked: true, web_unlock_requested: false });
     return resultUser;
+  },
+
+  async requestWebUnlock(userId: string): Promise<boolean> {
+    try {
+      const users = await this.getUsers();
+      const index = users.findIndex(u => u.id === userId);
+      const nowIso = new Date().toISOString();
+      if (index !== -1) {
+        users[index].web_unlock_requested = true;
+        users[index].web_unlock_requested_at = nowIso;
+        await AsyncStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+      }
+      let currentUserObj = await this.getCurrentUser();
+      if (currentUserObj && currentUserObj.id === userId) {
+        currentUserObj.web_unlock_requested = true;
+        currentUserObj.web_unlock_requested_at = nowIso;
+        invalidateMemoryCache('current_user');
+        await AsyncStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(currentUserObj));
+      }
+
+      if (isSupabaseConfigured() && supabase) {
+        try {
+          const currentT = currentUserObj?.title || (index !== -1 ? users[index]?.title : '') || '';
+          if (!currentT.includes('[Web-Wartend]')) {
+            const newT = currentT ? `${currentT} [Web-Wartend]` : '[Web-Wartend]';
+            await supabase.from('users').update({ title: newT }).eq('id', userId);
+          }
+        } catch {}
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  },
+
+  isUserWaitingForWebUnlock(user: User | null | undefined): boolean {
+    if (!user) return false;
+    if (this.isUserWebUnlocked(user)) return false;
+    return Boolean(user.web_unlock_requested || (user.title || '').toLowerCase().includes('web-wartend'));
+  },
+
+  async validateWebAccessAuthoritative(user: User | null | undefined): Promise<boolean> {
+    if (!user) return false;
+    if (user.role === 'admin' || user.role === 'moderator') return true;
+
+    // Backend-Validierung der Paywall gegen die Live-Datenbank (Supabase)
+    if (isSupabaseConfigured() && supabase) {
+      try {
+        const { data: dbUser, error } = await supabase
+          .from('users')
+          .select('id, role, title, email')
+          .eq('id', user.id)
+          .single();
+
+        if (!error && dbUser) {
+          if (dbUser.role === 'admin' || dbUser.role === 'moderator') return true;
+          const t = (dbUser.title || '').toLowerCase();
+          if (
+            t.includes('ausbilder') || 
+            t.includes('dozent') || 
+            t.includes('prüfer') ||
+            t.includes('lehrer') ||
+            t.includes('[web-freigabe]') ||
+            t.includes('web-lizenz') ||
+            t.includes('web-zugang')
+          ) {
+            return true;
+          }
+          return false;
+        }
+      } catch (e) {
+        console.warn('Backend validation check warning:', e);
+      }
+    }
+
+    return this.isUserWebUnlocked(user);
   },
 
   async revokeWebAccess(userId: string): Promise<void> {
@@ -2801,6 +2884,7 @@ export const mockDb = {
     let cleanTitle = currentTitle
       .replace(/\[Web-Freigabe\]/gi, '')
       .replace(/\[Web-Zugang\]/gi, '')
+      .replace(/\[Web-Wartend\]/gi, '')
       .replace(/\[Web\]/gi, '')
       .trim();
 
@@ -2813,12 +2897,14 @@ export const mockDb = {
     if (index !== -1) {
       users[index].title = cleanTitle;
       users[index].isWebUnlocked = false;
+      users[index].web_unlock_requested = false;
       await AsyncStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
     }
 
     if (currentUserObj && currentUserObj.id === userId) {
       currentUserObj.title = cleanTitle;
       currentUserObj.isWebUnlocked = false;
+      currentUserObj.web_unlock_requested = false;
       invalidateMemoryCache('current_user');
       await AsyncStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(currentUserObj));
     }
