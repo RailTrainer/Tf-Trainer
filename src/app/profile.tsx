@@ -69,7 +69,12 @@ import { getIsChatMuted, setIsChatMuted, scheduleTestLockscreenNotification, reg
 import { useAppTheme } from '../context/ThemeContext';
 import { useDeviceLayout } from '../hooks/useDeviceLayout';
 
-const AVATAR_PRESETS = ['🚂', '👮', '🛡️', '🔧', '🚄', '⭐', '🚇', '🎒'];
+const AVATAR_PRESETS = [
+  '👨‍✈️', '👩‍✈️', '🤪', '🥸', '🤠', '🤓', '😎', '🧐',
+  '🥳', '🤯', '🤩', '🤑', '🤤', '🤡', '🧑‍🎤', '🧙‍♂️',
+  '🦹‍♂️', '🦸‍♂️', '🧑‍🍳', '🧔‍♂️', '👨‍🦰', '👨‍🦳', '👨‍🦱', '👨‍🦲',
+  '🕵️‍♂️', '🤭', '🥱', '🥶', '🥵', '😈', '🤖', '👽'
+];
 
 export default function ProfileScreen() {
   const { isDark, colors, setThemePreference } = useAppTheme();
@@ -139,7 +144,7 @@ export default function ProfileScreen() {
         await Updates.fetchUpdateAsync();
         await Updates.reloadAsync();
       } else {
-        Alert.alert('Alles aktuell! ✅', 'Du nutzt bereits die neueste Version (Version 1.1.4).');
+        Alert.alert('Alles aktuell! ✅', 'Du nutzt bereits die neueste Version (Version 2.0.0).');
       }
     } catch (e: any) {
       Alert.alert('Update-Status', e.message || 'App ist auf dem neuesten Stand.');
@@ -226,19 +231,56 @@ export default function ProfileScreen() {
   };
 
   const handleLogout = async () => {
+    const doLogout = async () => {
+      await mockDb.logoutUser();
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        window.location.href = '/';
+        window.location.reload();
+      } else {
+        router.replace('/');
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined' && window.confirm('Möchtest du dich wirklich abmelden?')) {
+        await doLogout();
+      }
+      return;
+    }
+
     Alert.alert('Abmelden', 'Möchtest du dich wirklich abmelden?', [
       { text: 'Abbrechen', style: 'cancel' },
       { 
         text: 'Abmelden', 
         style: 'destructive',
-        onPress: async () => {
-          await mockDb.logoutUser();
-        } 
+        onPress: doLogout
       }
     ]);
   };
 
   const handleDeleteAccount = () => {
+    const doDelete = async () => {
+      if (currentUser) {
+        await mockDb.deleteUser(currentUser.id);
+      }
+      await mockDb.logoutUser();
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        alert('Dein Konto und alle zugehörigen Daten wurden erfolgreich gelöscht.');
+        window.location.href = '/';
+        window.location.reload();
+      } else {
+        Alert.alert('Konto gelöscht', 'Dein Konto und alle zugehörigen Daten wurden erfolgreich gelöscht.');
+        router.replace('/');
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined' && window.confirm('Möchtest du dein Benutzerkonto und alle deine persönlichen Daten wirklich unwiderruflich löschen?')) {
+        doDelete();
+      }
+      return;
+    }
+
     Alert.alert(
       'Konto & alle Daten löschen?',
       'Möchtest du dein Benutzerkonto und alle deine persönlichen Daten (Lernfortschritte, Quiz-Ergebnisse, Chat-Beiträge) wirklich unwiderruflich löschen?\n\nDieser Vorgang kann nicht rückgängig gemacht werden.',
@@ -247,13 +289,7 @@ export default function ProfileScreen() {
         {
           text: 'Ja, Konto löschen',
           style: 'destructive',
-          onPress: async () => {
-            if (currentUser) {
-              await mockDb.deleteUser(currentUser.id);
-            }
-            await mockDb.logoutUser();
-            Alert.alert('Konto gelöscht', 'Dein Konto und alle zugehörigen Daten wurden erfolgreich gelöscht.');
-          }
+          onPress: doDelete
         }
       ]
     );
@@ -708,7 +744,7 @@ export default function ProfileScreen() {
                   </TouchableOpacity>
                 </View>
 
-                <Text style={[styles.label, { color: colors.textMuted, fontSize: 11 }]}>Oder Bahn-Emoji wählen:</Text>
+                <Text style={[styles.label, { color: colors.textMuted, fontSize: 11 }]}>Oder Comic-Avatar wählen:</Text>
                 <View style={styles.presetsGrid}>
                   {AVATAR_PRESETS.map((p) => (
                     <TouchableOpacity
@@ -991,13 +1027,13 @@ export default function ProfileScreen() {
               <Text style={[styles.logoutText, { color: '#ef4444' }]}>Konto & alle Daten endgültig löschen</Text>
             </TouchableOpacity>
 
-            {/* SCHRIFT: RailTrainer by Dennis Köster */}
+            {/* SCHRIFT: Tf-Trainer by Dennis Köster */}
             <View style={{ marginTop: 24, marginBottom: 12, alignItems: 'center' }}>
               <Text style={{ textAlign: 'center', color: colors.text, fontSize: 14, fontWeight: 'bold' }}>
-                RailTrainer • © by Dennis Köster
+                Tf-Trainer • © by Dennis Köster
               </Text>
               <Text style={{ textAlign: 'center', color: colors.textMuted, fontSize: 11, marginTop: 2 }}>
-                Interaktive Lern- & Wissensplattform (Version 1.1.4)
+                Interaktive Lern- & Wissensplattform (Version 2.0.0)
               </Text>
             </View>
 
@@ -1038,7 +1074,7 @@ export default function ProfileScreen() {
                   <View style={{ marginBottom: 12 }}>
                     <Text style={[styles.impressumTextBold, { color: colors.text }]}>Support & Feedback:</Text>
                     <Text style={[styles.impressumText, { color: isDark ? '#e5e7eb' : '#4b5563' }]}>
-                      Über das integrierte Support-Ticketsystem im Benutzerkonto oder per E-Mail an: support@railtrainer.de
+                      Über das integrierte Support-Ticketsystem im Benutzerkonto oder per E-Mail an: support@tf-trainer.de
                     </Text>
                   </View>
 

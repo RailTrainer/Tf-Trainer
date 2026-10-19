@@ -444,3 +444,41 @@ export async function sendSupportNotification(
   }
 }
 
+// 4. PUSH-BENACHRICHTIGUNG AN ALLE ADMINS BEI WEB-FREISCHALTANFRAGE
+export async function sendAdminWebUnlockRequestNotification(user: { id: string; name: string; email: string }) {
+  try {
+    if (!isSupabaseConfigured() || !supabase) return;
+    const { data: adminUsers } = await supabase
+      .from('users')
+      .select('id, role, push_token')
+      .in('role', ['admin', 'moderator'])
+      .not('push_token', 'is', null);
+
+    if (!adminUsers || adminUsers.length === 0) return;
+
+    const uniqueTokens = new Set<string>();
+    adminUsers.forEach((u: any) => {
+      if (u.push_token && u.push_token.startsWith('ExponentPushToken')) {
+        uniqueTokens.add(u.push_token);
+      }
+    });
+
+    const pushMessages = Array.from(uniqueTokens).map((token: string) => ({
+      to: token,
+      sound: 'default',
+      title: '🖥️ Web-Freischaltung angefordert',
+      body: `${user.name} (${user.email}) wartet auf Freischaltung der Web-Version!`,
+      data: { type: 'web_unlock', userId: user.id },
+      priority: 'high',
+      channelId: 'chat-messages'
+    }));
+
+    if (pushMessages.length > 0) {
+      await sendExpoPushNotificationPayload(pushMessages);
+    }
+  } catch (e) {
+    console.warn('Error sending web unlock notification to admin:', e);
+  }
+}
+
+

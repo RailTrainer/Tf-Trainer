@@ -161,10 +161,10 @@ export default function AuthScreen({ onLoginSuccess }: AuthScreenProps) {
               />
             </View>
             <Text style={[styles.title, { color: colors.text }]}>
-              {Platform.OS === 'web' ? 'Tf-Trainer' : 'RailTrainer'}
+              Tf-Trainer
             </Text>
             <Text style={[styles.subtitle, { color: colors.textMuted }]}>
-              {Platform.OS === 'web' ? 'Die Eisenbahn-Lernhilfe für Triebfahrzeugführer & Quereinsteiger' : 'Die Eisenbahn-Lernhilfe für den Quereinstieg'}
+              Die Eisenbahn-Lernhilfe für Triebfahrzeugführer & Quereinsteiger
             </Text>
 
             {Platform.OS === 'web' && (
@@ -456,7 +456,7 @@ export default function AuthScreen({ onLoginSuccess }: AuthScreenProps) {
 
           {/* COPYRIGHT */}
           <Text style={[styles.copyrightText, { color: colors.textMuted }]}>
-            {Platform.OS === 'web' ? 'Tf-Trainer' : 'RailTrainer'} © by Dennis Köster • Version 1.1.5
+            Tf-Trainer © by Dennis Köster • Version 1.1.5
           </Text>
         </ScrollView>
       </View>
