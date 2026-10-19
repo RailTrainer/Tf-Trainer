@@ -53,3 +53,6 @@ example
 # generated native folders
 /ios
 /android
+
+# Interne Audit-Auswertungen (lokal, nie committen)
+auswertung-intern/

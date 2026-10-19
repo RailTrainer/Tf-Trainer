@@ -124,7 +124,7 @@ async function main() {
   console.log(`Updated ${docxUpdatedCount} questions in docx_questions.json`);
 
   console.log('=== 2. Updating RailTrainer_Import_Quizfragen_Ungeprueft.csv ===');
-  const csvPath = path.join(__dirname, '..', 'RailTrainer_Import_Quizfragen_Ungeprueft.csv');
+  const csvPath = path.join(__dirname, '..', 'data', 'import', 'RailTrainer_Import_Quizfragen_Ungeprueft.csv');
   if (fs.existsSync(csvPath)) {
     const csvContent = fs.readFileSync(csvPath, 'utf8');
     const lines = csvContent.split('\n');

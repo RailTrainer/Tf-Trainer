@@ -1,56 +1,91 @@
-# Welcome to your Expo app 👋
+# RailTrainer
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Interaktive Bahn-Lern- und Wissensplattform (Web-Titel: **Tf-Trainer**). Expo/React-Native-App (Expo Router) mit Supabase-Backend, Web-Export auf GitHub Pages und einem separaten Admin-Portal.
 
-## Get started
+## Features
 
-1. Install dependencies
+Die Screens liegen in `src/app/` und sind als Tabs in `src/app/_layout.tsx` eingebunden:
 
-   ```bash
-   npm install
-   ```
+- **Lernen** (`index.tsx`) – Lernkarten
+- **Prüfung** (`quiz.tsx`) – Quizfragen
+- **Diskussion** (`chat.tsx`) – Chat
+- **Admin** (`admin.tsx`) – Verwaltung für Ausbilder/Moderatoren (Nachrichten, Inhalte)
+- **Profil** (`profile.tsx`)
+- Anmeldung/Registrierung (`AuthScreen`), Web-Paywall mit Freischaltprüfung (`WebPaywallScreen`), Push-Benachrichtigungen (`src/services/notificationService.ts`), Hell/Dunkel-Theme (`src/context/ThemeContext.tsx`)
 
-2. Start the app
+## Tech-Stack
 
-   ```bash
-   npx expo start
-   ```
+- Expo SDK 57, React Native 0.86, React 19, Expo Router (typed routes, React Compiler)
+- Supabase (`@supabase/supabase-js`), AsyncStorage
+- EAS Build und EAS Update (OTA), `expo-updates`
+- TypeScript, react-native-web für den Web-Export
+- Admin-Portal: statisches HTML/JS in `admin-portal/`
 
-In the output, you'll find options to open the app in a
+## Voraussetzungen
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+- Node.js 20 (wie im CI-Workflow)
+- npm
+- Für Builds/OTA: Expo-/EAS-Account (`npx eas-cli`)
+- Optional für den Push-Schutz: [gitleaks](https://github.com/gitleaks/gitleaks) (`brew install gitleaks`)
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+## Setup
 
 ```bash
-npm run reset-project
+npm install
+npm start
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+Umgebungsvariablen werden vom Code derzeit nicht benötigt (Supabase-Konfiguration steht in `src/services/supabaseClient.ts`). Lokale Env-Dateien (`.env*.local`) sind gitignored.
 
-### Other setup steps
+## npm-Scripts
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+| Script | Zweck |
+| --- | --- |
+| `npm start` | Expo-Dev-Server (`expo start`) |
+| `npm run android` / `ios` / `web` | Dev-Server mit Zielplattform |
+| `npm run lint` | `expo lint` |
+| `npm run admin` | Lokaler Server für das Admin-Portal (`scripts/adminServer.js`, Port `PORT` oder 3000) |
+| `npm run ota` | EAS-OTA-Update auf Branch `production` (`scripts/publish-ota.js`) |
+| `npm run ota:preview` | OTA-Update auf Branch `preview` |
+| `npm run reset-project` | Expo-Template-Reset (`scripts/reset-project.js`) |
 
-## Learn more
+Typprüfung: `npx tsc --noEmit`.
 
-To learn more about developing your project with Expo, look at the following resources:
+## Projektstruktur
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+```
+src/
+  app/          Expo-Router-Screens (index, quiz, chat, admin, profile, _layout)
+  components/   UI-Komponenten (AuthScreen, WebPaywallScreen, Modals, ...)
+  context/      ThemeContext
+  database/     Lokale Inhalte (JSON) und mockDb.ts
+  hooks/        Layout-/Theme-/Keyboard-Hooks
+  services/     supabaseClient, notificationService
+  utils/        crypto (SHA-256), imageOptimizer, similarity
+admin-portal/   Statisches Admin-Portal (index.html, play.html, app.js)
+assets/         App-Icons, Bilder
+scripts/        Node-Hilfsskripte (OTA, Admin-Server, Import-/Generator-Skripte, .bat/.ps1/.ahk-Helfer)
+supabase/       SQL: supabase_schema.sql, supabase_web_schema.sql, supabase_security_fix.sql
+data/import/    CSV-Importdateien und Vorlagen
+data/generated/ Generierte JSON-Dumps
+docs/store/     Store-Grafiken und Screenshots
+.github/workflows/deploy.yml   Web-Deploy nach GitHub Pages
+.claude/, .githooks/           Pre-Push-Tooling (siehe unten)
+```
 
-## Join the community
+## Build und Deploy
 
-Join our community of developers creating universal apps.
+- **Native Builds:** EAS-Profile in `eas.json` (`development`, `preview` als APK, `production` als App Bundle). Android-Paket `com.railtrainer`.
+- **OTA-Updates:** `npm run ota` bzw. `npm run ota:preview` (Kanäle `production`/`preview`; `runtimeVersion` steht in `app.json`).
+- **Web:** `.github/workflows/deploy.yml` baut bei Push auf `main` (oder manuell) mit `npx expo export --platform web` und veröffentlicht `dist/` auf GitHub Pages. Basis-Pfad: `/Tf-Trainer` (`experiments.baseUrl` in `app.json`).
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+## Pre-Push-Prüfung
+
+- `/pre-push` in Claude Code führt die Agenten `struktur-pflege`, `doku-pflege` und `security-audit` aus und gibt den Push frei.
+- Optional pro Clone: `git config core.hooksPath .githooks` aktiviert einen Gitleaks-Scan beim `git push`.
+
+## Sicherheit und Lizenz
+
+- Sicherheitslücken melden: siehe [SECURITY.md](SECURITY.md)
+- Lizenz: [LICENSE](LICENSE)
+- Änderungen: [CHANGELOG.md](CHANGELOG.md)

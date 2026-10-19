@@ -3165,7 +3165,7 @@ function updateBattleServerStatus(isOnline, ip, port) {
     badge.firstElementChild?.classList.add('bg-emerald-400', 'animate-pulse');
   } else {
     badge.className = 'flex items-center justify-center gap-2 px-3 py-1.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs font-semibold';
-    txt.textContent = 'Server offline (Starte Start_Quiz_Battle_Server.bat)';
+    txt.textContent = 'Server offline (Starte scripts/Start_Quiz_Battle_Server.bat)';
     badge.firstElementChild?.classList.remove('bg-emerald-400', 'animate-pulse');
     badge.firstElementChild?.classList.add('bg-amber-400', 'animate-ping');
   }
