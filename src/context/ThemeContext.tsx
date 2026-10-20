@@ -23,6 +23,18 @@ export interface ThemeColors {
   inputBorder: string;
   tabBarBg: string;
   tabBarBorder: string;
+  /** Feldrahmen der UI-Bausteine (src/components/ui), Kontrast ≥ 3:1 zum Hintergrund */
+  fieldBorder: string;
+  /** Haupt-Button (CTA): Hintergrund, gedrückt und Schrift, Kontrast Schrift ≥ 4,5:1 */
+  buttonPrimaryBg: string;
+  buttonPrimaryPressedBg: string;
+  buttonPrimaryText: string;
+  /** Zweit-Button (Rahmen): Hintergrund beim Drücken/Hover, Schrift bleibt ≥ 4,5:1 */
+  buttonSecondaryPressedBg: string;
+  /** Destruktiver Button (z. B. Konto löschen): Hintergrund, gedrückt und Schrift, Kontrast Schrift ≥ 4,5:1 */
+  buttonDestructiveBg: string;
+  buttonDestructivePressedBg: string;
+  buttonDestructiveText: string;
 }
 
 export const themePalette: { light: ThemeColors; dark: ThemeColors } = {
@@ -45,6 +57,14 @@ export const themePalette: { light: ThemeColors; dark: ThemeColors } = {
     inputBorder: '#cbd5e1',
     tabBarBg: '#ffffff',
     tabBarBorder: '#e2e8f0',
+    fieldBorder: '#7c8799',
+    buttonPrimaryBg: '#2563eb',
+    buttonPrimaryPressedBg: '#1d4ed8',
+    buttonPrimaryText: '#ffffff',
+    buttonSecondaryPressedBg: '#f1f5f9',
+    buttonDestructiveBg: '#b91c1c',
+    buttonDestructivePressedBg: '#991b1b',
+    buttonDestructiveText: '#ffffff',
   },
   dark: {
     background: '#111827',
@@ -65,6 +85,14 @@ export const themePalette: { light: ThemeColors; dark: ThemeColors } = {
     inputBorder: '#374151',
     tabBarBg: '#111827',
     tabBarBorder: '#1f2937',
+    fieldBorder: '#6b7280',
+    buttonPrimaryBg: '#2563eb',
+    buttonPrimaryPressedBg: '#1d4ed8',
+    buttonPrimaryText: '#ffffff',
+    buttonSecondaryPressedBg: '#1f2937',
+    buttonDestructiveBg: '#dc2626',
+    buttonDestructivePressedBg: '#b91c1c',
+    buttonDestructiveText: '#ffffff',
   },
 };
 
