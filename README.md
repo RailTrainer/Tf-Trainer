@@ -61,7 +61,7 @@ Der Reset läuft ausschließlich über Supabase-Auth-OTP (`sendPasswordResetOtp`
 | `npm run ota:preview` | OTA-Update auf Branch `preview` |
 | `npm run reset-project` | Expo-Template-Reset (`scripts/reset-project.js`) |
 
-Typprüfung: `npx tsc --noEmit`.
+Typprüfung: `npx tsc --noEmit`. Lint-Konfiguration: `eslint.config.js` (Expo Flat Config).
 
 ## Projektstruktur
 
@@ -69,6 +69,7 @@ Typprüfung: `npx tsc --noEmit`.
 src/
   app/          Expo-Router-Screens (index, quiz, chat, admin, profile, _layout)
   components/   UI-Komponenten (AuthScreen, WebPaywallScreen, Modals, ...)
+  components/ui/  Gemeinsame UI-Bausteine (Button, TextField, ListRow, Section, StatusMessage, ConfirmDialog, tokens.ts)
   context/      ThemeContext
   database/     Lokale Inhalte (JSON) und mockDb.ts
   hooks/        Layout-/Theme-/Keyboard-Hooks
