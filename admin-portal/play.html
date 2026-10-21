@@ -1,0 +1,1940 @@
+<!DOCTYPE html>
+<html lang="de" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Tf-Trainer Live-Battle | Mitspielen</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0fdf4',
+              400: '#34d399',
+              500: '#10b981',
+              600: '#059669',
+              700: '#047857',
+            }
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+    .touch-btn {
+      transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .touch-btn:active {
+      transform: scale(0.95);
+    }
+    @keyframes hmDraw {
+      from { stroke-dashoffset: 80; }
+      to { stroke-dashoffset: 0; }
+    }
+    @keyframes hmPop {
+      0% { transform: scale(0.4); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    @keyframes hmSway {
+      0%, 100% { transform: rotate(0deg); }
+      25% { transform: rotate(3.5deg); }
+      75% { transform: rotate(-3.5deg); }
+    }
+  </style>
+</head>
+<body class="bg-gray-950 text-gray-100 min-h-screen flex flex-col justify-between overflow-x-hidden p-4 relative">
+
+  <div class="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+    <div class="absolute -top-28 -left-28 w-80 h-80 rounded-full bg-emerald-500/15 blur-[100px]"></div>
+    <div class="absolute -bottom-28 -right-28 w-80 h-80 rounded-full bg-teal-500/15 blur-[100px]"></div>
+  </div>
+
+  <header class="relative z-10 flex items-center justify-between py-2.5 border-b border-gray-800/80">
+    <div class="flex items-center gap-2.5">
+      <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-700 flex items-center justify-center font-black text-white text-sm shadow-md shadow-emerald-500/25 ring-1 ring-emerald-400/30">
+        TF
+      </div>
+      <div>
+        <div class="font-extrabold text-sm tracking-tight text-white flex items-center gap-1.5">
+          <span>Tf-Trainer</span>
+          <span class="px-1.5 py-0.2 text-[9px] rounded-full bg-emerald-500/20 text-emerald-400 font-bold border border-emerald-500/30 shadow-sm shadow-emerald-500/10">BATTLE</span>
+        </div>
+        <div class="text-[10px] text-gray-400" id="headerGameInfo">Live-Quiz</div>
+      </div>
+    </div>
+    <div id="playerBadge" class="hidden items-center gap-2 bg-gradient-to-r from-gray-950 to-emerald-950/40 border border-emerald-500/30 px-3.5 py-1 rounded-full text-xs shadow-sm shadow-emerald-950/50">
+      <span id="playerAvatarDisplay">👨‍✈️</span>
+      <span id="playerNameDisplay" class="font-bold text-white max-w-[100px] truncate">Spieler</span>
+      <span id="playerScoreDisplay" class="font-extrabold text-emerald-400 ml-1">0 Pkt</span>
+    </div>
+  </header>
+
+  <main class="relative z-10 flex-1 flex flex-col justify-center my-4">
+
+    <!-- 1. JOIN SCREEN -->
+    <section id="screen-join" class="space-y-5 max-w-sm mx-auto w-full">
+      <div class="text-center space-y-1.5">
+        <div class="w-16 h-16 rounded-3xl bg-gradient-to-br from-emerald-500/20 to-teal-500/10 border-2 border-emerald-500/40 flex items-center justify-center mx-auto mb-2 text-3xl shadow-xl shadow-emerald-500/20">
+          ⚔️
+        </div>
+        <h1 class="text-2xl font-black text-white tracking-tight">Quiz-Battle beitreten</h1>
+        <p class="text-xs text-gray-400">Tritt der Live-Runde auf dem Beamer bei und sammle Punkte!</p>
+      </div>
+
+      <form id="joinForm" onsubmit="handleJoinBattle(event)" class="bg-gradient-to-b from-gray-900 to-gray-950 border border-emerald-500/20 rounded-3xl p-6 shadow-2xl space-y-4">
+        <div>
+          <label class="block text-xs font-bold text-emerald-400 uppercase tracking-wider mb-1.5">4-Stelliger Game-PIN</label>
+          <input type="text" id="inputPin" required placeholder="z.B. 4821" maxlength="6" inputmode="numeric"
+            class="w-full text-center text-3xl font-black tracking-widest py-3 bg-gray-950 border-2 border-gray-800 rounded-2xl text-emerald-400 placeholder-gray-700 focus:outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-500/20 transition shadow-inner drop-shadow-[0_0_12px_rgba(52,211,153,0.25)]">
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">Dein Name / Spitzname</label>
+          <input type="text" id="inputName" required placeholder="z.B. Max oder Lokführer 1" maxlength="20"
+            class="w-full py-2.5 px-4 bg-gray-950 border border-gray-800 rounded-xl text-sm font-semibold text-white placeholder-gray-600 focus:outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/20 transition">
+        </div>
+
+        <div>
+          <div class="flex items-center justify-between mb-1.5">
+            <label class="text-xs font-bold text-gray-400 uppercase tracking-wider">Comic-Avatar wählen</label>
+            <span class="text-[11px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-lg border border-emerald-500/20" id="selectedAvatarLabel">👨‍✈️ Lokführer</span>
+          </div>
+
+          <!-- Category Filter Tabs -->
+          <div class="flex items-center gap-1.5 mb-2 overflow-x-auto pb-1 text-xs no-scrollbar">
+            <button type="button" onclick="setAvatarCategory('all')" id="catBtn-all"
+              class="px-2.5 py-1 rounded-xl font-bold transition-all shrink-0 bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 shadow-sm">
+              Alle (36)
+            </button>
+            <button type="button" onclick="setAvatarCategory('lustig')" id="catBtn-lustig"
+              class="px-2.5 py-1 rounded-xl font-semibold transition-all shrink-0 bg-gray-950 text-gray-400 border border-gray-800 hover:text-white">
+              🤪 Verrückt
+            </button>
+            <button type="button" onclick="setAvatarCategory('bahn')" id="catBtn-bahn"
+              class="px-2.5 py-1 rounded-xl font-semibold transition-all shrink-0 bg-gray-950 text-gray-400 border border-gray-800 hover:text-white">
+              👨‍✈️ Bahn &amp; Typen
+            </button>
+            <button type="button" onclick="setAvatarCategory('fantasy')" id="catBtn-fantasy"
+              class="px-2.5 py-1 rounded-xl font-semibold transition-all shrink-0 bg-gray-950 text-gray-400 border border-gray-800 hover:text-white">
+              🦸‍♂️ Helden &amp; Comic
+            </button>
+          </div>
+
+          <div class="grid grid-cols-6 gap-2 max-h-52 overflow-y-auto p-2 bg-gray-950/90 border border-gray-800/80 rounded-2xl custom-scrollbar" id="avatarGrid"></div>
+        </div>
+
+        <button type="submit" id="joinSubmitBtn" class="w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-sm tracking-wide shadow-xl shadow-emerald-600/30 active:scale-95 transition-all flex items-center justify-center gap-2">
+          <span>Jetzt Mitspielen</span>
+          <i data-lucide="arrow-right" class="w-4 h-4"></i>
+        </button>
+        <div id="joinErrorBox" class="hidden text-xs text-center text-red-400 font-bold p-2.5 rounded-xl bg-red-500/10 border border-red-500/20"></div>
+      </form>
+    </section>
+
+    <!-- 2. LOBBY WAITING SCREEN -->
+    <section id="screen-waiting" class="hidden flex-col items-center justify-center flex-1 max-w-sm mx-auto w-full min-h-0 py-2">
+      <div class="bg-gradient-to-b from-gray-900 to-gray-950 border border-emerald-500/30 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-4 sm:space-y-5 w-full max-h-[85vh] overflow-y-auto custom-scrollbar">
+        <div class="w-24 h-24 rounded-3xl bg-gradient-to-br from-emerald-500/20 to-teal-500/10 border-2 border-emerald-400/50 ring-4 ring-emerald-500/20 flex items-center justify-center mx-auto text-5xl shadow-2xl shadow-emerald-500/20 animate-pulse" id="waitingAvatarBox">
+          👨‍✈️
+        </div>
+        <div>
+          <div class="inline-block px-3 py-1 rounded-full text-xs font-black bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 tracking-wider uppercase mb-2">Erfolgreich in der Lobby!</div>
+          <h2 class="text-2xl font-black text-white mt-1" id="waitingPlayerName">Spieler</h2>
+          <p class="text-xs text-gray-400 mt-2">Blick auf den Beamer: Der Ausbilder startet das Quiz-Battle gleich...</p>
+        </div>
+        <div class="p-3 bg-gray-950 border border-emerald-500/30 rounded-2xl text-xs text-gray-300 flex items-center justify-center gap-2 shadow-inner">
+          <div class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></div>
+          <span>Verbunden mit PIN: <strong class="text-emerald-400 font-black tracking-widest text-sm ml-1" id="waitingPinDisplay">----</strong></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. QUESTION SCREEN -->
+    <section id="screen-question" class="hidden flex-col justify-between flex-1 max-w-md mx-auto w-full min-h-0">
+      <div class="bg-gray-900/90 border border-gray-800 rounded-2xl p-3 mb-2.5 flex items-center justify-between shadow-lg shrink-0">
+        <div class="flex items-center gap-2">
+          <span class="w-6 h-6 rounded-lg bg-gradient-to-br from-emerald-600 to-teal-600 text-white font-black text-xs flex items-center justify-center shadow-sm shadow-emerald-500/30" id="qNumBadge">1</span>
+          <span class="text-xs font-bold text-emerald-300 bg-emerald-950/60 border border-emerald-500/30 px-2.5 py-0.5 rounded-full" id="qCategoryBadge">Signale</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <button type="button" onclick="toggleMobileLayoutMode()" id="btnToggleMobileLayout" class="px-2.5 py-1 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white text-[11px] font-bold border border-gray-700 flex items-center gap-1 transition shadow-sm" title="Layout umschalten: Liste oder Kacheln">
+            <span id="layoutToggleIcon">☰</span>
+            <span id="layoutToggleText">Liste</span>
+          </button>
+          <div class="flex items-center gap-1.5 text-xs font-extrabold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-xl">
+            <i data-lucide="clock" class="w-3.5 h-3.5"></i>
+            <span id="questionTimer">20s</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-gradient-to-b from-gray-900 to-gray-950 border border-emerald-500/25 rounded-2xl p-3.5 mb-2.5 text-center shadow-lg shadow-black/40 max-h-32 overflow-y-auto custom-scrollbar shrink-0">
+        <h3 class="text-xs sm:text-sm font-bold text-white leading-snug break-words" id="questionTextMobile">Frage auf dem Beamer beachten!</h3>
+      </div>
+
+      <!-- MEHRFACHAUSWAHL POPUP MODAL (ERSCHEINT EINMALIG) -->
+      <div id="multipleChoiceModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+        <div class="bg-gradient-to-b from-gray-900 via-gray-900 to-purple-950 border-2 border-purple-400/60 rounded-3xl p-5 max-w-sm w-full text-center space-y-4 shadow-2xl shadow-purple-950/60 animate-in fade-in zoom-in-95 duration-200">
+          <div class="w-14 h-14 mx-auto rounded-2xl bg-purple-500/20 border border-purple-400/50 flex items-center justify-center text-3xl shadow-inner">
+            ⚡
+          </div>
+          <div>
+            <h3 class="text-lg font-black text-white">Achtung: Mehrfachauswahl!</h3>
+            <p class="text-xs text-gray-300 mt-2 leading-relaxed">
+              Bei dieser Frage können <strong>mehrere Antworten richtig</strong> sein. Wähle alle passenden Optionen aus und tippe anschließend auf <strong>'Bestätigen'</strong>.
+            </p>
+          </div>
+          <button type="button" onclick="window.dismissMultipleChoiceModal()" class="w-full py-3 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black text-sm shadow-xl shadow-purple-600/30 transition active:scale-95">
+            Verstanden & Los!
+          </button>
+        </div>
+      </div>
+
+      <!-- MEHRFACHAUSWAHL BANNER (Deaktiviert, Popup ersetzt diesen) -->
+      <div id="battleMultipleAlert" class="hidden"></div>
+
+      <div id="battleOptionsContainer" class="grid gap-2.5 flex-1 min-h-0 overflow-y-auto custom-scrollbar p-0.5 pb-2">
+        <button onclick="handleSelectOption(0)" id="btn_opt_0" class="touch-btn p-3.5 rounded-2xl bg-gradient-to-r from-red-600 to-rose-600 active:from-red-700 active:to-rose-700 text-white font-black flex items-center shadow-xl shadow-red-600/25 border border-red-400/30">
+          <div id="opt_badge_0" class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-base font-black shrink-0 shadow mr-3">▲ A</div>
+          <span class="text-xs sm:text-sm font-bold leading-snug break-words flex-1 text-left" id="opt_text_0">Option A</span>
+        </button>
+
+        <button onclick="handleSelectOption(1)" id="btn_opt_1" class="touch-btn p-3.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 active:from-blue-700 active:to-indigo-700 text-white font-black flex items-center shadow-xl shadow-blue-600/25 border border-blue-400/30">
+          <div id="opt_badge_1" class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-base font-black shrink-0 shadow mr-3">◆ B</div>
+          <span class="text-xs sm:text-sm font-bold leading-snug break-words flex-1 text-left" id="opt_text_1">Option B</span>
+        </button>
+
+        <button onclick="handleSelectOption(2)" id="btn_opt_2" class="touch-btn p-3.5 rounded-2xl bg-gradient-to-r from-amber-400 to-amber-500 active:from-amber-500 active:to-amber-600 text-gray-950 font-black flex items-center shadow-xl shadow-amber-500/25 border border-amber-300/40">
+          <div id="opt_badge_2" class="w-10 h-10 rounded-xl bg-black/20 text-black flex items-center justify-center text-base font-black shrink-0 shadow mr-3">● C</div>
+          <span class="text-xs sm:text-sm font-bold leading-snug break-words flex-1 text-left text-gray-950" id="opt_text_2">Option C</span>
+        </button>
+
+        <button onclick="handleSelectOption(3)" id="btn_opt_3" class="touch-btn p-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-600 active:from-emerald-700 active:to-teal-700 text-white font-black flex items-center shadow-xl shadow-emerald-600/35 border border-emerald-400/40 ring-1 ring-emerald-400/20">
+          <div id="opt_badge_3" class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-base font-black shrink-0 shadow mr-3">■ D</div>
+          <span class="text-xs sm:text-sm font-bold leading-snug break-words flex-1 text-left" id="opt_text_3">Option D</span>
+        </button>
+
+        <button onclick="handleSelectOption(4)" id="btn_opt_4" class="hidden touch-btn p-3.5 rounded-2xl bg-gradient-to-r from-purple-600 to-violet-600 active:from-purple-700 active:to-violet-700 text-white font-black flex items-center shadow-xl shadow-purple-600/25 border border-purple-400/30">
+          <div id="opt_badge_4" class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-base font-black shrink-0 shadow mr-3">★ E</div>
+          <span class="text-xs sm:text-sm font-bold leading-snug break-words flex-1 text-left" id="opt_text_4">Option E</span>
+        </button>
+
+        <button onclick="handleSelectOption(5)" id="btn_opt_5" class="hidden touch-btn p-3.5 rounded-2xl bg-gradient-to-r from-teal-600 to-cyan-600 active:from-teal-700 active:to-cyan-700 text-white font-black flex items-center shadow-xl shadow-teal-600/25 border border-teal-400/30">
+          <div id="opt_badge_5" class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-base font-black shrink-0 shadow mr-3">✦ F</div>
+          <span class="text-xs sm:text-sm font-bold leading-snug break-words flex-1 text-left" id="opt_text_5">Option F</span>
+        </button>
+
+        <button onclick="handleSelectOption(6)" id="btn_opt_6" class="hidden touch-btn p-3.5 rounded-2xl bg-gradient-to-r from-pink-600 to-rose-600 active:from-pink-700 active:to-rose-700 text-white font-black flex items-center shadow-xl shadow-pink-600/25 border border-pink-400/30">
+          <div id="opt_badge_6" class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-base font-black shrink-0 shadow mr-3">✿ G</div>
+          <span class="text-xs sm:text-sm font-bold leading-snug break-words flex-1 text-left" id="opt_text_6">Option G</span>
+        </button>
+
+        <button onclick="handleSelectOption(7)" id="btn_opt_7" class="hidden touch-btn p-3.5 rounded-2xl bg-gradient-to-r from-indigo-600 to-blue-600 active:from-indigo-700 active:to-blue-700 text-white font-black flex items-center shadow-xl shadow-indigo-600/25 border border-indigo-400/30">
+          <div id="opt_badge_7" class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-base font-black shrink-0 shadow mr-3">❖ H</div>
+          <span class="text-xs sm:text-sm font-bold leading-snug break-words flex-1 text-left" id="opt_text_7">Option H</span>
+        </button>
+      </div>
+
+      <!-- REIHENFOLGE SORTIER-CONTAINER FÜR SMARTPHONE -->
+      <div id="battleOrderContainer" class="hidden flex-col gap-2 flex-1 min-h-0 overflow-y-auto custom-scrollbar p-0.5 pb-2">
+        <div class="p-2.5 rounded-2xl bg-cyan-950/60 border border-cyan-500/40 text-cyan-200 text-xs flex items-center gap-2 shrink-0">
+          <i data-lucide="arrow-up-down" class="w-4 h-4 text-cyan-400 shrink-0"></i>
+          <span>Bringe die Schritte mit <strong>▲ / ▼ Tasten</strong> oder <strong>Ziehen</strong> in die richtige Reihenfolge:</span>
+        </div>
+        <div id="battleOrderItemsList" class="space-y-2 flex-1 overflow-y-auto custom-scrollbar"></div>
+      </div>
+
+      <!-- HAUPT-ABGABE-BUTTON (DEUTLICH SICHTBAR, FÜR SINGLE-CHOICE, MULTIPLE-CHOICE & REIHENFOLGE) -->
+      <div id="battleSubmitBar" class="w-full pt-2.5 pb-1 shrink-0">
+        <button type="button" onclick="handleConfirmSubmit()" id="btnSubmitAnswer" class="w-full py-4 px-4 rounded-2xl bg-gray-800 text-gray-400 border border-gray-700/80 font-black text-sm sm:text-base tracking-wide shadow-xl transition-all flex items-center justify-center gap-2.5 opacity-50 pointer-events-none active:scale-95">
+          <i data-lucide="check-circle-2" class="w-5 h-5 shrink-0" id="submitAnswerIcon"></i>
+          <span id="btnSubmitAnswerText" class="truncate">Wähle zuerst eine Antwort aus...</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- 4. SUBMITTED SCREEN (OPTIMIERT FÜR SMARTPHONE HOCHFORMAT) -->
+    <section id="screen-submitted" class="hidden flex-col items-center justify-center flex-1 max-w-sm mx-auto w-full min-h-0 py-2">
+      <div class="bg-gradient-to-b from-gray-900 via-gray-900 to-gray-950 border border-emerald-500/30 rounded-3xl p-5 sm:p-6 shadow-2xl space-y-3.5 w-full max-h-[82vh] overflow-y-auto custom-scrollbar transition-all">
+        
+        <!-- Header: Kompakt & Hochformat-optimiert -->
+        <div class="flex items-center justify-center gap-3 pb-0.5">
+          <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-teal-500/10 border-2 border-emerald-400/50 ring-2 ring-emerald-500/20 text-emerald-400 flex items-center justify-center text-2xl shadow-lg shadow-emerald-500/20 animate-pulse shrink-0">
+            ⚡
+          </div>
+          <div class="text-left">
+            <div class="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-wider font-extrabold text-emerald-400 bg-emerald-950/80 border border-emerald-500/40 px-2 py-0.5 rounded-full">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+              <span>Eingeloggt</span>
+            </div>
+            <h2 class="text-lg sm:text-xl font-black text-white leading-tight mt-0.5">Antwort abgegeben!</h2>
+          </div>
+        </div>
+
+        <!-- Deine Wahl Container (100% lesbar im Hochformat ohne Abschneiden) -->
+        <div class="p-3 sm:p-3.5 bg-gradient-to-b from-gray-950 to-emerald-950/20 border border-emerald-500/30 rounded-2xl text-xs text-gray-300 text-left shadow-inner" id="submittedChoiceContainer">
+          <div class="text-[10px] sm:text-[11px] text-emerald-400 uppercase font-bold tracking-wider mb-1.5 flex items-center gap-1.5">
+            <i data-lucide="check" class="w-3.5 h-3.5"></i>
+            <span>Deine gewählte Antwort:</span>
+          </div>
+          <div class="text-gray-100 text-xs sm:text-sm font-semibold max-h-36 sm:max-h-48 overflow-y-auto custom-scrollbar" id="submittedChoiceText">
+            Antwort A
+          </div>
+        </div>
+
+        <!-- HANGMAN STATUS NACH ANTWORT-ABGABE -->
+        <div id="submittedHangmanBox" class="hidden p-3 rounded-2xl bg-gray-950/90 border border-purple-500/30 text-center space-y-1.5 shadow-inner">
+          <div class="flex items-center justify-between text-xs px-1">
+            <span class="font-extrabold text-purple-300 flex items-center gap-1.5 text-[11px] sm:text-xs">🪢 Dein Galgenmännchen:</span>
+            <span class="font-mono font-black text-amber-400 text-xs sm:text-sm" id="submittedHangmanStrikesText">0 / 6 Striche</span>
+          </div>
+          <div id="submittedHangmanFigure" class="flex justify-center py-0.5"></div>
+          <p class="text-[10px] sm:text-[11px] text-gray-400 leading-tight">Hoffentlich warst du nicht der Langsamste dieser Runde!</p>
+        </div>
+
+        <!-- Footer Waiting Hint -->
+        <div class="flex items-center justify-center gap-2 pt-1 text-[11px] sm:text-xs text-gray-400">
+          <div class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></div>
+          <span>Warte auf Timer & Beamer-Auflösung...</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5. ROUND RESULT SCREEN -->
+    <section id="screen-round-result" class="hidden flex-col items-center justify-center flex-1 max-w-sm mx-auto w-full min-h-0 py-2">
+      <div id="roundResultCard" class="bg-gradient-to-b from-gray-900 to-gray-950 border-2 rounded-3xl p-5 sm:p-6 shadow-2xl space-y-3 transition-all w-full max-h-[85vh] overflow-y-auto custom-scrollbar">
+        <div id="roundResultIcon" class="flex items-center justify-center mx-auto mb-1">
+          <div class="w-20 h-20 rounded-full bg-emerald-500/20 border-2 border-emerald-400 text-emerald-400 flex items-center justify-center shadow-lg shadow-emerald-500/30 ring-4 ring-emerald-500/20">
+            <svg class="w-12 h-12 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+          </div>
+        </div>
+        <h2 id="roundResultTitle" class="text-2xl font-black text-white">RICHTIG!</h2>
+        <div id="roundResultPointsBadge" class="inline-block px-4 py-1.5 rounded-full text-base font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 shadow">
+          +920 Punkte
+        </div>
+        <div id="roundResultDangerAlert" class="hidden p-2.5 rounded-xl bg-red-500/20 border border-red-500 text-red-200 text-xs font-bold">
+          ⚠️ Betriebsgefährdende Antwort (BG) gewählt!
+        </div>
+
+        <!-- HANGMAN RUNDEN-FEEDBACK -->
+        <div id="roundResultHangmanAlert" class="hidden p-3 rounded-2xl border text-xs font-bold space-y-1.5 transition-all text-center">
+          <div class="flex items-center justify-between">
+            <span class="font-extrabold flex items-center gap-1.5" id="roundResultHangmanTitle">🪢 Hangman Knock-Out</span>
+            <span class="font-mono font-black text-amber-400" id="roundResultHangmanBadge">0 / 6 Striche</span>
+          </div>
+          <div id="roundResultHangmanFigure" class="flex justify-center py-1"></div>
+          <div class="text-[11px] leading-snug" id="roundResultHangmanDesc">Runde überlebt!</div>
+        </div>
+
+        <!-- Richtige Lösung im Klartext anzeigen -->
+        <div id="roundResultAnswerSummary" class="hidden p-3.5 rounded-2xl bg-gray-950/90 border border-emerald-500/30 text-left text-xs space-y-1.5 shadow-inner">
+          <div class="flex items-center justify-between text-[11px] font-bold text-gray-400">
+            <span>Richtige Lösung:</span>
+            <span class="text-emerald-400 font-extrabold" id="roundResultCorrectLetter">Antwort A</span>
+          </div>
+          <div class="text-gray-200 font-semibold text-xs leading-snug break-words" id="roundResultCorrectText">Lösungstext...</div>
+        </div>
+
+        <div class="pt-2 border-t border-gray-800/80 flex items-center justify-around text-xs text-gray-300">
+          <div>
+            <div class="text-[10px] text-gray-400 uppercase font-bold">Gesamtpunkte</div>
+            <div class="font-extrabold text-sm text-white mt-0.5" id="roundTotalScore">0 Pkt</div>
+          </div>
+          <div>
+            <div class="text-[10px] text-gray-400 uppercase font-bold">Aktueller Rang</div>
+            <div class="font-extrabold text-sm text-emerald-400 mt-0.5" id="roundCurrentRank">#1</div>
+          </div>
+          <div>
+            <div class="text-[10px] text-gray-400 uppercase font-bold">Streak 🔥</div>
+            <div class="font-extrabold text-sm text-amber-400 mt-0.5" id="roundStreakCount">0x</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 6. FINAL PODIUM SCREEN -->
+    <section id="screen-game-over" class="hidden flex-col items-center justify-center flex-1 max-w-sm mx-auto w-full min-h-0 py-2">
+      <div class="bg-gradient-to-b from-gray-900 to-gray-950 border-2 border-emerald-500/40 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-4 w-full max-h-[85vh] overflow-y-auto custom-scrollbar">
+        <div class="text-6xl filter drop-shadow" id="finalTrophyIcon">🏆</div>
+        <h2 class="text-2xl font-black text-white" id="finalPlacementHeading">Platz 1!</h2>
+        <p class="text-xs text-gray-300" id="finalSubtext">Großartige Leistung im Quiz-Battle!</p>
+        <div class="p-4 rounded-2xl bg-gradient-to-b from-gray-950 to-emerald-950/30 border border-emerald-500/30 text-center space-y-1 shadow-inner">
+          <div class="text-[11px] text-gray-400 uppercase font-bold">Endstand</div>
+          <div class="text-3xl font-black text-emerald-400" id="finalTotalPoints">0 Pkt</div>
+        </div>
+        <button onclick="handlePlayAgain()" class="w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-sm border border-emerald-500/40 shadow-xl shadow-emerald-600/25 active:scale-95 transition-all">
+          Neues Spiel beitreten
+        </button>
+      </div>
+    </section>
+
+    <!-- 7. SPECTATOR SCREEN (HANGMAN ELIMINATED / ZUSCHAUER) -->
+    <section id="screen-spectator" class="hidden flex-col items-center justify-between flex-1 max-w-sm mx-auto w-full text-center space-y-3">
+      <div class="bg-gradient-to-b from-gray-900 to-gray-950 border border-gray-800 rounded-3xl p-5 shadow-2xl space-y-3 w-full">
+        <div class="flex items-center justify-between px-1">
+          <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-purple-500/20 text-purple-300 border border-purple-500/40">
+            <span>👁️ ZUSCHAUER-MODUS</span>
+          </div>
+          <div class="inline-flex items-center gap-1 text-[11px] font-bold text-gray-400">
+            <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+            <span>Live dabei</span>
+          </div>
+        </div>
+
+        <div class="p-3 bg-gray-950/80 border border-gray-800/80 rounded-2xl text-left space-y-1.5">
+          <div class="text-[10px] text-emerald-400 uppercase font-black tracking-wide">Aktuelle Frage auf dem Beamer:</div>
+          <div id="spectatorCurrentQuestionText" class="text-gray-100 font-bold text-xs sm:text-sm leading-snug">Frage auf dem Beamer beachten...</div>
+        </div>
+
+        <div id="spectatorHangmanContainer" class="flex justify-center py-1 opacity-70"></div>
+
+        <div class="text-[11px] text-gray-400 leading-snug">
+          Du nimmst als Zuschauer teil und kannst alle Fragen und Lösungen auf dem Beamer entspannt mitverfolgen.
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="relative z-10 text-center py-2 text-[10px] text-gray-500 border-t border-gray-800/60 flex items-center justify-between">
+    <span>Tf-Trainer Live-Multiplayer</span>
+    <span class="flex items-center gap-1 font-semibold text-gray-400">
+      <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+      Online
+    </span>
+  </footer>
+
+  <script>
+    const SUPABASE_URL = 'https://ahmcoyfmdrgpmclaxgfj.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_cENpbfjZbysfKIjFKxTFWg_YziNteq1';
+    const restHeaders = {
+      'apikey': SUPABASE_KEY,
+      'Authorization': 'Bearer ' + SUPABASE_KEY,
+      'Content-Type': 'application/json'
+    };
+
+    const AVATARS = [
+      // Bahn & Berufe
+      { emoji: '👨‍✈️', name: 'Lokführer', cat: 'bahn' },
+      { emoji: '👩‍✈️', name: 'Lokführerin', cat: 'bahn' },
+      { emoji: '🤠', name: 'Wilder Cowboy', cat: 'bahn' },
+      { emoji: '🤓', name: 'Streber-Nerd', cat: 'bahn' },
+      { emoji: '😎', name: 'Cooler Typ', cat: 'bahn' },
+      { emoji: '🧐', name: 'Herr Inspektor', cat: 'bahn' },
+      { emoji: '🧑‍🍳', name: 'Speisewagen-Koch', cat: 'bahn' },
+      { emoji: '🧔‍♂️', name: 'Vollbart-Hipster', cat: 'bahn' },
+      { emoji: '👨‍🦳', name: 'Senior-Fahrdienstleiter', cat: 'bahn' },
+      { emoji: '👨‍🦰', name: 'Rotschopf', cat: 'bahn' },
+      { emoji: '👨‍🦱', name: 'Lockenkopf', cat: 'bahn' },
+      { emoji: '👨‍🦲', name: 'Glatzen-Gerd', cat: 'bahn' },
+      { emoji: '🕵️‍♂️', name: 'Fahrkarten-Fahnder', cat: 'bahn' },
+
+      // Lustig & Verrückt
+      { emoji: '🤪', name: 'Der Verrückte', cat: 'lustig' },
+      { emoji: '🥸', name: 'Agent Schnurrbart', cat: 'lustig' },
+      { emoji: '🥳', name: 'Party-König', cat: 'lustig' },
+      { emoji: '🤯', name: 'Mind-Blown', cat: 'lustig' },
+      { emoji: '🤩', name: 'Superstar', cat: 'lustig' },
+      { emoji: '🤑', name: 'Geldhai', cat: 'lustig' },
+      { emoji: '🤤', name: 'Der Genießer', cat: 'lustig' },
+      { emoji: '🤡', name: 'Spaß-Clown', cat: 'lustig' },
+      { emoji: '🤭', name: 'Kichererbse', cat: 'lustig' },
+      { emoji: '🥱', name: 'Dauermüde', cat: 'lustig' },
+      { emoji: '🥶', name: 'Frostbeule', cat: 'lustig' },
+      { emoji: '🥵', name: 'Hitzkopf', cat: 'lustig' },
+      { emoji: '😈', name: 'Frecher Teufel', cat: 'lustig' },
+
+      // Comic-Helden & Fantasy
+      { emoji: '🧑‍🎤', name: 'Punk-Rocker', cat: 'fantasy' },
+      { emoji: '🧙‍♂️', name: 'Signal-Magier', cat: 'fantasy' },
+      { emoji: '🦹‍♂️', name: 'Comic-Schurke', cat: 'fantasy' },
+      { emoji: '🦸‍♂️', name: 'Gleis-Superheld', cat: 'fantasy' },
+      { emoji: '🤖', name: 'Stellwerks-Robo', cat: 'fantasy' },
+      { emoji: '👽', name: 'Alien-Passagier', cat: 'fantasy' },
+      { emoji: '👻', name: 'Geisterzug-Spuk', cat: 'fantasy' },
+      { emoji: '🧟‍♂️', name: 'Montags-Zombie', cat: 'fantasy' },
+      { emoji: '🧛‍♂️', name: 'Nachtexpress-Vampir', cat: 'fantasy' },
+      { emoji: '🥷', name: 'Bahnsteig-Ninja', cat: 'fantasy' }
+    ];
+    let selectedAvatar = '👨‍✈️';
+    let currentAvatarCategory = 'all';
+    let myPlayerId = 'p_' + Math.random().toString(36).substr(2, 9);
+    let myPlayerName = '';
+    let currentPin = '';
+    let currentSession = null;
+    let pollInterval = null;
+    let hasAnsweredCurrentQ = false;
+    let myScore = 0;
+    let myStreak = 0;
+    let userLayoutPreference = null; // null = auto, 'list' = force list, 'grid' = force grid
+    let currentOrderPermutation = [];
+    let currentOrderQIndex = -1;
+    let selectedMultipleIndices = new Set();
+    let selectedSingleIndex = null;
+    let lastSubmittedAnswer = null;
+    let questionTimerInterval = null;
+    let hasSeenMultiplePopup = false;
+    let questionDisplayedAt = null;
+
+    window.dismissMultipleChoiceModal = function() {
+      const modal = document.getElementById('multipleChoiceModal');
+      if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+      }
+    };
+
+    function extractPlayQuestionMetadata(q) {
+      if (!q) return {};
+      let meta = {};
+      if (q.explanation && typeof q.explanation === 'string') {
+        const match = q.explanation.match(/<!--RT_META:(.*?)-->/);
+        if (match && match[1]) {
+          try { meta = JSON.parse(match[1]); } catch(e){}
+        }
+      }
+      return meta;
+    }
+
+    function extractPlayQuestionType(q) {
+      if (!q) return 'single';
+      const meta = extractPlayQuestionMetadata(q);
+      if (q.question_type === 'order' || q.questionType === 'order' || meta.qt === 'order') return 'order';
+      if (q.question_type === 'multiple' || q.questionType === 'multiple' || meta.qt === 'multiple') return 'multiple';
+      const ci = extractPlayQuestionCorrectIndices(q);
+      if (Array.isArray(ci) && ci.length > 1) return 'multiple';
+      return 'single';
+    }
+
+    function extractPlayQuestionCorrectIndices(q) {
+      if (!q) return [];
+      const meta = extractPlayQuestionMetadata(q);
+      if (Array.isArray(meta.ci)) return meta.ci.map(Number);
+      if (Array.isArray(q.correct_indices)) return q.correct_indices.map(Number);
+      if (Array.isArray(q.correctIndices)) return q.correctIndices.map(Number);
+      const single = q.correct_index !== undefined ? q.correct_index : q.correctIndex;
+      if (single !== undefined && single !== null && !isNaN(Number(single))) return [Number(single)];
+      return [];
+    }
+
+    function extractPlayQuestionDangerIndices(q) {
+      if (!q) return [];
+      const meta = extractPlayQuestionMetadata(q);
+      if (Array.isArray(meta.di)) return meta.di.map(Number);
+      if (Array.isArray(q.danger_indices)) return q.danger_indices.map(Number);
+      if (Array.isArray(q.dangerIndices)) return q.dangerIndices.map(Number);
+      return [];
+    }
+
+    function generateAntiIdentityShuffle(count) {
+      if (count <= 1) return [0];
+      const original = Array.from({ length: count }, (_, i) => i);
+      let shuffled = [];
+      let attempts = 0;
+      do {
+        shuffled = [...original];
+        for (let i = shuffled.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+        }
+        attempts++;
+        const isIdentical = shuffled.every((val, idx) => val === idx);
+        if (!isIdentical || attempts > 50) break;
+      } while (true);
+      return shuffled;
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const pinParam = urlParams.get('pin');
+      if (pinParam) {
+        const pinInput = document.getElementById('inputPin');
+        if (pinInput) pinInput.value = pinParam.trim().toUpperCase();
+      }
+      renderAvatarPicker();
+      if (window.lucide) lucide.createIcons();
+    });
+
+    function updateSelectedAvatarLabel() {
+      const labelEl = document.getElementById('selectedAvatarLabel');
+      if (!labelEl) return;
+      const found = AVATARS.find(a => (typeof a === 'string' ? a : a.emoji) === selectedAvatar);
+      if (found && typeof found === 'object') {
+        labelEl.textContent = found.emoji + ' ' + found.name;
+      } else {
+        labelEl.textContent = selectedAvatar;
+      }
+    }
+
+    function renderAvatarPicker() {
+      const grid = document.getElementById('avatarGrid');
+      if (!grid) return;
+      const filtered = currentAvatarCategory === 'all'
+        ? AVATARS
+        : AVATARS.filter(a => typeof a === 'object' && a.cat === currentAvatarCategory);
+
+      grid.innerHTML = filtered.map(avItem => {
+        const emoji = typeof avItem === 'string' ? avItem : avItem.emoji;
+        const name = typeof avItem === 'string' ? avItem : avItem.name;
+        const isSelected = emoji === selectedAvatar;
+        return '<button type="button" onclick="selectAvatar(\'' + emoji + '\')" title="' + escapeHtml(name) + '" ' +
+          'class="relative flex items-center justify-center h-12 rounded-xl text-2xl border transition-all duration-150 active:scale-90 select-none ' +
+          (isSelected 
+            ? 'bg-emerald-500/25 border-emerald-400 scale-105 shadow-lg shadow-emerald-500/40 ring-2 ring-emerald-400/60 z-10' 
+            : 'bg-gray-950/80 border-gray-800 hover:border-gray-700 hover:bg-gray-900 text-gray-200') + '">' +
+          '<span class="filter drop-shadow select-none pointer-events-none">' + emoji + '</span>' +
+        '</button>';
+      }).join('');
+      updateSelectedAvatarLabel();
+    }
+
+    window.selectAvatar = function(av) {
+      selectedAvatar = av;
+      renderAvatarPicker();
+    };
+
+    window.setAvatarCategory = function(cat) {
+      currentAvatarCategory = cat;
+      const cats = ['all', 'lustig', 'bahn', 'fantasy'];
+      cats.forEach(c => {
+        const btn = document.getElementById('catBtn-' + c);
+        if (!btn) return;
+        if (c === cat) {
+          btn.className = 'px-2.5 py-1 rounded-xl font-bold transition-all shrink-0 bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 shadow-sm';
+        } else {
+          btn.className = 'px-2.5 py-1 rounded-xl font-semibold transition-all shrink-0 bg-gray-950 text-gray-400 border border-gray-800 hover:text-white';
+        }
+      });
+      renderAvatarPicker();
+    };
+
+    window.renderHangmanSvg = function(strikes, size = 64, isEliminated = false, animated = true) {
+      const s = Math.min(6, Math.max(0, Number(strikes) || 0));
+      const isDead = isEliminated || s >= 6;
+      const gallowsColor = "#64748b";
+      const ropeColor = "#d97706";
+      const bodyColor = isDead ? "#ef4444" : (s >= 4 ? "#f97316" : (s >= 2 ? "#fbbf24" : "#34d399"));
+
+      const animStyle = animated ? (
+        '<style>' +
+          '@keyframes hmDraw { from { stroke-dashoffset: 80; } to { stroke-dashoffset: 0; } }' +
+          '@keyframes hmPop { 0% { transform: scale(0.4); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }' +
+          '@keyframes hmSway { 0%, 100% { transform: rotate(0deg); } 25% { transform: rotate(3.5deg); } 75% { transform: rotate(-3.5deg); } }' +
+        '</style>'
+      ) : '';
+
+      const animAttr = (del = 0) => animated 
+        ? ('stroke-dasharray="80" stroke-dashoffset="0" style="animation: hmDraw 0.35s ease-out ' + del + 's both;"')
+        : '';
+
+      let headContent = '';
+      if (s >= 1) {
+        if (isDead) {
+          headContent = '<circle cx="68" cy="33" r="9" fill="#ef444422" stroke="' + bodyColor + '" stroke-width="3" stroke-linecap="round" ' + animAttr(0.04) + '/>' +
+            '<g style="animation: hmPop 0.22s ease-out 0.18s both; transform-origin: 68px 33px;">' +
+              '<line x1="64" y1="30" x2="67" y2="33" stroke="' + bodyColor + '" stroke-width="2" stroke-linecap="round"/>' +
+              '<line x1="67" y1="30" x2="64" y2="33" stroke="' + bodyColor + '" stroke-width="2" stroke-linecap="round"/>' +
+              '<line x1="69" y1="30" x2="72" y2="33" stroke="' + bodyColor + '" stroke-width="2" stroke-linecap="round"/>' +
+              '<line x1="72" y1="30" x2="69" y2="33" stroke="' + bodyColor + '" stroke-width="2" stroke-linecap="round"/>' +
+              '<path d="M64 38 Q68 35 72 38" fill="none" stroke="' + bodyColor + '" stroke-width="2" stroke-linecap="round"/>' +
+            '</g>';
+        } else {
+          headContent = '<circle cx="68" cy="33" r="9" fill="#34d39915" stroke="' + bodyColor + '" stroke-width="3" stroke-linecap="round" ' + animAttr(0.04) + '/>' +
+            '<g style="animation: hmPop 0.22s ease-out 0.18s both; transform-origin: 68px 33px;">' +
+              '<circle cx="65" cy="32" r="1.3" fill="' + bodyColor + '"/>' +
+              '<circle cx="71" cy="32" r="1.3" fill="' + bodyColor + '"/>' +
+              '<path d="M65 36 Q68 39 71 36" fill="none" stroke="' + bodyColor + '" stroke-width="1.8" stroke-linecap="round"/>' +
+            '</g>';
+        }
+      }
+
+      const swayStyle = (isDead && animated) ? 'style="transform-origin: 68px 10px; animation: hmSway 3s ease-in-out 0.4s infinite;"' : '';
+
+      // 6 Pips am Boden als Fortschrittsbalken
+      let pips = '';
+      for (let i = 0; i < 6; i++) {
+        const pipColor = i < s ? (isDead ? '#ef4444' : (s >= 4 ? '#f97316' : '#fbbf24')) : '#374151';
+        pips += '<rect x="' + (24 + i * 9) + '" y="95" width="7" height="3" rx="1.5" fill="' + pipColor + '"/>';
+      }
+
+      return '<svg width="' + size + '" height="' + size + '" viewBox="0 0 100 100" class="shrink-0 drop-shadow overflow-visible select-none">' +
+        animStyle +
+        '<!-- Galgen -->' +
+        '<line x1="10" y1="92" x2="54" y2="92" stroke="' + gallowsColor + '" stroke-width="4" stroke-linecap="round"/>' +
+        '<line x1="24" y1="92" x2="24" y2="10" stroke="' + gallowsColor + '" stroke-width="4" stroke-linecap="round"/>' +
+        '<line x1="24" y1="10" x2="68" y2="10" stroke="' + gallowsColor + '" stroke-width="4" stroke-linecap="round"/>' +
+        '<line x1="24" y1="26" x2="40" y2="10" stroke="' + gallowsColor + '" stroke-width="3" stroke-linecap="round"/>' +
+        '<line x1="68" y1="10" x2="68" y2="25" stroke="' + ropeColor + '" stroke-width="2.5" stroke-linecap="round"/>' +
+        '<!-- Striche Counter Pips -->' +
+        pips +
+        '<!-- Männchen -->' +
+        '<g ' + swayStyle + '>' +
+          headContent +
+          (s >= 2 ? '<line x1="68" y1="41.5" x2="68" y2="64" stroke="' + bodyColor + '" stroke-width="3.5" stroke-linecap="round" ' + animAttr(0.10) + '/>' : '') +
+          (s >= 3 ? '<line x1="68" y1="48" x2="53" y2="58" stroke="' + bodyColor + '" stroke-width="3.2" stroke-linecap="round" ' + animAttr(0.16) + '/>' : '') +
+          (s >= 4 ? '<line x1="68" y1="48" x2="83" y2="58" stroke="' + bodyColor + '" stroke-width="3.2" stroke-linecap="round" ' + animAttr(0.22) + '/>' : '') +
+          (s >= 5 ? '<line x1="68" y1="64" x2="54" y2="82" stroke="' + bodyColor + '" stroke-width="3.2" stroke-linecap="round" ' + animAttr(0.28) + '/>' : '') +
+          (s >= 6 ? '<line x1="68" y1="64" x2="82" y2="82" stroke="' + bodyColor + '" stroke-width="3.2" stroke-linecap="round" ' + animAttr(0.34) + '/>' : '') +
+        '</g>' +
+      '</svg>';
+    };
+
+    function showScreen(screenId) {
+      const screens = ['screen-join', 'screen-waiting', 'screen-question', 'screen-submitted', 'screen-round-result', 'screen-game-over', 'screen-spectator'];
+      screens.forEach(s => {
+        const el = document.getElementById(s);
+        if (!el) return;
+        if (s === screenId) {
+          el.classList.remove('hidden');
+          el.classList.add('flex');
+        } else {
+          el.classList.add('hidden');
+          el.classList.remove('flex');
+        }
+      });
+      if (window.lucide) lucide.createIcons();
+    }
+
+    function updateSubmittedHangmanUI() {
+      const box = document.getElementById('submittedHangmanBox');
+      if (!box) return;
+      if (!currentSession || currentSession.game_mode !== 'hangman') {
+        box.classList.add('hidden');
+        return;
+      }
+      box.classList.remove('hidden');
+      const players = currentSession.players || [];
+      const me = players.find(p => p.id === myPlayerId);
+      const strikes = me ? (me.hangman_strikes || 0) : 0;
+      const textEl = document.getElementById('submittedHangmanStrikesText');
+      if (textEl) textEl.textContent = strikes + ' / 6 Striche';
+      const figEl = document.getElementById('submittedHangmanFigure');
+      if (figEl && window.renderHangmanSvg) {
+        figEl.innerHTML = window.renderHangmanSvg(strikes, 70, strikes >= 6);
+      }
+    }
+
+    function renderSpectatorScreen(session, me) {
+      const q = session && session.current_question_data;
+      const qTextEl = document.getElementById('spectatorCurrentQuestionText');
+      if (qTextEl) {
+        qTextEl.textContent = (q && q.text) ? q.text : 'Frage auf dem Beamer beachten!';
+      }
+      const hangmanFig = document.getElementById('spectatorHangmanContainer');
+      if (hangmanFig && window.renderHangmanSvg) {
+        const strikes = me ? (me.hangman_strikes || 6) : 6;
+        hangmanFig.innerHTML = window.renderHangmanSvg(strikes, 110, true);
+      }
+    }
+
+    window.handleJoinBattle = async function(e) {
+      if (e) e.preventDefault();
+      const pin = document.getElementById('inputPin').value.trim().toUpperCase();
+      const name = document.getElementById('inputName').value.trim();
+      const errBox = document.getElementById('joinErrorBox');
+      const submitBtn = document.getElementById('joinSubmitBtn');
+
+      if (!pin || !name) {
+        if (errBox) {
+          errBox.textContent = 'Bitte PIN und Namen eingeben.';
+          errBox.classList.remove('hidden');
+        }
+        return;
+      }
+
+      currentPin = pin;
+      myPlayerName = name;
+
+      try {
+        if (submitBtn) submitBtn.innerHTML = '<span>Lobby suchen...</span>';
+        const session = await fetchSessionByPin(pin);
+        if (!session) {
+          throw new Error('Kein aktives Quiz-Battle mit PIN ' + pin + ' gefunden!');
+        }
+
+        const players = Array.isArray(session.players) ? session.players : [];
+        const existingIdx = players.findIndex(p => p.id === myPlayerId || (p.name.toLowerCase() === name.toLowerCase()));
+        const myPlayerData = {
+          id: myPlayerId,
+          name: name,
+          avatar: selectedAvatar,
+          score: 0,
+          streak: 0,
+          last_answer: null,
+          last_answer_time: null,
+          is_correct: false,
+          is_danger: false,
+          hangman_strikes: 0,
+          is_eliminated: false,
+          got_strike_this_round: false,
+          last_round_strike_reason: null
+        };
+
+        if (existingIdx !== -1) {
+          myPlayerId = players[existingIdx].id;
+          players[existingIdx] = { ...myPlayerData, ...players[existingIdx], name: name, avatar: selectedAvatar };
+        } else {
+          players.push(myPlayerData);
+        }
+
+        await updateSessionPlayers(session.id, players);
+
+        document.getElementById('waitingPlayerName').textContent = name;
+        document.getElementById('waitingAvatarBox').textContent = selectedAvatar;
+        document.getElementById('waitingPinDisplay').textContent = pin;
+        document.getElementById('playerNameDisplay').textContent = name;
+        document.getElementById('playerAvatarDisplay').textContent = selectedAvatar;
+        document.getElementById('playerBadge').classList.remove('hidden');
+        document.getElementById('playerBadge').classList.add('flex');
+
+        showScreen('screen-waiting');
+        startPolling();
+      } catch (err) {
+        if (errBox) {
+          errBox.textContent = err.message || 'Konnte Battle nicht beitreten.';
+          errBox.classList.remove('hidden');
+        }
+      } finally {
+        if (submitBtn) {
+          submitBtn.innerHTML = '<span>Jetzt Mitspielen</span><i data-lucide="arrow-right" class="w-4 h-4"></i>';
+          if (window.lucide) lucide.createIcons();
+        }
+      }
+    };
+
+    function getPlayApiUrl(path) {
+      if (window.location.protocol === 'http:' || window.location.protocol === 'https:') {
+        return window.location.origin + path;
+      }
+      return 'http://192.168.188.78:3000' + path;
+    }
+
+    async function fetchSessionByPin(pin) {
+      // 1. Lokale API versuchen
+      const url = getPlayApiUrl('/api/battle/session?pin=' + encodeURIComponent(pin));
+      try {
+        const res = await fetch(url);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.pin) return data;
+        }
+      } catch {}
+
+      // 2. Cloud Supabase versuchen (beim Webhosting)
+      try {
+        const res = await fetch(SUPABASE_URL + '/rest/v1/chat_messages?id=eq.battle_' + encodeURIComponent(pin) + '&select=*', {
+          headers: restHeaders
+        });
+        if (res.ok) {
+          const rows = await res.json();
+          if (Array.isArray(rows) && rows.length > 0 && rows[0].text) {
+            const data = JSON.parse(rows[0].text);
+            if (data && data.pin) return data;
+          }
+        }
+      } catch (e) {
+        console.warn('Cloud fetch error', e);
+      }
+
+      return null;
+    }
+
+    async function updateSessionPlayers(sessionId, players, extraSessionData = {}) {
+      // 1. Lokale API
+      const url = getPlayApiUrl('/api/battle/session');
+      try {
+        await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pin: currentPin, players: players, ...extraSessionData })
+        });
+      } catch {}
+
+      // 2. Cloud Supabase
+      try {
+        const session = await fetchSessionByPin(currentPin);
+        if (session) {
+          session.players = players;
+          if (extraSessionData.first_answer_time && !session.first_answer_time) {
+            session.first_answer_time = extraSessionData.first_answer_time;
+            session.timer_active = true;
+          }
+          await fetch(SUPABASE_URL + '/rest/v1/chat_messages', {
+            method: 'POST',
+            headers: { ...restHeaders, 'Prefer': 'resolution=merge-duplicates' },
+            body: JSON.stringify([{
+              id: 'battle_' + currentPin,
+              category: '__battle_sync__',
+              sender_id: 'admin-default-id',
+              sender_name: session.status || 'lobby',
+              sender_role: 'admin',
+              text: JSON.stringify(session),
+              timestamp: Date.now()
+            }])
+          });
+        }
+      } catch (e) {
+        console.warn('Cloud update error', e);
+      }
+    }
+
+    function startPolling() {
+      if (pollInterval) clearInterval(pollInterval);
+      pollInterval = setInterval(async () => {
+        if (!currentPin) return;
+        const session = await fetchSessionByPin(currentPin);
+        if (!session) return;
+        handleSessionUpdate(session);
+      }, 1000);
+    }
+
+    let lastKnownStatus = '';
+    let lastKnownQIndex = -1;
+
+    function startMobileQuestionTimer() {
+      if (questionTimerInterval) clearInterval(questionTimerInterval);
+      const updateTimerUI = () => {
+        const timerEl = document.getElementById('questionTimer');
+        if (!timerEl || !currentSession || currentSession.status !== 'question') return;
+        const limit = currentSession.time_limit || 20;
+
+        // Wenn noch keine 1. Antwort gegeben wurde: Timer wartet im Ruhezustand
+        if (!currentSession.first_answer_time && !currentSession.timer_active) {
+          timerEl.textContent = limit + 's ⏳';
+          timerEl.className = 'text-amber-400 font-extrabold';
+          return;
+        }
+
+        let rem = limit;
+        if (currentSession.first_answer_time) {
+          const elapsed = Math.floor((Date.now() - currentSession.first_answer_time) / 1000);
+          rem = Math.max(0, limit - elapsed);
+        } else if (typeof currentSession.timer_remaining === 'number') {
+          rem = Math.max(0, currentSession.timer_remaining);
+        }
+
+        timerEl.textContent = rem + 's';
+        if (rem <= 5) {
+          timerEl.className = 'text-red-400 animate-pulse font-black';
+        } else {
+          timerEl.className = 'text-amber-400 font-extrabold';
+        }
+
+        // Automatische Abgabe der bereits ausgewählten Antwort bei Ablauf des Timers
+        if (rem <= 0 && !hasAnsweredCurrentQ) {
+          const q = currentSession?.current_question_data;
+          const qType = extractPlayQuestionType(q);
+          if (qType === 'multiple' && selectedMultipleIndices.size > 0) {
+            window.handleSubmitMultiple();
+          } else if (qType === 'order') {
+            window.handleSubmitOrder();
+          } else if (selectedSingleIndex !== null) {
+            window.commitSingleChoiceAnswer(selectedSingleIndex);
+          }
+        }
+      };
+      updateTimerUI();
+      questionTimerInterval = setInterval(updateTimerUI, 500);
+    }
+
+    function handleSessionUpdate(session) {
+      currentSession = session;
+      const status = session.status;
+      const qIndex = session.current_q_index || 0;
+      const players = session.players || [];
+      const me = players.find(p => p.id === myPlayerId);
+
+      if (status !== lastKnownStatus || qIndex !== lastKnownQIndex) {
+        lastKnownStatus = status;
+        lastKnownQIndex = qIndex;
+
+        if (status === 'lobby') {
+          if (questionTimerInterval) clearInterval(questionTimerInterval);
+          showScreen('screen-waiting');
+        } else if (status === 'question') {
+          hasAnsweredCurrentQ = false;
+          selectedMultipleIndices.clear();
+          selectedSingleIndex = null;
+
+          const isHangman = session.game_mode === 'hangman';
+          const isEliminated = isHangman && me && (me.is_eliminated || (me.hangman_strikes || 0) >= 6);
+
+          if (isEliminated) {
+            if (questionTimerInterval) clearInterval(questionTimerInterval);
+            renderSpectatorScreen(session, me);
+            showScreen('screen-spectator');
+          } else {
+            renderQuestionScreen(session);
+            showScreen('screen-question');
+            startMobileQuestionTimer();
+          }
+        } else if (status === 'round_result') {
+          if (questionTimerInterval) clearInterval(questionTimerInterval);
+          if (!hasAnsweredCurrentQ) {
+            const q = currentSession?.current_question_data;
+            const qType = extractPlayQuestionType(q);
+            if (qType === 'multiple' && selectedMultipleIndices.size > 0) {
+              window.handleSubmitMultiple();
+            } else if (qType === 'order') {
+              window.handleSubmitOrder();
+            } else if (selectedSingleIndex !== null) {
+              window.commitSingleChoiceAnswer(selectedSingleIndex);
+            }
+          }
+          renderRoundResultScreen(session);
+          showScreen('screen-round-result');
+        } else if (status === 'podium' || status === 'finished') {
+          if (questionTimerInterval) clearInterval(questionTimerInterval);
+          renderFinalScreen(session);
+          showScreen('screen-game-over');
+        }
+      }
+
+      if (me) {
+        myScore = me.score || 0;
+        myStreak = me.streak || 0;
+        const scoreEl = document.getElementById('playerScoreDisplay');
+        if (scoreEl) scoreEl.textContent = myScore + ' Pkt';
+      }
+    }
+
+    window.toggleMobileLayoutMode = function() {
+      if (userLayoutPreference === 'list') {
+        userLayoutPreference = 'grid';
+      } else {
+        userLayoutPreference = 'list';
+      }
+      if (currentSession && currentSession.current_question_data) {
+        renderQuestionScreen(currentSession);
+      }
+    };
+
+    function renderQuestionScreen(session) {
+      const q = session.current_question_data;
+      if (!q) return;
+
+      const qType = extractPlayQuestionType(q);
+      const isOrder = qType === 'order';
+      const isMultiple = qType === 'multiple';
+
+      document.getElementById('qNumBadge').textContent = (session.current_q_index + 1);
+      
+      const catEl = document.getElementById('qCategoryBadge');
+      if (catEl) {
+        let typeSuffix = '';
+        if (isOrder) typeSuffix = ' (Reihenfolge)';
+        else if (isMultiple) typeSuffix = ' (Mehrfachauswahl)';
+        catEl.textContent = '#' + (q.category || 'Signale') + typeSuffix;
+        if (isMultiple) {
+          catEl.className = 'text-xs font-black text-purple-300 bg-purple-950/80 border border-purple-500/50 px-2.5 py-0.5 rounded-full';
+        } else {
+          catEl.className = 'text-xs font-bold text-emerald-300 bg-emerald-950/60 border border-emerald-500/30 px-2.5 py-0.5 rounded-full';
+        }
+      }
+
+      document.getElementById('questionTextMobile').innerHTML = q.text || 'Frage auf dem Beamer beachten!';
+
+      const options = Array.isArray(q.options) ? q.options : [];
+
+      const container = document.getElementById('battleOptionsContainer');
+      const orderContainer = document.getElementById('battleOrderContainer');
+      const toggleBtn = document.getElementById('btnToggleMobileLayout');
+      const multiAlert = document.getElementById('battleMultipleAlert');
+
+      if (isOrder) {
+        if (container) container.classList.add('hidden');
+        if (multiAlert) multiAlert.classList.add('hidden');
+        if (orderContainer) {
+          orderContainer.classList.remove('hidden');
+          orderContainer.classList.add('flex');
+        }
+        if (toggleBtn) toggleBtn.classList.add('hidden');
+
+        // Initialisiere die gemischte Start-Reihenfolge (Anti-Identity Shuffle)
+        if (currentOrderQIndex !== session.current_q_index || currentOrderPermutation.length !== options.length) {
+          currentOrderQIndex = session.current_q_index;
+          currentOrderPermutation = generateAntiIdentityShuffle(options.length);
+        }
+
+        renderOrderItems(options);
+        updateSubmitButtonState('order');
+        return;
+      }
+
+      // Normaler Single-Choice oder Mehrfachauswahl Modus
+      if (orderContainer) {
+        orderContainer.classList.add('hidden');
+        orderContainer.classList.remove('flex');
+      }
+      if (container) container.classList.remove('hidden');
+      if (toggleBtn) toggleBtn.classList.remove('hidden');
+
+      questionDisplayedAt = Date.now();
+
+      // Mehrfachauswahl Banner deaktiviert -> Einmaliges Popup Modal auf den Smartphones
+      if (multiAlert) {
+        multiAlert.classList.add('hidden');
+        multiAlert.classList.remove('flex');
+      }
+      if (isMultiple && !hasSeenMultiplePopup) {
+        hasSeenMultiplePopup = true;
+        const modal = document.getElementById('multipleChoiceModal');
+        if (modal) {
+          modal.classList.remove('hidden');
+          modal.classList.add('flex');
+        }
+      }
+
+      const maxOptLen = Math.max(0, ...options.map(o => (typeof o === 'string' ? o.trim().length : 0)));
+
+      // Wenn eine Antwort > 40 Zeichen lang ist oder es 5/6/7/8 Optionen gibt -> Listenansicht (1-spaltig) für perfekten Lesefluss
+      const isListMode = userLayoutPreference === 'list' || (userLayoutPreference !== 'grid' && (maxOptLen > 40 || options.length >= 5));
+
+      const toggleIcon = document.getElementById('layoutToggleIcon');
+      const toggleText = document.getElementById('layoutToggleText');
+
+      if (toggleIcon && toggleText) {
+        if (isListMode) {
+          toggleIcon.textContent = '⊞';
+          toggleText.textContent = 'Kacheln';
+        } else {
+          toggleIcon.textContent = '☰';
+          toggleText.textContent = 'Liste';
+        }
+      }
+
+      if (container) {
+        if (isListMode) {
+          container.className = 'grid grid-cols-1 gap-2.5 flex-1 min-h-0 overflow-y-auto custom-scrollbar p-0.5 pb-3';
+        } else {
+          container.className = 'grid grid-cols-2 gap-2.5 sm:gap-3 flex-1 min-h-0 overflow-y-auto custom-scrollbar p-0.5 pb-3';
+        }
+      }
+
+      const btn4 = document.getElementById('btn_opt_4');
+      if (btn4) {
+        if (!isListMode && options.length === 5) btn4.classList.add('col-span-2');
+        else btn4.classList.remove('col-span-2');
+      }
+
+      for (let i = 0; i <= 7; i++) {
+        const btn = document.getElementById('btn_opt_' + i);
+        const badge = document.getElementById('opt_badge_' + i);
+        const txt = document.getElementById('opt_text_' + i);
+        if (!btn || !txt) continue;
+
+        if (options[i]) {
+          btn.classList.remove('hidden');
+          btn.classList.remove('ring-4', 'ring-emerald-300', 'ring-emerald-400', 'ring-white', 'ring-purple-300', 'scale-[1.02]', 'scale-[1.03]', 'shadow-emerald-500/50', 'shadow-white/40', 'shadow-purple-500/50');
+          if (badge) badge.classList.remove('ring-2', 'ring-white', 'ring-purple-300');
+          txt.textContent = options[i];
+
+          if (isMultiple) {
+            btn.onclick = () => window.handleToggleMultipleOption(i);
+            if (selectedMultipleIndices.has(i)) {
+              btn.classList.add('ring-4', 'ring-purple-300', 'scale-[1.03]', 'shadow-2xl', 'shadow-purple-500/50');
+              if (badge) badge.classList.add('ring-2', 'ring-purple-300');
+            }
+          } else {
+            btn.onclick = () => window.handleSelectOption(i);
+            if (selectedSingleIndex === i) {
+              btn.classList.add('ring-4', 'ring-white', 'scale-[1.03]', 'shadow-2xl', 'shadow-white/40');
+              if (badge) badge.classList.add('ring-2', 'ring-white');
+            }
+          }
+
+          if (isListMode) {
+            // Liste: volle Breite, Icon links, Text rechts, Zeilenumbruch ohne Abschneiden
+            btn.classList.remove('flex-col', 'justify-center', 'text-center', 'p-4', 'rounded-3xl');
+            btn.classList.add('flex-row', 'items-center', 'justify-start', 'text-left', 'p-3', 'sm:p-3.5', 'rounded-2xl');
+
+            if (badge) {
+              badge.className = (i === 2)
+                ? 'w-10 h-10 rounded-xl bg-black/20 text-black flex items-center justify-center text-sm font-black shrink-0 shadow mr-3'
+                : 'w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-sm font-black shrink-0 shadow mr-3';
+            }
+
+            let fontClass = 'text-xs sm:text-sm font-bold leading-snug break-words flex-1 text-left';
+            if (maxOptLen > 130) {
+              fontClass = 'text-xs font-semibold leading-snug break-words flex-1 text-left';
+            } else if (maxOptLen > 70) {
+              fontClass = 'text-xs sm:text-sm font-bold leading-snug break-words flex-1 text-left';
+            } else {
+              fontClass = 'text-sm font-extrabold leading-snug break-words flex-1 text-left';
+            }
+            txt.className = fontClass + (i === 2 ? ' text-gray-950' : ' text-white');
+
+          } else {
+            // Kacheln: 2-spaltig (nur bei kurzen Texten)
+            btn.classList.remove('flex-row', 'justify-start', 'text-left', 'p-3', 'sm:p-3.5', 'rounded-2xl');
+            btn.classList.add('flex-col', 'items-center', 'justify-center', 'text-center', 'p-3.5', 'sm:p-4', 'rounded-3xl');
+
+            if (badge) {
+              badge.className = (i === 2)
+                ? 'w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-black/20 text-black flex items-center justify-center text-base sm:text-lg mb-1.5 shadow font-black'
+                : 'w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-white/20 flex items-center justify-center text-base sm:text-lg mb-1.5 shadow font-black';
+            }
+
+            let fontClass = 'text-xs sm:text-sm font-extrabold leading-tight break-words text-center flex-1';
+            if (maxOptLen > 25) {
+              fontClass = 'text-[11px] sm:text-xs font-extrabold leading-tight break-words text-center flex-1';
+            }
+            txt.className = fontClass + (i === 2 ? ' text-gray-950' : ' text-white');
+          }
+        } else {
+          btn.classList.add('hidden');
+        }
+      }
+      updateSubmitButtonState(qType);
+    }
+
+    function renderOrderItems(options) {
+      const listEl = document.getElementById('battleOrderItemsList');
+      if (!listEl) return;
+
+      listEl.innerHTML = currentOrderPermutation.map((origOptIdx, slotIdx) => {
+        const isFirst = (slotIdx === 0);
+        const isLast = (slotIdx === currentOrderPermutation.length - 1);
+        const text = options[origOptIdx] || '';
+
+        return '<div class="flex items-center gap-2 p-2.5 sm:p-3 rounded-2xl bg-gray-900 border border-gray-800 shadow transition select-none" ' +
+          'id="order_touch_item_' + slotIdx + '" data-slot="' + slotIdx + '">' +
+          '<div class="w-8 h-8 rounded-xl bg-cyan-600 text-white font-black text-xs sm:text-sm flex items-center justify-center shrink-0 shadow">' + (slotIdx + 1) + '</div>' +
+          '<div class="flex-1 text-xs sm:text-sm font-bold text-gray-100 leading-snug break-words">' + escapeHtml(text) + '</div>' +
+          '<div class="flex items-center gap-1 shrink-0">' +
+            '<button type="button" onclick="moveOrderItem(' + slotIdx + ', -1)" ' + (isFirst ? 'disabled class="opacity-20 p-2 text-gray-600 rounded-xl bg-gray-950 cursor-not-allowed"' : 'class="p-2 text-cyan-300 hover:text-white active:scale-90 bg-gray-950 border border-gray-800 rounded-xl transition"') + ' title="Nach oben">' +
+              '<i data-lucide="chevron-up" class="w-4 h-4"></i>' +
+            '</button>' +
+            '<button type="button" onclick="moveOrderItem(' + slotIdx + ', 1)" ' + (isLast ? 'disabled class="opacity-20 p-2 text-gray-600 rounded-xl bg-gray-950 cursor-not-allowed"' : 'class="p-2 text-cyan-300 hover:text-white active:scale-90 bg-gray-950 border border-gray-800 rounded-xl transition"') + ' title="Nach unten">' +
+              '<i data-lucide="chevron-down" class="w-4 h-4"></i>' +
+            '</button>' +
+            '<div class="touch-handle p-2 text-gray-500 hover:text-cyan-400 cursor-grab active:cursor-grabbing rounded-xl bg-gray-950 border border-gray-800 shrink-0 flex items-center justify-center" ' +
+              'data-slot="' + slotIdx + '" title="Halten & Ziehen">' +
+              '<i data-lucide="grip-vertical" class="w-4 h-4 pointer-events-none"></i>' +
+            '</div>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+
+      if (window.lucide) lucide.createIcons();
+      attachTouchReorderListeners();
+    }
+
+    window.moveOrderItem = function(slotIdx, dir) {
+      if (hasAnsweredCurrentQ) return;
+      const targetIdx = slotIdx + dir;
+      if (targetIdx < 0 || targetIdx >= currentOrderPermutation.length) return;
+
+      const temp = currentOrderPermutation[slotIdx];
+      currentOrderPermutation[slotIdx] = currentOrderPermutation[targetIdx];
+      currentOrderPermutation[targetIdx] = temp;
+
+      const q = currentSession && currentSession.current_question_data;
+      const options = (q && Array.isArray(q.options)) ? q.options : [];
+      renderOrderItems(options);
+    };
+
+    let touchDragStartSlot = null;
+    let touchDragTargetSlot = null;
+
+    function attachTouchReorderListeners() {
+      const handles = document.querySelectorAll('.touch-handle');
+      handles.forEach(handle => {
+        handle.ontouchstart = (e) => {
+          if (hasAnsweredCurrentQ) return;
+          const slot = parseInt(handle.getAttribute('data-slot'), 10);
+          touchDragStartSlot = slot;
+          touchDragTargetSlot = slot;
+          const row = document.getElementById('order_touch_item_' + slot);
+          if (row) row.classList.add('ring-2', 'ring-cyan-500', 'opacity-70', 'scale-[1.02]');
+        };
+
+        handle.ontouchmove = (e) => {
+          if (touchDragStartSlot === null) return;
+          e.preventDefault();
+          const touch = e.touches[0];
+          const elemBelow = document.elementFromPoint(touch.clientX, touch.clientY);
+          if (!elemBelow) return;
+          const targetRow = elemBelow.closest('[data-slot]');
+          if (targetRow) {
+            const slot = parseInt(targetRow.getAttribute('data-slot'), 10);
+            if (!isNaN(slot) && slot !== touchDragTargetSlot) {
+              document.querySelectorAll('[id^="order_touch_item_"]').forEach(r => r.classList.remove('border-cyan-400', 'border-t-2', 'border-b-2'));
+              touchDragTargetSlot = slot;
+              if (slot > touchDragStartSlot) {
+                targetRow.classList.add('border-b-2', 'border-cyan-400');
+              } else if (slot < touchDragStartSlot) {
+                targetRow.classList.add('border-t-2', 'border-cyan-400');
+              }
+            }
+          }
+        };
+
+        handle.ontouchend = (e) => {
+          if (touchDragStartSlot === null) return;
+          const start = touchDragStartSlot;
+          const target = touchDragTargetSlot;
+          touchDragStartSlot = null;
+          touchDragTargetSlot = null;
+
+          document.querySelectorAll('[id^="order_touch_item_"]').forEach(r => {
+            r.classList.remove('ring-2', 'ring-cyan-500', 'opacity-70', 'scale-[1.02]', 'border-cyan-400', 'border-t-2', 'border-b-2');
+          });
+
+          if (target !== null && start !== target) {
+            const [moved] = currentOrderPermutation.splice(start, 1);
+            currentOrderPermutation.splice(target, 0, moved);
+            const q = currentSession && currentSession.current_question_data;
+            const options = (q && Array.isArray(q.options)) ? q.options : [];
+            renderOrderItems(options);
+          }
+        };
+      });
+    }
+
+    function updateSubmitButtonState(qType) {
+      const submitBtn = document.getElementById('btnSubmitAnswer');
+      const submitText = document.getElementById('btnSubmitAnswerText');
+      if (!submitBtn || !submitText) return;
+
+      if (hasAnsweredCurrentQ) {
+        submitBtn.className = 'w-full py-4 px-4 rounded-2xl bg-gray-800 text-gray-500 border border-gray-700/60 font-black text-sm sm:text-base tracking-wide shadow-xl flex items-center justify-center gap-2.5 opacity-60 pointer-events-none';
+        submitText.textContent = 'Antwort bereits abgegeben ✓';
+        return;
+      }
+
+      const optLetters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+
+      if (qType === 'multiple') {
+        const count = selectedMultipleIndices.size;
+        if (count > 0) {
+          submitBtn.className = 'w-full py-4 px-4 rounded-2xl bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-500 hover:from-purple-500 hover:to-indigo-500 text-white border-2 border-purple-300 ring-4 ring-purple-500/40 shadow-2xl shadow-purple-600/40 font-black text-sm sm:text-base tracking-wide flex items-center justify-center gap-2.5 cursor-pointer active:scale-95 transition-all animate-pulse';
+          submitText.textContent = count + ' Antwort' + (count > 1 ? 'en' : '') + ' bestätigen & abgeben ✓';
+        } else {
+          submitBtn.className = 'w-full py-4 px-4 rounded-2xl bg-gray-800/90 text-gray-400 border border-gray-700/80 font-black text-sm sm:text-base tracking-wide shadow-xl flex items-center justify-center gap-2.5 opacity-50 pointer-events-none transition-all';
+          submitText.textContent = 'Wähle mindestens 1 Antwort aus...';
+        }
+      } else if (qType === 'order') {
+        submitBtn.className = 'w-full py-4 px-4 rounded-2xl bg-gradient-to-r from-cyan-600 via-teal-600 to-cyan-500 hover:from-cyan-500 hover:to-teal-500 text-white border-2 border-cyan-300 ring-4 ring-cyan-500/40 shadow-2xl shadow-cyan-600/40 font-black text-sm sm:text-base tracking-wide flex items-center justify-center gap-2.5 cursor-pointer active:scale-95 transition-all';
+        submitText.textContent = 'Reihenfolge bestätigen & abgeben ✓';
+      } else {
+        // Single choice
+        if (selectedSingleIndex !== null && selectedSingleIndex !== undefined) {
+          const letter = optLetters[selectedSingleIndex] || (selectedSingleIndex + 1);
+          submitBtn.className = 'w-full py-4 px-4 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-500 hover:from-emerald-500 hover:to-teal-500 text-white border-2 border-emerald-300 ring-4 ring-emerald-500/40 shadow-2xl shadow-emerald-600/40 font-black text-sm sm:text-base tracking-wide flex items-center justify-center gap-2.5 cursor-pointer active:scale-95 transition-all animate-pulse';
+          submitText.textContent = 'Antwort ' + letter + ' bestätigen & abgeben ✓';
+        } else {
+          submitBtn.className = 'w-full py-4 px-4 rounded-2xl bg-gray-800/90 text-gray-400 border border-gray-700/80 font-black text-sm sm:text-base tracking-wide shadow-xl flex items-center justify-center gap-2.5 opacity-50 pointer-events-none transition-all';
+          submitText.textContent = 'Wähle zuerst eine Antwort aus...';
+        }
+      }
+    }
+
+    window.handleSelectOption = function(idx) {
+      if (hasAnsweredCurrentQ) return;
+      selectedSingleIndex = idx;
+
+      for (let i = 0; i <= 7; i++) {
+        const btn = document.getElementById('btn_opt_' + i);
+        const badge = document.getElementById('opt_badge_' + i);
+        if (!btn) continue;
+        if (i === idx) {
+          btn.classList.add('ring-4', 'ring-white', 'scale-[1.03]', 'shadow-2xl', 'shadow-white/40');
+          if (badge) badge.classList.add('ring-2', 'ring-white');
+        } else {
+          btn.classList.remove('ring-4', 'ring-white', 'scale-[1.03]', 'shadow-2xl', 'shadow-white/40');
+          if (badge) badge.classList.remove('ring-2', 'ring-white');
+        }
+      }
+
+      updateSubmitButtonState('single');
+    };
+
+    window.handleToggleMultipleOption = function(idx) {
+      if (hasAnsweredCurrentQ) return;
+      if (selectedMultipleIndices.has(idx)) {
+        selectedMultipleIndices.delete(idx);
+      } else {
+        selectedMultipleIndices.add(idx);
+      }
+
+      for (let i = 0; i <= 7; i++) {
+        const btn = document.getElementById('btn_opt_' + i);
+        const badge = document.getElementById('opt_badge_' + i);
+        if (!btn) continue;
+        if (selectedMultipleIndices.has(i)) {
+          btn.classList.add('ring-4', 'ring-purple-300', 'scale-[1.03]', 'shadow-2xl', 'shadow-purple-500/50');
+          if (badge) badge.classList.add('ring-2', 'ring-purple-300');
+        } else {
+          btn.classList.remove('ring-4', 'ring-purple-300', 'scale-[1.03]', 'shadow-2xl', 'shadow-purple-500/50');
+          if (badge) badge.classList.remove('ring-2', 'ring-purple-300');
+        }
+      }
+
+      updateSubmitButtonState('multiple');
+    };
+
+    window.handleConfirmSubmit = function() {
+      if (hasAnsweredCurrentQ || !currentSession) return;
+      const q = currentSession.current_question_data;
+      const qType = extractPlayQuestionType(q);
+      if (qType === 'multiple') {
+        if (selectedMultipleIndices.size > 0) {
+          window.handleSubmitMultiple();
+        }
+      } else if (qType === 'order') {
+        window.handleSubmitOrder();
+      } else {
+        if (selectedSingleIndex !== null && selectedSingleIndex !== undefined) {
+          window.commitSingleChoiceAnswer(selectedSingleIndex);
+        }
+      }
+    };
+
+    async function submitPlayerAnswerReliable(qIndex, answerValue, isCorrect, isDanger, earnedPoints, answerTime) {
+      // 1. Lokalen Zustand sofort absichern (verhindert Falschanzeige bei Latenz)
+      lastSubmittedAnswer = {
+        qIndex: qIndex,
+        answer: answerValue,
+        isCorrect: isCorrect,
+        isDanger: isDanger,
+        earnedPoints: earnedPoints,
+        answerTime: answerTime
+      };
+      myScore = (myScore || 0) + (earnedPoints || 0);
+      if (isCorrect) myStreak = (myStreak || 0) + 1;
+      else myStreak = 0;
+
+      const payload = {
+        playerId: myPlayerId,
+        name: myPlayerName,
+        avatar: selectedAvatar,
+        qIndex: qIndex,
+        answer: answerValue,
+        isCorrect: isCorrect,
+        isDanger: isDanger,
+        earnedPoints: earnedPoints,
+        answerTime: answerTime
+      };
+
+      // 2. Individual Answer Record in chat_messages (Supabase Cloud) mit 3 Retries
+      // Jeder Schüler schreibt in eine separate Zeile (keine Lock-/Race-Conditions!)
+      const messageId = 'battle_ans_' + currentPin + '_' + qIndex + '_' + myPlayerId;
+      const category = '__battle_ans_' + currentPin + '__';
+
+      const sendIndividualSupabase = async () => {
+        return await fetch(SUPABASE_URL + '/rest/v1/chat_messages', {
+          method: 'POST',
+          headers: { ...restHeaders, 'Prefer': 'resolution=merge-duplicates' },
+          body: JSON.stringify([{
+            id: messageId,
+            category: category,
+            sender_id: myPlayerId,
+            sender_name: myPlayerName || 'Spieler',
+            sender_role: 'player',
+            text: JSON.stringify(payload),
+            timestamp: answerTime
+          }])
+        });
+      };
+
+      (async () => {
+        let sent = false;
+        for (let attempt = 1; attempt <= 3 && !sent; attempt++) {
+          try {
+            const res = await sendIndividualSupabase();
+            if (res.ok) {
+              sent = true;
+              break;
+            }
+          } catch (e) {
+            console.warn(`Antwort-Sync Versuch ${attempt} fehlgeschlagen`, e);
+          }
+          if (!sent && attempt < 3) {
+            await new Promise(r => setTimeout(r, 200 * attempt));
+          }
+        }
+      })();
+
+      // 3. Lokale LAN-API (falls auf lokalem Server gespielt wird)
+      try {
+        fetch(getPlayApiUrl('/api/battle/answer'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pin: currentPin, ...payload })
+        }).catch(() => {});
+      } catch(e) {}
+
+      // 4. Session Snapshot Update (Smart Merge mit dem Haupt-Session-Objekt)
+      try {
+        const freshSession = await fetchSessionByPin(currentPin);
+        if (freshSession) {
+          const players = freshSession.players || [];
+          const meIdx = players.findIndex(p => p.id === myPlayerId);
+          const extraData = {};
+          if (!freshSession.first_answer_time) {
+            extraData.first_answer_time = answerTime;
+            extraData.timer_active = true;
+          }
+          if (meIdx !== -1) {
+            players[meIdx] = {
+              ...players[meIdx],
+              score: (players[meIdx].score || 0) + earnedPoints,
+              streak: isCorrect ? ((players[meIdx].streak || 0) + 1) : 0,
+              last_answer: answerValue,
+              last_answered_q_index: qIndex,
+              last_answer_time: answerTime,
+              is_correct: isCorrect,
+              is_danger: isDanger,
+              last_earned_points: earnedPoints
+            };
+          } else {
+            players.push({
+              id: myPlayerId,
+              name: myPlayerName,
+              avatar: selectedAvatar,
+              score: earnedPoints,
+              streak: isCorrect ? 1 : 0,
+              last_answer: answerValue,
+              last_answered_q_index: qIndex,
+              last_answer_time: answerTime,
+              is_correct: isCorrect,
+              is_danger: isDanger,
+              last_earned_points: earnedPoints,
+              hangman_strikes: 0,
+              is_eliminated: false
+            });
+          }
+          await updateSessionPlayers(freshSession.id, players, extraData);
+        }
+      } catch(e) {
+        console.warn('Session player update fallback warning', e);
+      }
+    }
+
+    window.commitSingleChoiceAnswer = async function(idx) {
+      if (hasAnsweredCurrentQ || !currentSession || idx === null || idx === undefined) return;
+      if (currentSession.game_mode === 'hangman') {
+        const players = currentSession.players || [];
+        const me = players.find(p => p.id === myPlayerId);
+        if (me && (me.is_eliminated || (me.hangman_strikes || 0) >= 6)) return;
+      }
+      hasAnsweredCurrentQ = true;
+
+      const optLetters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+      const optSymbols = ['▲ A', '◆ B', '● C', '■ D', '★ E', '✦ F', '✿ G', '❖ H'];
+      const q = currentSession.current_question_data;
+      const chosenText = (q && q.options && q.options[idx]) ? q.options[idx] : '';
+      const subChoice = document.getElementById('submittedChoiceText');
+      if (subChoice) {
+        subChoice.innerHTML = '<div class="flex items-start gap-2.5 pt-0.5">' +
+          '<span class="px-2.5 py-1 rounded-xl bg-emerald-500 text-gray-950 font-black text-xs shrink-0 shadow">' + (optSymbols[idx] || ('Antwort ' + (optLetters[idx] || (idx + 1)))) + '</span>' +
+          (chosenText ? ('<span class="text-gray-100 font-bold text-xs sm:text-sm leading-snug break-words flex-1 text-left">' + escapeHtml(chosenText) + '</span>') : '') +
+          '</div>';
+      }
+      showScreen('screen-submitted');
+      updateSubmittedHangmanUI();
+
+      const answerTime = Date.now();
+      const correctIndices = extractPlayQuestionCorrectIndices(q);
+      const dangerIndices = extractPlayQuestionDangerIndices(q);
+      const isCorrect = (correctIndices.length === 1 && correctIndices.includes(Number(idx)));
+      const isDanger = dangerIndices.includes(Number(idx));
+
+      const qStart = currentSession.question_start_time || questionDisplayedAt || (answerTime - 300);
+      const timeLimitSecs = currentSession.time_limit || 20;
+      const elapsedSecs = Math.max(0.1, (answerTime - qStart) / 1000);
+      const remainingSecs = Math.max(0, timeLimitSecs - elapsedSecs);
+      let earnedPoints = 0;
+
+      if (isCorrect) {
+        const speedBonus = Math.floor(Math.max(0, Math.min(1, remainingSecs / timeLimitSecs)) * 500);
+        earnedPoints = 500 + speedBonus;
+      }
+
+      await submitPlayerAnswerReliable(currentSession.current_q_index, idx, isCorrect, isDanger, earnedPoints, answerTime);
+    };
+
+    window.handleSubmitMultiple = async function() {
+      if (hasAnsweredCurrentQ || !currentSession || selectedMultipleIndices.size === 0) return;
+      if (currentSession.game_mode === 'hangman') {
+        const players = currentSession.players || [];
+        const me = players.find(p => p.id === myPlayerId);
+        if (me && (me.is_eliminated || (me.hangman_strikes || 0) >= 6)) return;
+      }
+      hasAnsweredCurrentQ = true;
+
+      const optLetters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+      const q = currentSession.current_question_data;
+      const options = (q && Array.isArray(q.options)) ? q.options : [];
+      const chosenIndices = Array.from(selectedMultipleIndices).sort((a, b) => a - b);
+
+      const subChoice = document.getElementById('submittedChoiceText');
+      if (subChoice) {
+        const letters = chosenIndices.map(i => optLetters[i] || (i + 1)).join(', ');
+        const chosenListHtml = chosenIndices.map(i => {
+          return '<div class="flex items-start gap-2 py-1.5 border-b border-gray-800/60 last:border-0">' +
+            '<span class="w-5 h-5 rounded-md text-[10px] bg-purple-600 text-white font-black flex items-center justify-center shrink-0 mt-0.5 shadow">' + (optLetters[i] || (i + 1)) + '</span>' +
+            '<span class="text-gray-200 font-semibold text-xs leading-snug break-words flex-1 text-left">' + escapeHtml(options[i] || '') + '</span>' +
+          '</div>';
+        }).join('');
+        subChoice.innerHTML = '<div class="space-y-1.5">' +
+          '<div class="text-purple-300 font-black text-xs flex items-center gap-1.5">' +
+            '<span class="w-2 h-2 rounded-full bg-purple-400"></span>' +
+            '<span>Auswahl (' + chosenIndices.length + ' Antworten): ' + letters + '</span>' +
+          '</div>' +
+          '<div class="space-y-0.5">' + chosenListHtml + '</div>' +
+        '</div>';
+      }
+      showScreen('screen-submitted');
+      updateSubmittedHangmanUI();
+
+      const answerTime = Date.now();
+      const correctIndices = extractPlayQuestionCorrectIndices(q);
+      const dangerIndices = extractPlayQuestionDangerIndices(q);
+
+      const isCorrect = (chosenIndices.length === correctIndices.length && chosenIndices.every(idx => correctIndices.includes(idx)));
+      const isDanger = chosenIndices.some(idx => dangerIndices.includes(idx));
+
+      const qStart = currentSession.question_start_time || questionDisplayedAt || (answerTime - 300);
+      const timeLimitSecs = currentSession.time_limit || 20;
+      const elapsedSecs = Math.max(0.1, (answerTime - qStart) / 1000);
+      const remainingSecs = Math.max(0, timeLimitSecs - elapsedSecs);
+      let earnedPoints = 0;
+
+      if (isCorrect) {
+        const speedBonus = Math.floor(Math.max(0, Math.min(1, remainingSecs / timeLimitSecs)) * 500);
+        earnedPoints = 500 + speedBonus;
+      }
+
+      await submitPlayerAnswerReliable(currentSession.current_q_index, chosenIndices, isCorrect, isDanger, earnedPoints, answerTime);
+    };
+
+    window.handleSubmitOrder = async function() {
+      if (hasAnsweredCurrentQ || !currentSession) return;
+      if (currentSession.game_mode === 'hangman') {
+        const players = currentSession.players || [];
+        const me = players.find(p => p.id === myPlayerId);
+        if (me && (me.is_eliminated || (me.hangman_strikes || 0) >= 6)) return;
+      }
+      hasAnsweredCurrentQ = true;
+
+      const q = currentSession.current_question_data;
+      const options = (q && Array.isArray(q.options)) ? q.options : [];
+
+      const subChoice = document.getElementById('submittedChoiceText');
+      if (subChoice) {
+        const listHtml = currentOrderPermutation.map((origIdx, slot) => {
+          return '<div class="flex items-start gap-2 py-1.5 border-b border-gray-800/60 last:border-0">' +
+            '<span class="w-5 h-5 rounded-md text-[10px] bg-cyan-600 text-white font-black flex items-center justify-center shrink-0 mt-0.5 shadow">' + (slot + 1) + '</span>' +
+            '<span class="text-gray-200 font-semibold text-xs leading-snug break-words flex-1 text-left">' + escapeHtml(options[origIdx] || '') + '</span>' +
+          '</div>';
+        }).join('');
+        subChoice.innerHTML = '<div class="space-y-1.5">' +
+          '<div class="text-cyan-300 font-black text-xs flex items-center gap-1.5">' +
+            '<span class="w-2 h-2 rounded-full bg-cyan-400"></span>' +
+            '<span>Eingeloggte Reihenfolge:</span>' +
+          '</div>' +
+          '<div class="space-y-0.5">' + listHtml + '</div>' +
+        '</div>';
+      }
+      showScreen('screen-submitted');
+      updateSubmittedHangmanUI();
+
+      const answerTime = Date.now();
+      // Die korrekte Reihenfolge verlangt, dass die Indizes 0, 1, ..., N-1 in exakt aufsteigender Folge sortiert wurden
+      const isCorrect = (currentOrderPermutation.length === options.length && currentOrderPermutation.every((val, i) => val === i));
+
+      const qStart = currentSession.question_start_time || questionDisplayedAt || (answerTime - 300);
+      const timeLimitSecs = currentSession.time_limit || 20;
+      const elapsedSecs = Math.max(0.1, (answerTime - qStart) / 1000);
+      const remainingSecs = Math.max(0, timeLimitSecs - elapsedSecs);
+      let earnedPoints = 0;
+
+      if (isCorrect) {
+        const speedBonus = Math.floor(Math.max(0, Math.min(1, remainingSecs / timeLimitSecs)) * 500);
+        earnedPoints = 500 + speedBonus;
+      }
+
+      await submitPlayerAnswerReliable(currentSession.current_q_index, [...currentOrderPermutation], isCorrect, false, earnedPoints, answerTime);
+    };
+
+    function renderRoundResultScreen(session) {
+      const players = session.players || [];
+      const me = players.find(p => p.id === myPlayerId);
+      if (!me) return;
+
+      const card = document.getElementById('roundResultCard');
+      const icon = document.getElementById('roundResultIcon');
+      const title = document.getElementById('roundResultTitle');
+      const ptsBadge = document.getElementById('roundResultPointsBadge');
+      const dangerAlert = document.getElementById('roundResultDangerAlert');
+
+      // Weiche, sanfte Animation für das Ergebnis-Kärtchen
+      if (card) {
+        card.style.opacity = '0';
+        card.style.transform = 'scale(0.96) translateY(8px)';
+        card.style.transition = 'opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1), transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)';
+        requestAnimationFrame(() => {
+          card.style.opacity = '1';
+          card.style.transform = 'scale(1) translateY(0)';
+        });
+      }
+
+      const currentQIdx = session.current_q_index || 0;
+      let hasAnsweredThisRound = (me.last_answered_q_index === currentQIdx) && me.last_answer !== null && me.last_answer !== undefined;
+      let isCorrect = hasAnsweredThisRound && me.is_correct;
+      let isDanger = hasAnsweredThisRound && me.is_danger;
+      let earned = hasAnsweredThisRound ? (me.last_earned_points || 0) : 0;
+
+      // Robustes Fallback falls Server-Snapshot noch durch Polling-Verzögerung hinterherhängt
+      if (!hasAnsweredThisRound && lastSubmittedAnswer && lastSubmittedAnswer.qIndex === currentQIdx) {
+        hasAnsweredThisRound = true;
+        isCorrect = lastSubmittedAnswer.isCorrect;
+        isDanger = lastSubmittedAnswer.isDanger;
+        earned = lastSubmittedAnswer.earnedPoints;
+      }
+
+      if (isCorrect) {
+        card.className = 'bg-gradient-to-b from-gray-900 via-gray-900 to-emerald-950/40 border-2 border-emerald-400 rounded-3xl p-6 shadow-2xl shadow-emerald-500/20 ring-4 ring-emerald-500/20 space-y-3';
+        icon.innerHTML = '<div class="w-20 h-20 rounded-full bg-emerald-500/20 border-2 border-emerald-400 text-emerald-400 flex items-center justify-center mx-auto shadow-lg shadow-emerald-500/30 ring-4 ring-emerald-500/20 animate-pulse"><svg class="w-12 h-12 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></div>';
+        title.textContent = 'RICHTIG!';
+        title.className = 'text-2xl font-black text-emerald-400 drop-shadow-[0_0_12px_rgba(52,211,153,0.4)]';
+        ptsBadge.className = 'inline-block px-4 py-1.5 rounded-full text-base font-black bg-gradient-to-r from-emerald-500 to-teal-500 text-gray-950 shadow-lg shadow-emerald-500/30';
+        ptsBadge.textContent = '+' + earned + ' Punkte';
+        if (dangerAlert) dangerAlert.classList.add('hidden');
+      } else if (!hasAnsweredThisRound) {
+        card.className = 'bg-gray-900 border-2 border-amber-500/60 rounded-3xl p-6 shadow-2xl space-y-3';
+        icon.innerHTML = '<div class="w-20 h-20 rounded-full bg-amber-500/20 border-2 border-amber-500 text-amber-400 flex items-center justify-center mx-auto shadow-lg shadow-amber-500/30 ring-4 ring-amber-500/20"><svg class="w-11 h-11 text-amber-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg></div>';
+        title.textContent = 'ZEIT ABGELAUFEN';
+        title.className = 'text-2xl font-black text-amber-400';
+        ptsBadge.className = 'inline-block px-4 py-1.5 rounded-full text-base font-black bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow';
+        ptsBadge.textContent = '+0 Punkte (Nicht rechtzeitig eingeloggt)';
+        if (dangerAlert) dangerAlert.classList.add('hidden');
+      } else {
+        card.className = 'bg-gray-900 border-2 border-red-500/60 rounded-3xl p-6 shadow-2xl space-y-3';
+        if (isDanger) {
+          icon.innerHTML = '<div class="w-20 h-20 rounded-full bg-red-500/20 border-2 border-red-500 text-red-400 flex items-center justify-center mx-auto shadow-lg shadow-red-500/30 ring-4 ring-red-500/20"><svg class="w-11 h-11 text-red-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg></div>';
+          title.textContent = 'BETRIEBSGEFÄHRDEND!';
+        } else {
+          icon.innerHTML = '<div class="w-20 h-20 rounded-full bg-red-500/20 border-2 border-red-500 text-red-400 flex items-center justify-center mx-auto shadow-lg shadow-red-500/30 ring-4 ring-red-500/20"><svg class="w-11 h-11 text-red-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></div>';
+          title.textContent = 'LEIDER FALSCH';
+        }
+        title.className = 'text-2xl font-black text-red-400';
+        ptsBadge.className = 'inline-block px-4 py-1.5 rounded-full text-base font-black bg-red-500/20 text-red-300 border border-red-500/40 shadow';
+        ptsBadge.textContent = '+0 Punkte';
+
+        if (dangerAlert) {
+          if (isDanger) dangerAlert.classList.remove('hidden');
+          else dangerAlert.classList.add('hidden');
+        }
+      }
+
+      // Hangman Knock-Out Runden-Feedback
+      const hangAlert = document.getElementById('roundResultHangmanAlert');
+      if (hangAlert) {
+        if (session.game_mode === 'hangman') {
+          hangAlert.classList.remove('hidden');
+          const strikes = me.hangman_strikes || 0;
+          const gotStrike = !!me.got_strike_this_round;
+          const reason = me.last_round_strike_reason;
+          const isEliminated = !!(me.is_eliminated || strikes >= 6);
+
+          const badgeEl = document.getElementById('roundResultHangmanBadge');
+          const descEl = document.getElementById('roundResultHangmanDesc');
+          const figEl = document.getElementById('roundResultHangmanFigure');
+
+          if (badgeEl) badgeEl.textContent = strikes + ' / 6 Striche';
+          if (figEl && window.renderHangmanSvg) {
+            figEl.innerHTML = window.renderHangmanSvg(strikes, 90, isEliminated);
+          }
+
+          if (isEliminated) {
+            const justEliminated = gotStrike && strikes >= 6;
+            if (justEliminated) {
+              hangAlert.className = 'p-3 rounded-2xl border-2 border-red-500 bg-red-950/40 text-xs font-bold space-y-1.5 transition-all text-center shadow-lg shadow-red-500/20';
+              if (descEl) descEl.innerHTML = '<span class="text-red-400 font-black">☠️ 6 Striche voll – DU BIST AUSGESCHIEDEN!</span><br><span class="text-gray-300 text-[10px]">Du nimmst ab jetzt als Zuschauer teil.</span>';
+            } else {
+              // Bereits zuvor ausgeschieden: Kein penetranter Alarm bei jeder weiteren Runde
+              hangAlert.className = 'p-2 rounded-xl border border-gray-800 bg-gray-950/60 text-xs text-gray-400 text-center space-y-0.5';
+              if (descEl) descEl.innerHTML = '<span class="text-purple-300 font-bold text-xs">👁️ Zuschauer-Modus</span><br><span class="text-gray-400 text-[10px]">Lösung wird auf dem Beamer aufgelöst</span>';
+            }
+          } else if (gotStrike) {
+            hangAlert.className = 'p-3 rounded-2xl border-2 border-red-500/80 bg-red-950/40 text-xs font-bold space-y-1.5 transition-all text-center shadow-lg shadow-red-950/30';
+            let reasonText = '+1 Strich erhalten!';
+            if (reason === 'wrong') reasonText = '❌ Falsche Antwort (+1 Strich)';
+            else if (reason === 'danger') reasonText = '⚠️ Betriebsgefahr gewählt (+1 Strich)';
+            else if (reason === 'slowest') reasonText = '🐌 Du warst der Langsamste dieser Runde (+1 Strich)';
+            else if (reason === 'timeout') reasonText = '⏱️ Keine rechtzeitige Antwort (+1 Strich)';
+            if (descEl) descEl.innerHTML = '<span class="text-red-400 font-extrabold">' + reasonText + '</span><br><span class="text-gray-300 text-[10px]">Noch ' + (6 - strikes) + ' Leben übrig!</span>';
+          } else {
+            hangAlert.className = 'p-3 rounded-2xl border border-emerald-500/40 bg-emerald-950/30 text-xs font-bold space-y-1.5 transition-all text-center';
+            if (descEl) descEl.innerHTML = '<span class="text-emerald-400 font-extrabold">🛡️ Runde überstanden – kein Strich!</span><br><span class="text-gray-300 text-[10px]">Noch ' + (6 - strikes) + ' Leben übrig!</span>';
+          }
+        } else {
+          hangAlert.classList.add('hidden');
+        }
+      }
+
+      // Richtige Lösung im Klartext anzeigen
+      const q = session.current_question_data;
+      if (q && q.options) {
+        const qType = extractPlayQuestionType(q);
+        const optLetters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+        const optSymbols = ['▲ A', '◆ B', '● C', '■ D', '★ E', '✦ F', '✿ G', '❖ H'];
+        const corrLetterEl = document.getElementById('roundResultCorrectLetter');
+        const corrTextEl = document.getElementById('roundResultCorrectText');
+        const sumBox = document.getElementById('roundResultAnswerSummary');
+
+        if (qType === 'order') {
+          if (corrLetterEl) corrLetterEl.textContent = 'Korrekte Soll-Reihenfolge:';
+          if (corrTextEl) {
+            corrTextEl.innerHTML = q.options.map((opt, oIdx) => {
+              return '<div class="flex items-center gap-2 py-0.5"><span class="w-5 h-5 rounded-md text-[11px] bg-cyan-600 text-white font-black flex items-center justify-center shrink-0">' + (oIdx + 1) + '</span><span class="text-gray-200">' + escapeHtml(opt) + '</span></div>';
+            }).join('');
+          }
+        } else if (qType === 'multiple') {
+          const correctIndices = extractPlayQuestionCorrectIndices(q);
+          const letters = correctIndices.map(idx => optSymbols[idx] || (optLetters[idx] || (idx + 1))).join(', ');
+          if (corrLetterEl) corrLetterEl.textContent = 'Richtige Antworten: ' + letters;
+          if (corrTextEl) {
+            corrTextEl.innerHTML = correctIndices.map(idx => {
+              return '<div class="flex items-center gap-2 py-0.5"><span class="w-auto px-1.5 h-4 rounded text-[10px] bg-emerald-600 text-white font-black flex items-center justify-center shrink-0">' + (optSymbols[idx] || optLetters[idx] || (idx + 1)) + '</span><span class="text-gray-200 font-medium">' + escapeHtml(q.options[idx] || '') + '</span></div>';
+            }).join('');
+          }
+        } else {
+          const correctIndices = extractPlayQuestionCorrectIndices(q);
+          const correctIdx = (correctIndices.length > 0 && correctIndices[0] !== undefined)
+            ? correctIndices[0]
+            : ((q.correct_index !== undefined) ? Number(q.correct_index) : (Number(q.correctIndex) || 0));
+          const optSymbol = optSymbols[correctIdx] || ('Antwort ' + (optLetters[correctIdx] || (correctIdx + 1)));
+          if (corrLetterEl) corrLetterEl.textContent = optSymbol;
+          if (corrTextEl) corrTextEl.textContent = q.options[correctIdx] || '';
+        }
+        if (sumBox) sumBox.classList.remove('hidden');
+      }
+
+      let sorted;
+      if (session.game_mode === 'hangman') {
+        sorted = [...players].sort((a, b) => {
+          const aElim = !!(a.is_eliminated || (a.hangman_strikes || 0) >= 6);
+          const bElim = !!(b.is_eliminated || (b.hangman_strikes || 0) >= 6);
+          if (aElim !== bElim) return aElim ? 1 : -1;
+          if ((a.hangman_strikes || 0) !== (b.hangman_strikes || 0)) {
+            return (a.hangman_strikes || 0) - (b.hangman_strikes || 0);
+          }
+          return (b.score || 0) - (a.score || 0);
+        });
+      } else {
+        sorted = [...players].sort((a, b) => (b.score || 0) - (a.score || 0));
+      }
+      const myRank = sorted.findIndex(p => p.id === myPlayerId) + 1;
+
+      document.getElementById('roundTotalScore').textContent = (me.score || 0) + ' Pkt';
+      document.getElementById('roundCurrentRank').textContent = '#' + myRank + ' von ' + sorted.length;
+      document.getElementById('roundStreakCount').textContent = (me.streak || 0) + 'x';
+    }
+
+    function renderFinalScreen(session) {
+      const players = session.players || [];
+      const isHangman = session.game_mode === 'hangman';
+      let sorted;
+      if (isHangman) {
+        sorted = [...players].sort((a, b) => {
+          const aElim = !!(a.is_eliminated || (a.hangman_strikes || 0) >= 6);
+          const bElim = !!(b.is_eliminated || (b.hangman_strikes || 0) >= 6);
+          if (aElim !== bElim) return aElim ? 1 : -1;
+          if ((a.hangman_strikes || 0) !== (b.hangman_strikes || 0)) {
+            return (a.hangman_strikes || 0) - (b.hangman_strikes || 0);
+          }
+          return (b.score || 0) - (a.score || 0);
+        });
+      } else {
+        sorted = [...players].sort((a, b) => (b.score || 0) - (a.score || 0));
+      }
+
+      const myRank = sorted.findIndex(p => p.id === myPlayerId) + 1;
+      const me = players.find(p => p.id === myPlayerId);
+
+      const trophy = document.getElementById('finalTrophyIcon');
+      const heading = document.getElementById('finalPlacementHeading');
+      const sub = document.getElementById('finalSubtext');
+      const pts = document.getElementById('finalTotalPoints');
+
+      if (pts) {
+        if (isHangman) {
+          const strikes = me ? (me.hangman_strikes || 0) : 0;
+          pts.textContent = (me?.score || 0) + ' Pkt (' + strikes + '/6 Striche)';
+        } else {
+          pts.textContent = (me?.score || 0) + ' Punkte';
+        }
+      }
+
+      const emeraldConfetti = ['#10b981', '#34d399', '#059669', '#6ee7b7', '#f59e0b', '#fbbf24'];
+      const isMeEliminated = isHangman && me && (me.is_eliminated || (me.hangman_strikes || 0) >= 6);
+
+      if (isMeEliminated) {
+        trophy.textContent = '☠️';
+        heading.textContent = 'AUSGESCHIEDEN (' + myRank + '. Platz)';
+        heading.className = 'text-2xl font-black text-red-400';
+        sub.textContent = 'Dein Galgenmännchen hat 6 Striche erreicht. Beim nächsten Quiz-Battle klappt es bestimmt!';
+      } else if (myRank === 1) {
+        trophy.textContent = isHangman ? '👑' : '🥇';
+        heading.textContent = isHangman ? '1. PLATZ! SOLE SURVIVOR!' : '1. PLATZ! BATTLE-CHAMPION!';
+        heading.className = 'text-2xl font-black text-emerald-400 drop-shadow-[0_0_15px_rgba(52,211,153,0.5)]';
+        sub.textContent = isHangman
+          ? 'Du hast das Hangman Knock-Out überlebt und triumphiert!'
+          : 'Wahnsinnige Leistung! Du hast das Quiz-Battle gewonnen!';
+        if (typeof confetti === 'function') confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 }, colors: emeraldConfetti });
+      } else if (myRank === 2) {
+        trophy.textContent = '🥈';
+        heading.textContent = '2. PLATZ!';
+        heading.className = 'text-2xl font-black text-gray-200';
+        sub.textContent = isHangman ? 'Silbermedaille im Hangman-Überlebenskampf!' : 'Silbermedaille! Hervorragendes Eisenbahn-Wissen!';
+        if (typeof confetti === 'function') confetti({ particleCount: 60, spread: 60, origin: { y: 0.6 }, colors: emeraldConfetti });
+      } else if (myRank === 3) {
+        trophy.textContent = '🥉';
+        heading.textContent = '3. PLATZ!';
+        heading.className = 'text-2xl font-black text-amber-500';
+        sub.textContent = 'Auf dem Treppchen! Starke Leistung!';
+      } else {
+        trophy.textContent = '🚂';
+        heading.textContent = '#' + myRank + ' von ' + sorted.length + ' Spielern';
+        heading.className = 'text-2xl font-black text-white';
+        sub.textContent = 'Tolles Match! Weiter so im Unterricht!';
+      }
+    }
+
+    window.handlePlayAgain = function() {
+      if (pollInterval) clearInterval(pollInterval);
+      showScreen('screen-join');
+    };
+  </script>
+</body>
+</html>
