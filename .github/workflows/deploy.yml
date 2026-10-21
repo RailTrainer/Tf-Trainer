@@ -34,6 +34,7 @@ jobs:
         run: |
           npx expo export --platform web
           touch dist/.nojekyll
+          echo "tf-trainer.de" > dist/CNAME
           cp -r admin-portal dist/admin-portal
           cp admin-portal/play.html dist/play.html 2>/dev/null || true
 
