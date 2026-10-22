@@ -43,7 +43,7 @@ Stand laut `package.json`/`app.json`; abgeleitet aus der Commit-Historie.
 ### Geändert
 - Webportal: Quizbattle- und Hangman-Korrekturen, Web-Paywall-Redirect, iOS-Zoom-Guard (laut Release-Commit).
 - Web-Export ohne `experiments.baseUrl`; Deploy-Workflow schreibt `dist/CNAME`.
-- Deploy-Workflow kopiert `admin-portal/` nach `dist/admin-portal/` und `play.html` nach `dist/play.html`.
+- Deploy-Workflow kopiert `admin-portal/` nach `dist/admin-portal/` und `admin-portal/play.html` nach `dist/play.html`.
 - App-Name in `app.json`: Tf-Trainer.
 
 ### Behoben
