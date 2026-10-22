@@ -6,7 +6,7 @@ Bitte melde Sicherheitslücken nicht öffentlich über Issues. Kontakt: `<SECURI
 
 ## Unterstützte Versionen
 
-Unterstützt wird jeweils die aktuelle Version (derzeit 1.1.x, siehe `package.json`) auf dem Branch `main`.
+Unterstützt wird jeweils die aktuelle Version (derzeit 2.1.x, siehe `package.json`) auf dem Branch `main`.
 
 ## Umgang mit Secrets
 
