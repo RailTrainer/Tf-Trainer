@@ -1,6 +1,6 @@
-# RailTrainer
+# RailTrainer (Tf-Trainer)
 
-Interaktive Bahn-Lern- und Wissensplattform (Web-Titel: **Tf-Trainer**). Expo/React-Native-App (Expo Router) mit Supabase-Backend, Web-Export auf GitHub Pages und einem separaten Admin-Portal.
+Interaktive Bahn-Lern- und Wissensplattform (App- und Produktname: **Tf-Trainer**, Repository: RailTrainer). Expo/React-Native-App (Expo Router) mit Supabase-Backend, Web-Export auf GitHub Pages und einem separaten Admin-Portal.
 
 ## Features
 
@@ -76,7 +76,7 @@ src/
   hooks/        Layout-/Theme-/Keyboard-/Reduce-Motion-Hooks
   services/     supabaseClient, notificationService
   utils/        crypto (SHA-256), imageOptimizer, similarity
-admin-portal/   Statisches Admin-Portal (index.html, play.html, app.js)
+admin-portal/   Statisches Admin-Portal (index.html, play.html, app.js, audio/, logo.png)
 assets/         App-Icons, Bilder
 scripts/        Node-Hilfsskripte (OTA, Admin-Server, Import-/Generator-Skripte, .bat/.ps1/.ahk-Helfer)
 supabase/       SQL: supabase_schema.sql, supabase_web_schema.sql, supabase_security_fix.sql
@@ -91,7 +91,7 @@ docs/store/     Store-Grafiken und Screenshots
 
 - **Native Builds:** EAS-Profile in `eas.json` (`development`, `preview` als APK, `production` als App Bundle). Android-Paket `com.railtrainer`.
 - **OTA-Updates:** `npm run ota` bzw. `npm run ota:preview` (Kanäle `production`/`preview`; `runtimeVersion` steht in `app.json`).
-- **Web:** `.github/workflows/deploy.yml` baut bei Push auf `main` (oder manuell) mit `npx expo export --platform web` und veröffentlicht `dist/` auf GitHub Pages. Basis-Pfad: `/Tf-Trainer` (`experiments.baseUrl` in `app.json`).
+- **Web:** `.github/workflows/deploy.yml` baut bei Push auf `main` (oder manuell) mit `npx expo export --platform web` und veröffentlicht `dist/` auf GitHub Pages. Es gibt keinen Basis-Pfad (`experiments.baseUrl` entfällt); der Workflow schreibt `dist/CNAME` für die eigene Domain, kopiert `admin-portal/` nach `dist/admin-portal/` und `play.html` nach `dist/play.html`.
 
 ## Pre-Push-Prüfung
 

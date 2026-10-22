@@ -5,8 +5,8 @@
 ## Architektur
 - Expo SDK 57 / React Native, Expo Router (Dateirouting in `src/app/`), TypeScript.
 - Backend: Supabase; Client in `src/services/supabaseClient.ts`. SQL-Schemata in `supabase/`.
-- Web-Export (`output: static`, Basis-Pfad `/Tf-Trainer`) wird per `.github/workflows/deploy.yml` auf GitHub Pages veröffentlicht.
-- Admin-Portal: statisch in `admin-portal/`, lokal via `npm run admin`.
+- Web-Export (`output: static`, ohne Basis-Pfad; Domain per CNAME im Workflow) wird per `.github/workflows/deploy.yml` auf GitHub Pages veröffentlicht.
+- Admin-Portal: statisch in `admin-portal/` (inkl. `play.html`, `audio/`), lokal via `npm run admin`; `deploy.yml` veröffentlicht es zusätzlich unter `admin-portal/` im Web-Build.
 
 ## Wichtige Pfade
 - `src/app/` Screens, `src/components/` UI (gemeinsame Bausteine und Design-Tokens in `src/components/ui/`, Chat-Bausteine in `src/components/chat/`; Farben über `ThemeContext`), `src/services/` Services, `src/utils/` Helfer, `src/database/` lokale Inhalte

@@ -14,8 +14,11 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 - Hook `useReduceMotion`, Helfer `src/utils/chatFormat.ts`.
 - Agent `ui-ux-designer` (`.claude/agents/`).
 - Projektspezifische Dokumentation (README, CLAUDE.md, SECURITY.md, CHANGELOG.md).
+- Web-Deploy veröffentlicht zusätzlich `admin-portal/` (nach `dist/admin-portal/`) und `play.html`.
+- Profil-Screen: neue Comic-Avatare, Support-Adresse `support@tf-trainer.de`, Weiterleitung zum Start nach Abmelden/Kontolöschung.
 
 ### Geändert
+- App-Name einheitlich „Tf-Trainer“ (`app.json`, Version 2.0.0); Basis-Pfad `/Tf-Trainer` entfernt, Web läuft unter eigener Domain per CNAME.
 - Chat-Redesign: `src/app/chat.tsx` in Komponenten unter `src/components/chat/` aufgeteilt; `ConfirmDialog` nutzt `Dialog`; `Button` unterstützt `ref`; `ListRow` mit `danger`-Variante.
 - `addChatMessage` (`mockDb`) wirft bei Supabase-Fehler; der Chat zeigt „Nicht gesendet“ mit „Erneut senden“.
 - App-Redesign: `profile.tsx` und `AuthScreen.tsx` nutzen die gemeinsamen UI-Komponenten.
