@@ -55,7 +55,6 @@
     },
     "runtimeVersion": "1.0.11",
     "experiments": {
-      "baseUrl": "/Tf-Trainer",
       "typedRoutes": true,
       "reactCompiler": true
     },

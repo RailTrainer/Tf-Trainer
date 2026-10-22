@@ -1176,14 +1176,18 @@ function MainAppLayout() {
 
     const checkData = async () => {
       let user = await mockDb.getCurrentUser();
-      if (user && Platform.OS === 'web') {
+      if (user && typeof user === 'object' && Platform.OS === 'web') {
         // Authoritative Server-Validierung gegen Supabase (Backend Paywall & Rolle abgleichen)
         const validated = await mockDb.validateWebAccessAuthoritative(user);
-        if (validated) {
+        if (validated && typeof validated === 'object') {
           user = validated;
         }
       }
-      setCurrentUser(prev => (prev?.id === user?.id && prev?.role === user?.role && prev?.is_web_unlocked === user?.is_web_unlocked ? prev : user));
+      if (user && typeof user === 'object') {
+        setCurrentUser(prev => (prev?.id === user?.id && prev?.role === user?.role && prev?.title === user?.title && prev?.isWebUnlocked === user?.isWebUnlocked ? prev : user));
+      } else {
+        setCurrentUser(null);
+      }
       if (user?.id && registeredPushUserId !== user.id) {
         registeredPushUserId = user.id;
         registerForPushNotificationsAsync(user.id).catch(() => {});
@@ -1233,12 +1237,14 @@ function MainAppLayout() {
   if (!currentUser) {
     return (
       <AuthScreen 
-        onLoginSuccess={async (user) => {
-          if (Platform.OS === 'web') {
-            const validated = await mockDb.validateWebAccessAuthoritative(user);
-            setCurrentUser(validated || user);
-          } else {
-            setCurrentUser(user);
+        onLoginSuccess={async (loggedInUser) => {
+          if (loggedInUser && typeof loggedInUser === 'object') {
+            if (Platform.OS === 'web') {
+              const validated = await mockDb.validateWebAccessAuthoritative(loggedInUser);
+              setCurrentUser(validated || loggedInUser);
+            } else {
+              setCurrentUser(loggedInUser);
+            }
           }
         }} 
       />
@@ -1254,7 +1260,7 @@ function MainAppLayout() {
         <WebPaywallScreen
           currentUser={currentUser}
           onUnlocked={(updatedUser) => {
-            setCurrentUser({ ...updatedUser });
+            setCurrentUser({ ...updatedUser, isWebUnlocked: true });
           }}
           onLogout={async () => {
             await mockDb.logoutUser();
