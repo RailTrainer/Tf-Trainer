@@ -6,10 +6,10 @@
 - Expo SDK 57 / React Native, Expo Router (Dateirouting in `src/app/`), TypeScript.
 - Backend: Supabase; Client in `src/services/supabaseClient.ts`. SQL-Schemata in `supabase/`.
 - Web-Export (`output: static`, kein `baseUrl`) wird per `.github/workflows/deploy.yml` auf GitHub Pages veröffentlicht (Custom Domain über `dist/CNAME`; `admin-portal/` wird nach `dist/admin-portal/` kopiert, `play.html` zusätzlich nach `dist/play.html`).
-- Admin-Portal: statisch in `admin-portal/`, lokal via `npm run admin`.
+- Admin-Portal: statisch in `admin-portal/` (inkl. `play.html`, `audio/`), lokal via `npm run admin`.
 
 ## Wichtige Pfade
-- `src/app/` Screens, `src/components/` UI, `src/services/` Services, `src/utils/` Helfer, `src/database/` lokale Inhalte
+- `src/app/` Screens, `src/components/` UI (gemeinsame Bausteine und Design-Tokens in `src/components/ui/`, Chat-Bausteine in `src/components/chat/`; Farben über `ThemeContext`), `src/services/` Services, `src/utils/` Helfer, `src/database/` lokale Inhalte
 - `scripts/` Node-Hilfsskripte (OTA, Admin-Server, Import/Generatoren)
 - `data/import/` CSVs, `data/generated/` JSON-Dumps, `docs/store/` Store-Grafiken, `supabase/` SQL
 - `auswertung-intern/` – intern, gitignored (Agentenberichte). Inhalte nie in versionierte Dateien übernehmen.
@@ -25,11 +25,11 @@
 ## Prüfen
 ```bash
 npx tsc --noEmit
-npx expo lint
+npx expo lint   # Konfiguration: eslint.config.js
 ```
 
 ## Pre-Push-Workflow
-Drei Subagenten in `.claude/agents/`: `struktur-pflege` (Dateistruktur), `doku-pflege` (Dokumentation), `security-audit` (Sicherheitsprüfung). `/pre-push` (`.claude/commands/pre-push.md`) führt sie nacheinander aus, committet die Pflegeänderungen und schreibt bei PASS/WARN die Freigabe `auswertung-intern/.pre-push-gate`.
+Drei Subagenten in `.claude/agents/`: `struktur-pflege` (Dateistruktur), `doku-pflege` (Dokumentation), `security-audit` (Sicherheitsprüfung). Zusätzlich `ui-ux-designer` (UI/UX-Analyse und Redesign, nicht Teil von `/pre-push`). `/pre-push` (`.claude/commands/pre-push.md`) führt sie nacheinander aus, committet die Pflegeänderungen und schreibt bei PASS/WARN die Freigabe `auswertung-intern/.pre-push-gate`.
 
 - `.claude/hooks/pre-push-gate.sh` (PreToolUse-Hook) blockiert `git push` in Claude Code, solange keine Freigabe für den aktuellen HEAD vorliegt.
 - `.githooks/pre-push` scannt die zu pushenden Commits mit Gitleaks (auch außerhalb von Claude Code). Aktivierung pro Clone: `git config core.hooksPath .githooks`; benötigt `brew install gitleaks`.

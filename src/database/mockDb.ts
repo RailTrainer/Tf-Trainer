@@ -3522,19 +3522,20 @@ export const mockDb = {
       timestamp: Date.now(),
     };
 
+    // Fehler beim Speichern gehen an den Aufrufer (Chat zeigt „Nicht gesendet“ + „Erneut senden“).
+    // Ohne Erfolg wird die Nachricht weder lokal abgelegt noch per Push verteilt.
     if (isSupabaseConfigured() && supabase) {
-      try {
-        await supabase.from('chat_messages').insert([{
-          id: newMessage.id,
-          category: newMessage.category,
-          sender_id: newMessage.senderId,
-          sender_name: newMessage.sender,
-          sender_role: newMessage.senderRole,
-          text: newMessage.text,
-          timestamp: newMessage.timestamp
-        }]);
-      } catch (e) {
-        console.log('Supabase addChatMessage error', e);
+      const { error } = await supabase.from('chat_messages').insert([{
+        id: newMessage.id,
+        category: newMessage.category,
+        sender_id: newMessage.senderId,
+        sender_name: newMessage.sender,
+        sender_role: newMessage.senderRole,
+        text: newMessage.text,
+        timestamp: newMessage.timestamp
+      }]);
+      if (error) {
+        throw new Error(`Chat-Nachricht konnte nicht gespeichert werden: ${error.message}`);
       }
     }
 

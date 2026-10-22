@@ -1,6 +1,6 @@
-# RailTrainer
+# RailTrainer (Tf-Trainer)
 
-Interaktive Bahn-Lern- und Wissensplattform (App-Name laut `app.json`: **Tf-Trainer**, Version 2.0.0). Expo/React-Native-App (Expo Router) mit Supabase-Backend, Web-Export auf GitHub Pages und einem separaten Admin-Portal.
+Interaktive Bahn-Lern- und Wissensplattform (App- und Produktname: **Tf-Trainer**, Repository: RailTrainer). Expo/React-Native-App (Expo Router) mit Supabase-Backend, Web-Export auf GitHub Pages und einem separaten Admin-Portal.
 
 ## Features
 
@@ -61,7 +61,7 @@ Der Reset läuft ausschließlich über Supabase-Auth-OTP (`sendPasswordResetOtp`
 | `npm run ota:preview` | OTA-Update auf Branch `preview` |
 | `npm run reset-project` | Expo-Template-Reset (`scripts/reset-project.js`) |
 
-Typprüfung: `npx tsc --noEmit`.
+Typprüfung: `npx tsc --noEmit`. Lint-Konfiguration: `eslint.config.js` (Expo Flat Config).
 
 ## Projektstruktur
 
@@ -69,12 +69,14 @@ Typprüfung: `npx tsc --noEmit`.
 src/
   app/          Expo-Router-Screens (index, quiz, chat, admin, profile, _layout)
   components/   UI-Komponenten (AuthScreen, WebPaywallScreen, Modals, ...)
+  components/ui/  Gemeinsame UI-Bausteine (Button, IconButton, TextField, ListRow, Section, StatusMessage, Dialog, ActionDialog, ConfirmDialog, Avatar, CountBadge, RadioGroup, Tabs, VisuallyHidden, a11y.ts, tokens.ts)
+  components/chat/  Chat-Bausteine (ChannelSidebar, ThreadList, MessageList, MessageBubble, ChatComposer, ...)
   context/      ThemeContext
   database/     Lokale Inhalte (JSON) und mockDb.ts
-  hooks/        Layout-/Theme-/Keyboard-Hooks
+  hooks/        Layout-/Theme-/Keyboard-/Reduce-Motion-Hooks
   services/     supabaseClient, notificationService
   utils/        crypto (SHA-256), imageOptimizer, similarity
-admin-portal/   Statisches Admin-Portal (index.html, play.html, app.js)
+admin-portal/   Statisches Admin-Portal (index.html, play.html, app.js, audio/, logo.png)
 assets/         App-Icons, Bilder
 scripts/        Node-Hilfsskripte (OTA, Admin-Server, Import-/Generator-Skripte, .bat/.ps1/.ahk-Helfer)
 supabase/       SQL: supabase_schema.sql, supabase_web_schema.sql, supabase_security_fix.sql

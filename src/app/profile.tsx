@@ -1,85 +1,198 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
+  AccessibilityInfo,
   StyleSheet,
   Text,
   View,
   ScrollView,
-  TouchableOpacity,
-  useColorScheme,
+  Pressable,
   TextInput,
-  Alert,
   Image,
   Modal,
-  Switch,
-  ActivityIndicator,
-  Keyboard,
-  Platform
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Constants from 'expo-constants';
+import * as Linking from 'expo-linking';
 import { mockDb, User, QuizAttempt, Ticket, Category, Question, Fact } from '../database/mockDb';
 import * as ImagePicker from 'expo-image-picker';
 import * as Updates from 'expo-updates';
-import { useLocalSearchParams } from 'expo-router';
-import { optimizeImage, uploadAndOptimizeImage } from '../utils/imageOptimizer';
+import { router, useLocalSearchParams } from 'expo-router';
+import { uploadAndOptimizeImage } from '../utils/imageOptimizer';
 import { useDynamicKeyboard } from '../hooks/useDynamicKeyboard';
 import { CreateFactModal } from '../components/CreateFactModal';
 import { CreateQuestionModal } from '../components/CreateQuestionModal';
-import { 
-  LogOut, 
-  User as UserIcon, 
-  Settings, 
-  Mail, 
-  Lock, 
-  Award, 
-  Activity, 
-  Camera, 
-  Check,
-  X,
-  LifeBuoy,
-  PlusCircle,
-  ChevronDown,
-  ChevronUp,
-  ChevronRight,
+import {
   AlertCircle,
-  CheckCircle2,
-  Clock,
-  Trash2, 
-  Send, 
-  Sparkles,
-  RefreshCw,
-  DownloadCloud,
-  CheckCircle,
-  Bug,
-  Lightbulb,
-  MessageSquare,
   Bell,
   BellOff,
-  FileText,
-  ShieldCheck,
-  Sun,
-  Moon,
+  BookOpen,
+  Bug,
+  Camera,
+  Check,
+  CheckCircle2,
+  ChevronLeft,
+  Clock,
   GraduationCap,
   Image as ImageIcon,
-  Smartphone,
+  Inbox,
   KeyRound,
-  BookOpen,
-  Plus
+  LifeBuoy,
+  Lightbulb,
+  ListChecks,
+  Lock,
+  LogOut,
+  Mail,
+  Moon,
+  Pencil,
+  Plus,
+  RefreshCw,
+  Smartphone,
+  Trash2,
+  User as UserIcon,
+  X,
+  type LucideIcon,
 } from 'lucide-react-native';
-import { getIsChatMuted, setIsChatMuted, scheduleTestLockscreenNotification, registerForPushNotificationsAsync } from '../services/notificationService';
+import { setIsChatMuted, registerForPushNotificationsAsync } from '../services/notificationService';
 import { useAppTheme } from '../context/ThemeContext';
-import { useDeviceLayout } from '../hooks/useDeviceLayout';
+import { Button } from '../components/ui/Button';
+import { ConfirmDialog } from '../components/ui/ConfirmDialog';
+import { ListRow } from '../components/ui/ListRow';
+import { Heading, Section } from '../components/ui/Section';
+import { StatusMessage, type Status } from '../components/ui/StatusMessage';
+import { TextField } from '../components/ui/TextField';
+import { CONTENT_MAX_WIDTH, MIN_TOUCH_TARGET, RADIUS, SCREEN_PADDING } from '../components/ui/tokens';
 
+const IS_WEB = Platform.OS === 'web';
+const APP_NAME = 'Tf-Trainer';
+const APP_VERSION = Constants.expoConfig?.version;
+const SUPPORT_EMAIL = 'support@tf-trainer.de';
+// RN Web blurt bei „on-drag“ jedes fokussierte Feld, sobald die ScrollView scrollt (z. B. beim Fokus-Sprung) – im Web daher aus.
+const KEYBOARD_DISMISS_MODE = IS_WEB ? 'none' : 'on-drag';
+
+// Avatare sind Nutzerdaten (avatarUrl speichert das Zeichen); früher gewählte Symbole werden weiter angezeigt.
 const AVATAR_PRESETS = [
   '👨‍✈️', '👩‍✈️', '🤪', '🥸', '🤠', '🤓', '😎', '🧐',
   '🥳', '🤯', '🤩', '🤑', '🤤', '🤡', '🧑‍🎤', '🧙‍♂️',
   '🦹‍♂️', '🦸‍♂️', '🧑‍🍳', '🧔‍♂️', '👨‍🦰', '👨‍🦳', '👨‍🦱', '👨‍🦲',
-  '🕵️‍♂️', '🤭', '🥱', '🥶', '🥵', '😈', '🤖', '👽'
+  '🕵️‍♂️', '🤭', '🥱', '🥶', '🥵', '😈', '🤖', '👽',
 ];
+const AVATAR_PRESET_LABELS: Record<string, string> = {
+  '👨‍✈️': 'Pilot',
+  '👩‍✈️': 'Pilotin',
+  '🤪': 'Albernes Gesicht',
+  '🥸': 'Verkleidetes Gesicht',
+  '🤠': 'Cowboy',
+  '🤓': 'Gesicht mit Brille',
+  '😎': 'Gesicht mit Sonnenbrille',
+  '🧐': 'Gesicht mit Monokel',
+  '🥳': 'Partygesicht',
+  '🤯': 'Explodierender Kopf',
+  '🤩': 'Begeistertes Gesicht',
+  '🤑': 'Geldgesicht',
+  '🤤': 'Sabberndes Gesicht',
+  '🤡': 'Clown',
+  '🧑‍🎤': 'Rockstar',
+  '🧙‍♂️': 'Zauberer',
+  '🦹‍♂️': 'Superschurke',
+  '🦸‍♂️': 'Superheld',
+  '🧑‍🍳': 'Koch',
+  '🧔‍♂️': 'Mann mit Bart',
+  '👨‍🦰': 'Mann mit roten Haaren',
+  '👨‍🦳': 'Mann mit weißen Haaren',
+  '👨‍🦱': 'Mann mit Locken',
+  '👨‍🦲': 'Mann mit Glatze',
+  '🕵️‍♂️': 'Detektiv',
+  '🤭': 'Kicherndes Gesicht',
+  '🥱': 'Gähnendes Gesicht',
+  '🥶': 'Frierendes Gesicht',
+  '🥵': 'Schwitzendes Gesicht',
+  '😈': 'Teufelchen',
+  '🤖': 'Roboter',
+  '👽': 'Außerirdischer',
+};
+
+const TRAINING_TITLES = ['Lokführer', 'Wagenmeister', 'Zf/Rb-bau'] as const;
+
+type TicketType = 'bug' | 'feature' | 'exam_question';
+
+const TICKET_TYPES: { id: TicketType; title: string; description: string; icon: LucideIcon }[] = [
+  {
+    id: 'exam_question',
+    title: 'Prüfungsfrage einreichen',
+    description: 'Frage aus Prüfung oder Unterlagen fotografieren und einreichen',
+    icon: GraduationCap,
+  },
+  {
+    id: 'bug',
+    title: 'Fehler melden',
+    description: 'Falsche Frage, Tippfehler, Fehler in der App',
+    icon: Bug,
+  },
+  {
+    id: 'feature',
+    title: 'Verbesserungsvorschlag',
+    description: 'Neue Lerninhalte, Funktionswünsche, Ideen',
+    icon: Lightbulb,
+  },
+];
+
+type LegalEntryId = 'impressum' | 'kontoloeschung' | 'haftung' | 'regelwerke' | 'urheberrecht';
+
+const LEGAL_ENTRIES: { id: LegalEntryId; title: string }[] = [
+  { id: 'impressum', title: 'Impressum' },
+  { id: 'kontoloeschung', title: 'Kontolöschung' },
+  { id: 'haftung', title: 'Haftungsausschluss' },
+  { id: 'regelwerke', title: 'Fachliche Regelwerks-Grundlagen' },
+  { id: 'urheberrecht', title: 'Urheberrecht' },
+];
+
+const REGELWERKE = [
+  'VDV-Schrift 757 (Bremsen und Bremsproben im Eisenbahnbetrieb)',
+  'VDV-Schrift 758 (Wagenprüfung im Güterverkehr)',
+  'Ril 301 (Signalbuch der DB InfraGO AG)',
+  'Ril 408 (Fahrdienstvorschrift) / FV-NE',
+];
+
+type ProfileErrors = { name?: string; email?: string };
+type TicketErrors = { title?: string; description?: string };
+
+/** iOS liest Live-Regionen nicht vor – dort explizit ansagen. Android und Web nutzen Live-Region bzw. aria-live. */
+function announce(message: string) {
+  if (Platform.OS === 'ios') {
+    AccessibilityInfo.announceForAccessibility(message);
+  }
+}
+
+/** Nach Abmelden oder Kontolöschung zurück zum Start; im Web per Neuladen, damit kein Sitzungszustand übrig bleibt. */
+function goToStart() {
+  if (IS_WEB && typeof window !== 'undefined') {
+    window.location.href = '/';
+    window.location.reload();
+  } else {
+    router.replace('/');
+  }
+}
+
+function plural(count: number, one: string, many: string) {
+  return `${count} ${count === 1 ? one : many}`;
+}
+
+function formatDateTime(value: string | number) {
+  return new Date(value).toLocaleDateString('de-DE', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
 
 export default function ProfileScreen() {
   const { isDark, colors, setThemePreference } = useAppTheme();
-  const { isTablet } = useDeviceLayout();
   const params = useLocalSearchParams<{ openTicket?: string }>();
+  // Ein Hintergrund pro Screen: hell Weiß, dunkel der App-Hintergrund (wie der Login)
+  const screenBg = isDark ? colors.background : colors.cardBg;
 
   // States
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -97,8 +210,7 @@ export default function ProfileScreen() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [ticketModalVisible, setTicketModalVisible] = useState(false);
   const [showTicketForm, setShowTicketForm] = useState(false);
-  const [ticketType, setTicketType] = useState<'bug' | 'feature' | 'exam_question'>('exam_question');
-  const [ticketDropdownOpen, setTicketDropdownOpen] = useState(false);
+  const [ticketType, setTicketType] = useState<TicketType>('exam_question');
   const [ticketTitle, setTicketTitle] = useState('');
   const [ticketDescription, setTicketDescription] = useState('');
   const [ticketImageUrl, setTicketImageUrl] = useState<string | null>(null);
@@ -112,6 +224,34 @@ export default function ProfileScreen() {
   const [createQuestionModalVisible, setCreateQuestionModalVisible] = useState(false);
   const [submissionsModalVisible, setSubmissionsModalVisible] = useState(false);
 
+  // Status- und Fehlerzeilen im Screen (statt Alert-Popups)
+  const [profileStatus, setProfileStatus] = useState<Status | null>(null);
+  const [profileErrors, setProfileErrors] = useState<ProfileErrors>({});
+  const [profileFormError, setProfileFormError] = useState<string | null>(null);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [titleStatus, setTitleStatus] = useState<Status | null>(null);
+  const [pushStatus, setPushStatus] = useState<Status | null>(null);
+  const [registeringPush, setRegisteringPush] = useState(false);
+  const [updateStatus, setUpdateStatus] = useState<Status | null>(null);
+  const [accountStatus, setAccountStatus] = useState<Status | null>(null);
+  const [loggingOut, setLoggingOut] = useState(false);
+  const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [ticketErrors, setTicketErrors] = useState<TicketErrors>({});
+  const [ticketFormStatus, setTicketFormStatus] = useState<Status | null>(null);
+  const [ticketListStatus, setTicketListStatus] = useState<Status | null>(null);
+  const [ticketPendingDelete, setTicketPendingDelete] = useState<string | null>(null);
+  const [deletingTicket, setDeletingTicket] = useState(false);
+  const [openLegalEntry, setOpenLegalEntry] = useState<LegalEntryId | null>(null);
+  const [legalStatus, setLegalStatus] = useState<Status | null>(null);
+
+  const nameRef = useRef<TextInput>(null);
+  const emailRef = useRef<TextInput>(null);
+  const passwordRef = useRef<TextInput>(null);
+  const ticketTitleRef = useRef<TextInput>(null);
+  const ticketDescriptionRef = useRef<TextInput>(null);
+
   // Automatisch Ticket-Modal öffnen, falls per Banner (/profile?openTicket=true) aufgerufen
   useEffect(() => {
     if (params?.openTicket === 'true') {
@@ -121,22 +261,22 @@ export default function ProfileScreen() {
   }, [params?.openTicket]);
 
   // Dynamische Tastatur-Verschiebung für ruckelfreies Hochwandern aller Eingabemasken
-  const { keyboardHeight, dynamicKeyboardPadding } = useDynamicKeyboard(48);
+  const { dynamicKeyboardPadding } = useDynamicKeyboard(48);
 
   // Benachrichtigungen States
   const [isChatMutedState, setIsChatMutedState] = useState(false);
-  const [showImpressum, setShowImpressum] = useState(false);
   const [checkingUpdate, setCheckingUpdate] = useState(false);
 
   const handleCheckOtaUpdate = async () => {
     try {
       setCheckingUpdate(true);
+      setUpdateStatus(null);
       if (__DEV__) {
-        Alert.alert('Entwicklungsmodus', 'In Expo Go / Dev-Mode wird der Code direkt über den PC synchronisiert.');
+        setUpdateStatus({ tone: 'info', message: 'Entwicklungsmodus: Der Code wird direkt über den PC synchronisiert.' });
         return;
       }
       if (!Updates.isEnabled) {
-        Alert.alert('Hinweis', 'Live-Updates werden aktiv, sobald Build 9 aus dem Play Store installiert ist.');
+        setUpdateStatus({ tone: 'info', message: 'Live-Updates werden aktiv, sobald Build 9 aus dem Play Store installiert ist.' });
         return;
       }
       const update = await Updates.checkForUpdateAsync();
@@ -144,10 +284,17 @@ export default function ProfileScreen() {
         await Updates.fetchUpdateAsync();
         await Updates.reloadAsync();
       } else {
-        Alert.alert('Alles aktuell! ✅', 'Du nutzt bereits die neueste Version (Version 2.0.0).');
+        setUpdateStatus({
+          tone: 'success',
+          message: `Du nutzt bereits die neueste Version${APP_VERSION ? ` (Version ${APP_VERSION})` : ''}.`,
+        });
       }
     } catch (e: any) {
-      Alert.alert('Update-Status', e.message || 'App ist auf dem neuesten Stand.');
+      setUpdateStatus(
+        e?.message
+          ? { tone: 'error', message: `Update-Prüfung fehlgeschlagen: ${e.message}` }
+          : { tone: 'success', message: 'App ist auf dem neuesten Stand.' }
+      );
     } finally {
       setCheckingUpdate(false);
     }
@@ -159,12 +306,6 @@ export default function ProfileScreen() {
   useEffect(() => {
     isEditingRef.current = isEditing;
   }, [isEditing]);
-
-  useEffect(() => {
-    loadData();
-    const interval = setInterval(loadData, 25000);
-    return () => clearInterval(interval);
-  }, []);
 
   const loadData = async () => {
     try {
@@ -194,6 +335,12 @@ export default function ProfileScreen() {
     }
   };
 
+  useEffect(() => {
+    loadData();
+    const interval = setInterval(loadData, 25000);
+    return () => clearInterval(interval);
+  }, []);
+
   const handleStartEditing = () => {
     if (currentUser) {
       setEditName(currentUser.name);
@@ -202,7 +349,12 @@ export default function ProfileScreen() {
       setEditTitle(currentUser.title || '');
     }
     setEditPassword('');
+    setProfileErrors({});
+    setProfileFormError(null);
+    setProfileStatus(null);
     setIsEditing(true);
+    // Web: Fokus ins erste Feld, weil der Button „Profil bearbeiten“ verschwindet
+    if (IS_WEB) setTimeout(() => nameRef.current?.focus(), 0);
   };
 
   const handleCancelEditing = () => {
@@ -213,99 +365,91 @@ export default function ProfileScreen() {
       setEditTitle(currentUser.title || '');
     }
     setEditPassword('');
+    setProfileErrors({});
+    setProfileFormError(null);
     setIsEditing(false);
   };
 
   const handleSaveTitle = async (customTitle?: string) => {
     if (!currentUser) return;
     const titleToSave = (customTitle !== undefined ? customTitle : editTitle).trim();
+    setTitleStatus(null);
     try {
       await mockDb.updateUserTitle(currentUser.id, titleToSave);
       const updated = { ...currentUser, title: titleToSave };
       setCurrentUser(updated);
       setEditTitle(titleToSave);
-      Alert.alert('Titel bestätigt! ✅', `Dein Titel wurde erfolgreich auf "${titleToSave || 'Kein Titel'}" gesetzt.`);
+      setTitleStatus({
+        tone: 'success',
+        message: titleToSave ? `Dein Titel ist jetzt „${titleToSave}“.` : 'Dein Titel wurde entfernt.',
+      });
     } catch (e: any) {
-      Alert.alert('Fehler', 'Konnte den Titel nicht speichern: ' + (e?.message || e));
+      setTitleStatus({ tone: 'error', message: 'Der Titel konnte nicht gespeichert werden: ' + (e?.message || e) });
     }
   };
 
+  // Abmelden ist nicht destruktiv (alle Daten bleiben), daher ohne Rückfrage.
   const handleLogout = async () => {
-    const doLogout = async () => {
+    setAccountStatus(null);
+    setLoggingOut(true);
+    try {
       await mockDb.logoutUser();
-      if (Platform.OS === 'web' && typeof window !== 'undefined') {
-        window.location.href = '/';
-        window.location.reload();
-      } else {
-        router.replace('/');
-      }
-    };
-
-    if (Platform.OS === 'web') {
-      if (typeof window !== 'undefined' && window.confirm('Möchtest du dich wirklich abmelden?')) {
-        await doLogout();
-      }
-      return;
+      setAccountStatus({ tone: 'success', message: 'Du bist abgemeldet.' });
+      goToStart();
+    } catch (e: any) {
+      setAccountStatus({ tone: 'error', message: 'Abmelden hat nicht geklappt: ' + (e?.message || e) });
+    } finally {
+      setLoggingOut(false);
     }
-
-    Alert.alert('Abmelden', 'Möchtest du dich wirklich abmelden?', [
-      { text: 'Abbrechen', style: 'cancel' },
-      { 
-        text: 'Abmelden', 
-        style: 'destructive',
-        onPress: doLogout
-      }
-    ]);
   };
 
+  // Schritt 1: Bestätigungsdialog im Screen öffnen (Alert.alert funktioniert in React Native Web nicht)
   const handleDeleteAccount = () => {
-    const doDelete = async () => {
+    setDeleteError(null);
+    setDeleteDialogVisible(true);
+  };
+
+  // Schritt 2: Löschen – Aufrufe und Reihenfolge wie bisher (deleteUser, dann logoutUser)
+  const handleConfirmDeleteAccount = async () => {
+    setDeleteError(null);
+    setDeletingAccount(true);
+    try {
       if (currentUser) {
         await mockDb.deleteUser(currentUser.id);
       }
       await mockDb.logoutUser();
-      if (Platform.OS === 'web' && typeof window !== 'undefined') {
-        alert('Dein Konto und alle zugehörigen Daten wurden erfolgreich gelöscht.');
-        window.location.href = '/';
-        window.location.reload();
-      } else {
-        Alert.alert('Konto gelöscht', 'Dein Konto und alle zugehörigen Daten wurden erfolgreich gelöscht.');
-        router.replace('/');
-      }
-    };
-
-    if (Platform.OS === 'web') {
-      if (typeof window !== 'undefined' && window.confirm('Möchtest du dein Benutzerkonto und alle deine persönlichen Daten wirklich unwiderruflich löschen?')) {
-        doDelete();
-      }
-      return;
+      setDeleteDialogVisible(false);
+      setAccountStatus({ tone: 'success', message: 'Dein Konto und alle zugehörigen Daten wurden gelöscht.' });
+      goToStart();
+    } catch (e: any) {
+      setDeleteError('Das Konto konnte nicht gelöscht werden: ' + (e?.message || e));
+    } finally {
+      setDeletingAccount(false);
     }
+  };
 
-    Alert.alert(
-      'Konto & alle Daten löschen?',
-      'Möchtest du dein Benutzerkonto und alle deine persönlichen Daten (Lernfortschritte, Quiz-Ergebnisse, Chat-Beiträge) wirklich unwiderruflich löschen?\n\nDieser Vorgang kann nicht rückgängig gemacht werden.',
-      [
-        { text: 'Abbrechen', style: 'cancel' },
-        {
-          text: 'Ja, Konto löschen',
-          style: 'destructive',
-          onPress: doDelete
-        }
-      ]
-    );
+  const clearProfileError = (field: keyof ProfileErrors) => {
+    if (profileErrors[field]) {
+      setProfileErrors(prev => ({ ...prev, [field]: undefined }));
+    }
   };
 
   const handleSave = async () => {
     if (!currentUser) return;
-    if (!editName.trim()) {
-      Alert.alert('Fehler', 'Bitte gib einen Namen an.');
-      return;
-    }
-    if (!editEmail.trim()) {
-      Alert.alert('Fehler', 'Bitte gib eine E-Mail-Adresse an.');
+    const errors: ProfileErrors = {};
+    if (!editName.trim()) errors.name = 'Gib deinen Namen ein.';
+    if (!editEmail.trim()) errors.email = 'Gib deine E-Mail-Adresse ein.';
+    setProfileErrors(errors);
+    setProfileFormError(null);
+    const firstError = errors.name ?? errors.email;
+    if (firstError) {
+      announce(firstError);
+      const firstRef = errors.name ? nameRef : emailRef;
+      setTimeout(() => firstRef.current?.focus(), 0);
       return;
     }
 
+    setSavingProfile(true);
     try {
       const updated = await mockDb.updateUserProfile(
         currentUser.id,
@@ -322,17 +466,20 @@ export default function ProfileScreen() {
       setEditTitle(updated.title || '');
       setIsEditing(false);
       setEditPassword('');
-      Alert.alert('Erfolg', 'Dein Profil wurde aktualisiert.');
+      setProfileStatus({ tone: 'success', message: 'Dein Profil wurde gespeichert.' });
     } catch (e: any) {
-      Alert.alert('Fehler', e.message || 'Konnte das Profil nicht aktualisieren.');
+      setProfileFormError(e.message || 'Das Profil konnte nicht gespeichert werden.');
+    } finally {
+      setSavingProfile(false);
     }
   };
 
   const handlePickTicketImage = async () => {
+    setTicketFormStatus(null);
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Berechtigung erforderlich', 'Wir benötigen Zugriff auf deine Fotos, um ein Bild an das Ticket anzuhängen.');
+        setTicketFormStatus({ tone: 'error', message: 'Wir benötigen Zugriff auf deine Fotos, um ein Bild an das Ticket anzuhängen.' });
         return;
       }
 
@@ -350,15 +497,16 @@ export default function ProfileScreen() {
         setTicketImageUrl(optimizedUri);
       }
     } catch (e: any) {
-      Alert.alert('Fehler', 'Konnte Foto nicht laden: ' + (e?.message || e));
+      setTicketFormStatus({ tone: 'error', message: 'Das Foto konnte nicht geladen werden: ' + (e?.message || e) });
     }
   };
 
   const handlePickTicketCamera = async () => {
+    setTicketFormStatus(null);
     try {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Berechtigung erforderlich', 'Wir benötigen Zugriff auf deine Kamera, um ein Prüfungsfragen-Foto aufzunehmen.');
+        setTicketFormStatus({ tone: 'error', message: 'Wir benötigen Zugriff auf deine Kamera, um ein Foto für das Ticket aufzunehmen.' });
         return;
       }
 
@@ -375,18 +523,28 @@ export default function ProfileScreen() {
         setTicketImageUrl(optimizedUri);
       }
     } catch (e: any) {
-      Alert.alert('Fehler', 'Kamera konnte nicht geöffnet werden: ' + (e?.message || e));
+      setTicketFormStatus({ tone: 'error', message: 'Die Kamera konnte nicht geöffnet werden: ' + (e?.message || e) });
+    }
+  };
+
+  const clearTicketError = (field: keyof TicketErrors) => {
+    if (ticketErrors[field]) {
+      setTicketErrors(prev => ({ ...prev, [field]: undefined }));
     }
   };
 
   const handleCreateTicket = async () => {
     if (!currentUser) return;
-    if (!ticketTitle.trim()) {
-      Alert.alert('Fehler', 'Bitte gib einen Betreff / Titel für das Ticket ein.');
-      return;
-    }
-    if (!ticketDescription.trim()) {
-      Alert.alert('Fehler', 'Bitte beschreibe deine Frage oder dein Anliegen.');
+    const errors: TicketErrors = {};
+    if (!ticketTitle.trim()) errors.title = 'Gib einen Betreff ein.';
+    if (!ticketDescription.trim()) errors.description = 'Beschreibe deine Frage oder dein Anliegen.';
+    setTicketErrors(errors);
+    setTicketFormStatus(null);
+    const firstError = errors.title ?? errors.description;
+    if (firstError) {
+      announce(firstError);
+      const firstRef = errors.title ? ticketTitleRef : ticketDescriptionRef;
+      setTimeout(() => firstRef.current?.focus(), 0);
       return;
     }
 
@@ -405,35 +563,39 @@ export default function ProfileScreen() {
       setTicketDescription('');
       setTicketImageUrl(null);
       setShowTicketForm(false);
-      setTicketDropdownOpen(false);
-      Alert.alert('Ticket eingereicht ✅', 'Vielen Dank! Dein Ticket wurde gespeichert (auch offline verfügbar) und an das Ausbilder-Team übermittelt.');
+      setTicketListStatus({
+        tone: 'success',
+        message: 'Dein Ticket wurde gespeichert (auch offline verfügbar) und an das Ausbilder-Team übermittelt.',
+      });
       loadData();
     } catch {
-      Alert.alert('Fehler', 'Ticket konnte nicht erstellt werden.');
+      setTicketFormStatus({ tone: 'error', message: 'Das Ticket konnte nicht erstellt werden. Bitte versuche es noch einmal.' });
     } finally {
       setSubmittingTicket(false);
     }
   };
 
+  // Bestätigung erfolgt inline am Ticket (ticketPendingDelete), danach dieselben Aufrufe wie bisher
   const handleDeleteTicket = async (ticketId: string) => {
-    Alert.alert('Ticket löschen', 'Möchtest du dieses Ticket wirklich entfernen?', [
-      { text: 'Abbrechen', style: 'cancel' },
-      {
-        text: 'Löschen',
-        style: 'destructive',
-        onPress: async () => {
-          await mockDb.deleteTicket(ticketId);
-          loadData();
-        }
-      }
-    ]);
+    setDeletingTicket(true);
+    try {
+      await mockDb.deleteTicket(ticketId);
+      loadData();
+      setTicketPendingDelete(null);
+      setTicketListStatus({ tone: 'success', message: 'Das Ticket wurde gelöscht.' });
+    } catch (e: any) {
+      setTicketListStatus({ tone: 'error', message: 'Das Ticket konnte nicht gelöscht werden: ' + (e?.message || e) });
+    } finally {
+      setDeletingTicket(false);
+    }
   };
 
   const handlePickImage = async () => {
+    setProfileStatus(null);
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Berechtigung erforderlich', 'Wir benötigen Zugriff auf deine Fotos, um ein Profilbild auszuwählen.');
+        setProfileStatus({ tone: 'error', message: 'Wir benötigen Zugriff auf deine Fotos, um ein Profilbild auszuwählen.' });
         return;
       }
 
@@ -463,23 +625,54 @@ export default function ProfileScreen() {
           );
           setCurrentUser(updated);
         }
-        Alert.alert('Erfolg', 'Dein Profilfoto wurde erfolgreich aktualisiert!');
+        setProfileStatus({ tone: 'success', message: 'Dein Profilfoto wurde aktualisiert.' });
       }
     } catch (e: any) {
-      Alert.alert('Fehler', 'Konnte die Bildgalerie nicht öffnen: ' + (e?.message || e));
+      setProfileStatus({ tone: 'error', message: 'Die Bildauswahl konnte nicht geöffnet werden: ' + (e?.message || e) });
     }
+  };
+
+  const handleRegisterPush = async () => {
+    if (!currentUser?.id) {
+      setPushStatus({ tone: 'info', message: 'Bitte melde dich erst an.' });
+      return;
+    }
+    setPushStatus(null);
+    setRegisteringPush(true);
+    try {
+      const res = await registerForPushNotificationsAsync(currentUser.id);
+      if (res.token) {
+        setPushStatus({
+          tone: 'success',
+          message: 'Push-Empfang ist aktiv. Chat-Nachrichten erreichen dich auch bei geschlossener App.',
+        });
+      } else {
+        setPushStatus({ tone: 'error', message: res.error || 'Vom Gerät kam kein Push-Token.' });
+      }
+    } finally {
+      setRegisteringPush(false);
+    }
+  };
+
+  const handleOpenSupportMail = async () => {
+    setLegalStatus(null);
+    try {
+      await Linking.openURL(`mailto:${SUPPORT_EMAIL}`);
+    } catch {
+      setLegalStatus({ tone: 'error', message: `Keine E-Mail-App gefunden. Schreib an ${SUPPORT_EMAIL}.` });
+    }
+  };
+
+  const closeTicketModal = () => {
+    setTicketModalVisible(false);
+    setShowTicketForm(false);
+    setTicketPendingDelete(null);
   };
 
   const getRoleLabel = (role: string) => {
     if (role === 'admin') return 'Ausbilder';
     if (role === 'moderator') return 'Mod';
     return 'Schüler';
-  };
-
-  const getRoleColor = (role: string) => {
-    if (role === 'admin') return { bg: '#fee2e2', text: '#ef4444' };
-    if (role === 'moderator') return { bg: '#ffedd5', text: '#f97316' };
-    return { bg: '#dcfce7', text: '#15803d' };
   };
 
   const isImgUri = (uri: string) => {
@@ -490,1033 +683,861 @@ export default function ProfileScreen() {
   const statsCount = quizHistory.length;
   const bestScore = quizHistory.reduce((max, curr) => curr.score > max ? curr.score : max, 0);
 
+  const verifiedFacts = userSubmissions.facts.filter(f => f.isVerified).length;
+  const verifiedQuestions = userSubmissions.questions.filter(q => q.isVerified).length;
+  const hasSubmissions = userSubmissions.facts.length > 0 || userSubmissions.questions.length > 0;
+
+  const renderAvatar = (uri: string, size: number) => {
+    if (uri && isImgUri(uri)) {
+      return <Image source={{ uri }} style={styles.avatarImg} accessibilityIgnoresInvertColors />;
+    }
+    if (uri) {
+      return <Text style={{ fontSize: Math.round(size * 0.5) }}>{uri}</Text>;
+    }
+    return <UserIcon size={Math.round(size * 0.45)} color={colors.textMuted} />;
+  };
+
+  const getTicketTypeMeta = (type: Ticket['type']) => {
+    if (type === 'password_reset') return { label: 'Passwort-Reset', Icon: KeyRound, color: colors.warningText };
+    if (type === 'exam_question') return { label: 'Prüfungsfrage', Icon: GraduationCap, color: isDark ? '#c4b5fd' : '#7c3aed' };
+    if (type === 'bug') return { label: 'Fehler', Icon: Bug, color: colors.errorText };
+    return { label: 'Vorschlag', Icon: Lightbulb, color: colors.primary };
+  };
+
+  const getTicketStatusMeta = (status: Ticket['status']) => {
+    if (status === 'resolved') return { label: 'Beantwortet', Icon: CheckCircle2, color: colors.successText };
+    if (status === 'in_progress') return { label: 'In Bearbeitung', Icon: Clock, color: colors.primary };
+    return { label: 'Offen', Icon: AlertCircle, color: colors.warningText };
+  };
+
+  const renderVerification = (isVerified?: boolean) => (
+    <View style={styles.metaItem}>
+      <View aria-hidden>
+        {isVerified ? (
+          <CheckCircle2 size={16} color={colors.successText} />
+        ) : (
+          <Clock size={16} color={colors.warningText} />
+        )}
+      </View>
+      <Text style={[styles.metaText, { color: isVerified ? colors.successText : colors.warningText }]}>
+        {isVerified ? 'Freigegeben' : 'In Prüfung'}
+      </Text>
+    </View>
+  );
+
+  const renderLegalBody = (id: LegalEntryId) => {
+    const textStyle = [styles.legalText, { color: colors.text }];
+    const mutedStyle = [styles.legalText, { color: colors.textMuted }];
+    const labelStyle = [styles.legalLabel, { color: colors.text }];
+
+    if (id === 'impressum') {
+      return (
+        <>
+          <Text style={labelStyle}>Angaben gemäß § 5 TMG</Text>
+          <Text style={textStyle}>Herausgeber & Entwicklung: Dennis Köster</Text>
+          <Text style={mutedStyle}>
+            Interaktive Lernplattform für Triebfahrzeugführer, Wagenprüfer & Bahnbetriebspersonal.
+          </Text>
+          <Text style={[labelStyle, styles.legalLabelSpaced]}>Support & Feedback</Text>
+          <Text style={textStyle}>
+            Über das integrierte Support-Ticketsystem im Benutzerkonto oder per E-Mail an:
+          </Text>
+          <Pressable
+            onPress={handleOpenSupportMail}
+            accessibilityRole="link"
+            accessibilityLabel={`E-Mail an ${SUPPORT_EMAIL}`}
+            style={({ pressed }) => [styles.linkButton, pressed && styles.pressed]}
+          >
+            <View aria-hidden>
+              <Mail size={20} color={colors.primary} />
+            </View>
+            <Text style={[styles.linkText, { color: colors.primary }]}>{SUPPORT_EMAIL}</Text>
+          </Pressable>
+          <StatusMessage status={legalStatus} style={styles.legalStatus} />
+        </>
+      );
+    }
+    if (id === 'kontoloeschung') {
+      return (
+        <>
+          <Text style={textStyle}>
+            Nutzer können ihr Konto jederzeit in der App oder online über die offizielle Lösch-Seite unwiderruflich löschen lassen.
+          </Text>
+          <Text style={[...mutedStyle, styles.legalParagraph]}>In der App geht das unten im Bereich „Konto“.</Text>
+        </>
+      );
+    }
+    if (id === 'haftung') {
+      return (
+        <Text style={textStyle}>
+          Die in dieser Anwendung bereitgestellten Lerninhalte, Musterlösungen und Regelwerkszitate dienen ausschließlich als Ausbildungs- und Übungshilfe. Im praktischen Betriebsdienst sind stets die offiziellen und aktuell gültigen Regelwerke des zuständigen Eisenbahnverkehrsunternehmens (EVU) bzw. Infrastrukturbetreibers maßgebend.
+        </Text>
+      );
+    }
+    if (id === 'regelwerke') {
+      return (
+        <View role="list">
+          {REGELWERKE.map(item => (
+            <View key={item} role="listitem" style={styles.bulletRow}>
+              <View aria-hidden style={[styles.bulletDot, { backgroundColor: colors.textMuted }]} />
+              <Text style={[...textStyle, styles.bulletText]}>{item}</Text>
+            </View>
+          ))}
+        </View>
+      );
+    }
+    return (
+      <Text style={textStyle}>
+        © Dennis Köster. Alle Rechte an der Software und den redaktionellen Ausarbeitungen vorbehalten.
+      </Text>
+    );
+  };
+
+  const renderModalHeader = (title: string, onClose: () => void, closeLabel: string) => (
+    <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+      <Heading level={1} style={styles.modalTitle}>
+        {title}
+      </Heading>
+      <Pressable
+        onPress={onClose}
+        accessibilityRole="button"
+        accessibilityLabel={closeLabel}
+        style={({ pressed }) => [styles.iconButton, pressed && { backgroundColor: colors.buttonSecondaryPressedBg }]}
+      >
+        <X size={24} color={colors.text} />
+      </Pressable>
+    </View>
+  );
+
+  const roleLine = currentUser
+    ? `${getRoleLabel(currentUser.role)}${currentUser.title ? ` · ${currentUser.title}` : ''}`
+    : '';
+  const avatarBg = isDark ? colors.cardBg : colors.background;
+
   return (
-    <SafeAreaView edges={['bottom']} style={[styles.container, { backgroundColor: colors.background }]}>
-      <ScrollView 
+    <SafeAreaView edges={['bottom']} style={[styles.container, { backgroundColor: screenBg }]}>
+      <ScrollView
         automaticallyAdjustKeyboardInsets={true}
-        keyboardDismissMode="on-drag"
+        keyboardDismissMode={KEYBOARD_DISMISS_MODE}
         contentContainerStyle={[
-          styles.scrollContent, 
+          styles.scrollContent,
           { paddingBottom: dynamicKeyboardPadding ? dynamicKeyboardPadding + 32 : 32 },
-          isTablet && { maxWidth: 780, width: '100%', alignSelf: 'center' }
-        ]} 
+        ]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
         {currentUser && (
-          <>
-            {/* PROFIL CARD */}
-            <View style={[styles.profileCard, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
-              <View style={styles.cardHeader}>
-                <TouchableOpacity 
-                  style={styles.avatarWrapper}
-                  onPress={handlePickImage}
-                  activeOpacity={0.7}
-                >
-                  <View style={[styles.avatarContainer, { backgroundColor: colors.background, borderColor: colors.border }]}>
-                    {currentUser.avatarUrl && isImgUri(currentUser.avatarUrl) ? (
-                      <Image source={{ uri: currentUser.avatarUrl }} style={styles.avatarImg} />
-                    ) : currentUser.avatarUrl ? (
-                      <Text style={styles.avatarEmoji}>{currentUser.avatarUrl}</Text>
-                    ) : (
-                      <UserIcon size={32} color={colors.textMuted} />
-                    )}
-                  </View>
-                  
-                  <View style={[styles.avatarCameraBadge, { backgroundColor: colors.primary }]}>
-                    <Camera size={13} color="#ffffff" />
-                  </View>
-                </TouchableOpacity>
-
-                <View style={styles.userInfo}>
-                  <Text style={[styles.userName, { color: colors.text }]}>{currentUser.name}</Text>
-                  <Text style={[styles.userEmail, { color: colors.textMuted }]}>{currentUser.email}</Text>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
-                    <View style={[styles.badge, { backgroundColor: getRoleColor(currentUser.role).bg }]}>
-                      <Text style={[styles.badgeText, { color: getRoleColor(currentUser.role).text }]}>
-                        {getRoleLabel(currentUser.role)}
-                      </Text>
-                    </View>
-                    {currentUser.title ? (
-                      <View style={[styles.badge, { backgroundColor: colors.primary + '20' }]}>
-                        <Text style={[styles.badgeText, { color: colors.primary }]}>
-                          {currentUser.title}
-                        </Text>
-                      </View>
-                    ) : null}
-                  </View>
+          <View style={styles.column}>
+            {/* PROFIL */}
+            <View style={styles.profileHeader}>
+              <Pressable
+                onPress={handlePickImage}
+                accessibilityRole="button"
+                accessibilityLabel="Profilfoto ändern"
+                accessibilityHint="Öffnet deine Fotos"
+                style={({ pressed }) => [styles.avatarButton, pressed && styles.pressed]}
+              >
+                <View style={[styles.avatar, { backgroundColor: avatarBg, borderColor: colors.border }]}>
+                  {renderAvatar(currentUser.avatarUrl || '', 72)}
                 </View>
+                <View
+                  aria-hidden
+                  style={[styles.avatarBadge, { backgroundColor: colors.buttonPrimaryBg, borderColor: screenBg }]}
+                >
+                  <Camera size={14} color={colors.buttonPrimaryText} />
+                </View>
+              </Pressable>
+
+              <View style={styles.identity}>
+                <Heading level={2} style={styles.userName}>
+                  {currentUser.name}
+                </Heading>
+                <Text style={[styles.userEmail, { color: colors.textMuted }]}>{currentUser.email}</Text>
+                <Text style={[styles.userRole, { color: colors.text }]}>{roleLine}</Text>
               </View>
-
-              {/* TITELAUSWAHL FÜR SCHÜLER BZW. DOZENTEN-TITEL */}
-              {currentUser.role === 'user' ? (
-                <View style={{ marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.border }}>
-                  <Text style={{ fontSize: 13, fontWeight: 'bold', color: colors.text, marginBottom: 8 }}>
-                    Deine Qualifikation / Ausbildungsbereich:
-                  </Text>
-                  <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
-                    {(['Lokführer', 'Wagenmeister', 'Zf/Rb-bau'] as const).map((t) => {
-                      const isSelected = (currentUser.title || editTitle) === t;
-                      return (
-                        <TouchableOpacity
-                          key={t}
-                          style={{
-                            paddingVertical: 8,
-                            paddingHorizontal: 14,
-                            borderRadius: 10,
-                            backgroundColor: isSelected ? colors.primary : (isDark ? '#1e293b' : '#f1f5f9'),
-                            borderColor: isSelected ? colors.primary : colors.border,
-                            borderWidth: 1.5,
-                            flexDirection: 'row',
-                            alignItems: 'center',
-                            gap: 6
-                          }}
-                          onPress={() => handleSaveTitle(t)}
-                        >
-                          {isSelected && <Check size={14} color="#ffffff" />}
-                          <Text
-                            style={{
-                              fontSize: 13,
-                              fontWeight: isSelected ? 'bold' : '600',
-                              color: isSelected ? '#ffffff' : colors.text
-                            }}
-                          >
-                            {t}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-                </View>
-              ) : (
-                <View style={{ marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.border }}>
-                  <Text style={{ fontSize: 12, fontWeight: 'bold', color: colors.text, marginBottom: 6 }}>
-                    Dozenten- / Zusatz-Titel:
-                  </Text>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <TextInput
-                      style={[styles.input, { flex: 1, backgroundColor: colors.background, color: colors.text, borderColor: colors.border, height: 42, paddingVertical: 6, marginBottom: 0 }]}
-                      placeholder="z.B. Ausbilder, Mod, Fachlehrer"
-                      placeholderTextColor={colors.textMuted}
-                      value={editTitle}
-                      onChangeText={setEditTitle}
-                    />
-                    <TouchableOpacity
-                      style={{ backgroundColor: colors.primary, paddingHorizontal: 14, height: 42, borderRadius: 8, flexDirection: 'row', alignItems: 'center', gap: 6 }}
-                      onPress={() => handleSaveTitle()}
-                    >
-                      <Check size={16} color="#ffffff" />
-                      <Text style={{ color: '#ffffff', fontWeight: 'bold', fontSize: 13 }}>Titel bestätigen</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              )}
-
-              {!isEditing && (
-                <TouchableOpacity 
-                  style={[styles.editToggleBtn, { backgroundColor: colors.primary, marginTop: 14 }]}
-                  onPress={handleStartEditing}
-                >
-                  <Settings size={16} color="#ffffff" style={{ marginRight: 6 }} />
-                  <Text style={styles.editToggleText}>Profil bearbeiten</Text>
-                </TouchableOpacity>
-              )}
             </View>
 
-            {/* EDIT MODE PANEL */}
-            {isEditing && (
-              <View style={[styles.editPanel, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
-                <Text style={[styles.panelTitle, { color: colors.text }]}>Profil & Zugangsdaten anpassen</Text>
-                
-                <Text style={[styles.label, { color: colors.text }]}>Name</Text>
-                <TextInput
-                  style={[styles.input, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
-                  placeholder="Dein Name"
-                  placeholderTextColor={colors.textMuted}
+            {!isEditing ? (
+              <>
+                <StatusMessage status={profileStatus} />
+                <Button
+                  variant="secondary"
+                  icon={Pencil}
+                  title="Profil bearbeiten"
+                  onPress={handleStartEditing}
+                  style={styles.editButton}
+                />
+              </>
+            ) : (
+              <View style={[styles.editForm, { borderTopColor: colors.border }]}>
+                <Heading level={3}>Profil bearbeiten</Heading>
+
+                <TextField
+                  ref={nameRef}
+                  label="Name"
+                  placeholder="Vor- und Nachname"
+                  icon={UserIcon}
                   value={editName}
-                  onChangeText={setEditName}
+                  onChangeText={(value) => {
+                    setEditName(value);
+                    clearProfileError('name');
+                  }}
+                  error={profileErrors.name}
+                  autoCapitalize="words"
+                  autoCorrect={false}
+                  autoComplete="name"
+                  textContentType="name"
+                  returnKeyType="next"
+                  submitBehavior="submit"
+                  onSubmitEditing={() => emailRef.current?.focus()}
+                  containerStyle={styles.firstField}
                 />
-
-                {currentUser.role === 'user' ? (
-                  <View style={{ marginTop: 12, marginBottom: 4 }}>
-                    <Text style={[styles.label, { color: colors.text, marginBottom: 6 }]}>Ausbildungsbereich / Titel</Text>
-                    <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
-                      {(['Lokführer', 'Wagenmeister', 'Zf/Rb-bau'] as const).map((t) => {
-                        const isSelected = editTitle === t;
-                        return (
-                          <TouchableOpacity
-                            key={t}
-                            style={{
-                              paddingVertical: 8,
-                              paddingHorizontal: 14,
-                              borderRadius: 10,
-                              backgroundColor: isSelected ? colors.primary : colors.background,
-                              borderColor: isSelected ? colors.primary : colors.border,
-                              borderWidth: 1.5,
-                              flexDirection: 'row',
-                              alignItems: 'center',
-                              gap: 6
-                            }}
-                            onPress={() => setEditTitle(t)}
-                          >
-                            {isSelected && <Check size={14} color="#ffffff" />}
-                            <Text
-                              style={{
-                                fontSize: 13,
-                                fontWeight: isSelected ? 'bold' : '600',
-                                color: isSelected ? '#ffffff' : colors.text
-                              }}
-                            >
-                              {t}
-                            </Text>
-                          </TouchableOpacity>
-                        );
-                      })}
-                    </View>
-                  </View>
-                ) : (
-                  <>
-                    <Text style={[styles.label, { color: colors.text, marginTop: 12 }]}>Dozenten-Titel / Zusatzbezeichnung</Text>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                      <TextInput
-                        style={[styles.input, { flex: 1, backgroundColor: colors.background, color: colors.text, borderColor: colors.border, marginBottom: 0 }]}
-                        placeholder="z.B. Ausbilder, Mod, Fachlehrer"
-                        placeholderTextColor={colors.textMuted}
-                        value={editTitle}
-                        onChangeText={setEditTitle}
-                      />
-                      <TouchableOpacity
-                        style={{ backgroundColor: colors.primary, paddingHorizontal: 12, height: 46, borderRadius: 8, flexDirection: 'row', alignItems: 'center', gap: 4 }}
-                        onPress={() => handleSaveTitle()}
-                      >
-                        <Check size={16} color="#ffffff" />
-                        <Text style={{ color: '#ffffff', fontWeight: 'bold', fontSize: 12 }}>Bestätigen</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </>
-                )}
-
-                <Text style={[styles.label, { color: colors.text, marginTop: 12 }]}>E-Mail-Adresse</Text>
-                <TextInput
-                  style={[styles.input, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
-                  placeholder="name@adresse.de"
-                  placeholderTextColor={colors.textMuted}
+                <TextField
+                  ref={emailRef}
+                  label="E-Mail-Adresse"
+                  placeholder="name@beispiel.de"
+                  icon={Mail}
                   value={editEmail}
-                  onChangeText={setEditEmail}
-                  autoCapitalize="none"
+                  onChangeText={(value) => {
+                    setEditEmail(value);
+                    clearProfileError('email');
+                  }}
+                  error={profileErrors.email}
                   keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  autoComplete="email"
+                  textContentType="emailAddress"
+                  returnKeyType="next"
+                  submitBehavior="submit"
+                  onSubmitEditing={() => passwordRef.current?.focus()}
                 />
-
-                <Text style={[styles.label, { color: colors.text, marginTop: 12 }]}>Neues Passwort (optional)</Text>
-                <TextInput
-                  style={[styles.input, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
-                  placeholder="Leer lassen für kein Wechsel"
-                  placeholderTextColor={colors.textMuted}
+                <TextField
+                  ref={passwordRef}
+                  label="Neues Passwort (optional)"
+                  placeholder="Neues Passwort eingeben"
+                  icon={Lock}
+                  password
+                  hint="Leer lassen, wenn du dein Passwort behalten willst."
                   value={editPassword}
                   onChangeText={setEditPassword}
-                  secureTextEntry
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  autoComplete="new-password"
+                  textContentType="newPassword"
+                  returnKeyType="done"
+                  submitBehavior="blurAndSubmit"
+                  onSubmitEditing={handleSave}
                 />
 
-                <Text style={[styles.label, { color: colors.text, marginTop: 12 }]}>Profilbild / Avatar</Text>
-                
-                {/* Live Preview Box */}
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12, padding: 10, backgroundColor: colors.background, borderRadius: 8, borderWidth: 1, borderColor: colors.border }}>
-                  <View style={[styles.avatarContainer, { width: 50, height: 50, borderRadius: 25, backgroundColor: colors.cardBg, borderColor: colors.border }]}>
-                    {editAvatarUrl && isImgUri(editAvatarUrl) ? (
-                      <Image source={{ uri: editAvatarUrl }} style={styles.avatarImg} />
-                    ) : editAvatarUrl ? (
-                      <Text style={{ fontSize: 28 }}>{editAvatarUrl}</Text>
-                    ) : (
-                      <UserIcon size={24} color={colors.textMuted} />
-                    )}
+                <Text style={[styles.fieldLabel, { color: colors.text }]}>Profilbild</Text>
+                <View style={styles.avatarPickRow}>
+                  <View style={[styles.avatarSmall, { backgroundColor: avatarBg, borderColor: colors.border }]}>
+                    {renderAvatar(editAvatarUrl, 56)}
                   </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ color: colors.text, fontSize: 13, fontWeight: 'bold' }}>Ausgewähltes Bild</Text>
-                    <Text style={{ color: colors.textMuted, fontSize: 11 }}>
-                      {editAvatarUrl && isImgUri(editAvatarUrl) ? 'Eigenes Foto aktiv' : editAvatarUrl ? `Emoji: ${editAvatarUrl}` : 'Kein Bild'}
-                    </Text>
-                  </View>
-                  <TouchableOpacity
-                    style={{ backgroundColor: colors.primary, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 6 }}
-                    onPress={handlePickImage}
-                  >
-                    <Text style={{ color: '#ffffff', fontSize: 12, fontWeight: 'bold' }}>🖼️ Aus Galerie</Text>
-                  </TouchableOpacity>
+                  <Text style={[styles.bodyText, styles.flex, { color: colors.textMuted }]}>
+                    {editAvatarUrl && isImgUri(editAvatarUrl)
+                      ? 'Aktuell: eigenes Foto'
+                      : editAvatarUrl
+                        ? 'Aktuell: Symbol'
+                        : 'Noch kein Profilbild'}
+                  </Text>
+                </View>
+                <Button variant="secondary" icon={ImageIcon} title="Foto auswählen" onPress={handlePickImage} />
+                <StatusMessage status={profileStatus} />
+
+                <Text style={[styles.fieldLabel, styles.fieldLabelSpaced, { color: colors.text }]}>
+                  Oder einen Comic-Avatar wählen
+                </Text>
+                <View role="radiogroup" accessibilityLabel="Comic-Avatar als Profilbild" style={styles.presetsGrid}>
+                  {AVATAR_PRESETS.map((p) => {
+                    const selected = editAvatarUrl === p;
+                    return (
+                      <Pressable
+                        key={p}
+                        onPress={() => setEditAvatarUrl(p)}
+                        accessibilityRole="radio"
+                        accessibilityLabel={AVATAR_PRESET_LABELS[p] ?? 'Symbol'}
+                        accessibilityState={{ checked: selected }}
+                        aria-checked={selected}
+                        style={({ pressed }) => [
+                          styles.presetBtn,
+                          {
+                            borderColor: selected ? colors.primary : colors.fieldBorder,
+                            borderWidth: selected ? 2 : 1,
+                            backgroundColor: selected
+                              ? colors.accentBg
+                              : pressed
+                                ? colors.buttonSecondaryPressedBg
+                                : 'transparent',
+                          },
+                        ]}
+                      >
+                        <Text style={styles.presetEmoji}>{p}</Text>
+                      </Pressable>
+                    );
+                  })}
                 </View>
 
-                <Text style={[styles.label, { color: colors.textMuted, fontSize: 11 }]}>Oder Comic-Avatar wählen:</Text>
-                <View style={styles.presetsGrid}>
-                  {AVATAR_PRESETS.map((p) => (
-                    <TouchableOpacity
-                      key={p}
-                      style={[
-                        styles.presetBtn,
-                        { backgroundColor: editAvatarUrl === p ? colors.primary : colors.background }
-                      ]}
-                      onPress={() => setEditAvatarUrl(p)}
-                    >
-                      <Text style={{ fontSize: 24 }}>{p}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-
-                <View style={styles.actionBtnRow}>
-                  <TouchableOpacity
-                    style={[styles.actionBtn, styles.cancelBtn, { borderColor: colors.border }]}
+                <StatusMessage status={profileFormError ? { tone: 'error', message: profileFormError } : null} />
+                <View style={styles.formActions}>
+                  <Button
+                    variant="secondary"
+                    title="Abbrechen"
                     onPress={handleCancelEditing}
-                  >
-                    <Text style={{ color: colors.text }}>Abbrechen</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.actionBtn, styles.saveBtn, { backgroundColor: colors.primary }]}
+                    disabled={savingProfile}
+                    style={styles.formActionButton}
+                  />
+                  <Button
+                    title="Speichern"
+                    loadingTitle="Wird gespeichert …"
+                    loading={savingProfile}
                     onPress={handleSave}
-                  >
-                    <Text style={{ color: '#ffffff', fontWeight: 'bold' }}>Speichern</Text>
-                  </TouchableOpacity>
+                    style={styles.formActionButton}
+                  />
                 </View>
               </View>
             )}
 
-            {/* WISSEN BEITRAGEN & EINREICHUNGEN CARD */}
-            <View style={[styles.ticketCompactCard, { backgroundColor: colors.cardBg, borderColor: colors.border, flexDirection: 'column', alignItems: 'stretch' }]}>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <View style={[styles.ticketCompactIconBg, { backgroundColor: '#10b98118' }]}>
-                  <Sparkles size={22} color="#10b981" />
-                </View>
-                <View style={{ flex: 1, marginLeft: 12 }}>
-                  <Text style={[styles.ticketCompactTitle, { color: colors.text }]}>
-                    Wissen beitragen & Community
-                  </Text>
-                  <Text style={[styles.ticketCompactSubtitle, { color: colors.textMuted }]}>
-                    Lernkarten & Quizfragen zur Freigabe einreichen
-                  </Text>
-                </View>
-              </View>
-
-              {/* ACTION BUTTONS */}
-              <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
-                <TouchableOpacity
-                  style={[styles.contributeActionBtn, { backgroundColor: colors.primary + '18', borderColor: colors.primary }]}
-                  onPress={() => setCreateFactModalVisible(true)}
-                  activeOpacity={0.7}
-                >
-                  <Plus size={16} color={colors.primary} />
-                  <Text style={[styles.contributeActionBtnText, { color: colors.primary }]}>
-                    + Lernkarte
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.contributeActionBtn, { backgroundColor: '#10b98118', borderColor: '#10b981' }]}
-                  onPress={() => setCreateQuestionModalVisible(true)}
-                  activeOpacity={0.7}
-                >
-                  <Plus size={16} color="#10b981" />
-                  <Text style={[styles.contributeActionBtnText, { color: '#10b981' }]}>
-                    + Quizfrage
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* SUBMISSIONS STATUS OVERVIEW */}
-              {(userSubmissions.facts.length > 0 || userSubmissions.questions.length > 0) && (
-                <TouchableOpacity
-                  style={[styles.submissionStatusRow, { borderTopColor: colors.border }]}
-                  onPress={() => setSubmissionsModalVisible(true)}
-                  activeOpacity={0.7}
-                >
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 12, color: colors.text, fontWeight: '600' }}>
-                      Deine Einreichungen ({userSubmissions.facts.length + userSubmissions.questions.length}):
-                    </Text>
-                    <Text style={{ fontSize: 11, color: colors.textMuted, marginTop: 2 }}>
-                      {userSubmissions.facts.length} Karten ({userSubmissions.facts.filter(f => f.isVerified).length} freigegeben) • {userSubmissions.questions.length} Fragen ({userSubmissions.questions.filter(q => q.isVerified).length} freigegeben)
-                    </Text>
+            {/* AUSBILDUNG: Titel und Quiz-Statistik */}
+            <Section title="Ausbildung">
+              {currentUser.role === 'user' ? (
+                <>
+                  <Heading level={3}>Dein Ausbildungsbereich</Heading>
+                  <View role="radiogroup" accessibilityLabel="Dein Ausbildungsbereich" style={styles.chips}>
+                    {TRAINING_TITLES.map((t) => {
+                      const isSelected = (currentUser.title || editTitle) === t;
+                      return (
+                        <Pressable
+                          key={t}
+                          onPress={() => handleSaveTitle(t)}
+                          accessibilityRole="radio"
+                          accessibilityState={{ checked: isSelected }}
+                          aria-checked={isSelected}
+                          style={({ pressed }) => [
+                            styles.chip,
+                            isSelected
+                              ? { backgroundColor: colors.buttonPrimaryBg, borderColor: colors.buttonPrimaryBg }
+                              : {
+                                  borderColor: colors.fieldBorder,
+                                  backgroundColor: pressed ? colors.buttonSecondaryPressedBg : 'transparent',
+                                },
+                          ]}
+                        >
+                          {isSelected ? (
+                            <View aria-hidden>
+                              <Check size={18} color={colors.buttonPrimaryText} strokeWidth={2.5} />
+                            </View>
+                          ) : null}
+                          <Text
+                            style={[
+                              styles.chipText,
+                              { color: isSelected ? colors.buttonPrimaryText : colors.text },
+                            ]}
+                          >
+                            {t}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
                   </View>
-                  <Text style={{ fontSize: 12, color: colors.primary, fontWeight: 'bold' }}>Details →</Text>
-                </TouchableOpacity>
+                </>
+              ) : (
+                <>
+                  <TextField
+                    label="Dozenten- oder Zusatztitel"
+                    placeholder="z. B. Ausbilder, Mod, Fachlehrer"
+                    value={editTitle}
+                    onChangeText={setEditTitle}
+                    returnKeyType="done"
+                    submitBehavior="blurAndSubmit"
+                    onSubmitEditing={() => handleSaveTitle()}
+                    containerStyle={styles.titleField}
+                  />
+                  <Button variant="secondary" icon={Check} title="Titel speichern" onPress={() => handleSaveTitle()} />
+                </>
               )}
-            </View>
+              <StatusMessage status={titleStatus} />
 
-            {/* TICKET-SYSTEM / SUPPORT & FEEDBACK COMPACT BUTTON */}
-            <TouchableOpacity
-              style={[styles.ticketCompactCard, { backgroundColor: colors.cardBg, borderColor: colors.border }]}
-              onPress={() => setTicketModalVisible(true)}
-              activeOpacity={0.7}
-            >
-              <View style={[styles.ticketCompactIconBg, { backgroundColor: colors.primary + '18' }]}>
-                <LifeBuoy size={22} color={colors.primary} />
-              </View>
-              <View style={{ flex: 1, marginLeft: 12 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Text style={[styles.ticketCompactTitle, { color: colors.text }]}>
-                    Support & Feedback
-                  </Text>
-                  {tickets.length > 0 && (
-                    <View style={[styles.ticketCountBadge, { backgroundColor: colors.primary }]}>
-                      <Text style={styles.ticketCountBadgeText}>
-                        {tickets.length} {tickets.length === 1 ? 'Ticket' : 'Tickets'}
-                      </Text>
-                    </View>
-                  )}
+              <Heading level={3} style={styles.subHeading}>
+                Quiz-Statistik
+              </Heading>
+              <View style={styles.stats}>
+                <View style={styles.stat}>
+                  <Text style={[styles.statLabel, { color: colors.textMuted }]}>Absolvierte Tests</Text>
+                  <Text style={[styles.statValue, { color: colors.text }]}>{statsCount}</Text>
                 </View>
-                <Text style={[styles.ticketCompactSubtitle, { color: colors.textMuted }]}>
-                  Fehler melden & Verbesserungsvorschläge einreichen
-                </Text>
+                <View style={styles.stat}>
+                  <Text style={[styles.statLabel, { color: colors.textMuted }]}>Höchste Punktzahl</Text>
+                  <Text style={[styles.statValue, { color: colors.text }]}>{bestScore} Pkt.</Text>
+                </View>
               </View>
-              <ChevronRight size={20} color={colors.textMuted} />
-            </TouchableOpacity>
+            </Section>
 
-            {/* BENACHRICHTIGUNGEN / STUMMSCHALTEN OPTION */}
-            <View style={[styles.ticketCompactCard, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
-              <View style={[styles.ticketCompactIconBg, { backgroundColor: isChatMutedState ? '#ef444418' : colors.primary + '18' }]}>
-                {isChatMutedState ? <BellOff size={22} color="#ef4444" /> : <Bell size={22} color={colors.primary} />}
-              </View>
-              <View style={{ flex: 1, marginLeft: 12, marginRight: 8 }}>
-                <Text style={[styles.ticketCompactTitle, { color: colors.text }]}>
-                  Chat-Benachrichtigungen
-                </Text>
-                <Text style={[styles.ticketCompactSubtitle, { color: colors.textMuted }]}>
-                  {isChatMutedState ? 'Stumm (Keine Push-Mitteilungen)' : 'Aktiv (Push bei neuen Nachrichten)'}
-                </Text>
-              </View>
-              <Switch
-                value={!isChatMutedState}
-                onValueChange={async (active) => {
-                  const nextMuted = !active;
+            {/* WISSEN BEITRAGEN */}
+            <Section title="Wissen beitragen" description="Lernkarten und Quizfragen zur Freigabe einreichen.">
+              <ListRow
+                icon={BookOpen}
+                title="Lernkarte einreichen"
+                showChevron
+                onPress={() => setCreateFactModalVisible(true)}
+              />
+              <ListRow
+                icon={ListChecks}
+                title="Quizfrage einreichen"
+                showChevron
+                onPress={() => setCreateQuestionModalVisible(true)}
+                dividerBottom={!hasSubmissions}
+              />
+              {hasSubmissions ? (
+                <ListRow
+                  icon={Inbox}
+                  title="Deine Einreichungen"
+                  description={`${plural(userSubmissions.facts.length, 'Lernkarte', 'Lernkarten')} (${verifiedFacts} freigegeben) · ${plural(userSubmissions.questions.length, 'Quizfrage', 'Quizfragen')} (${verifiedQuestions} freigegeben)`}
+                  showChevron
+                  onPress={() => setSubmissionsModalVisible(true)}
+                  dividerBottom
+                />
+              ) : null}
+            </Section>
+
+            {/* SUPPORT */}
+            <Section title="Support">
+              <ListRow
+                icon={LifeBuoy}
+                title={tickets.length > 0 ? `Support-Tickets (${tickets.length})` : 'Support-Tickets'}
+                description="Fehler melden, Vorschläge machen oder Prüfungsfragen einreichen"
+                showChevron
+                onPress={() => setTicketModalVisible(true)}
+                dividerBottom
+              />
+            </Section>
+
+            {/* EINSTELLUNGEN */}
+            <Section title="Einstellungen">
+              <ListRow
+                icon={Moon}
+                title="Dunkles Design"
+                switchValue={isDark}
+                onPress={() => setThemePreference(isDark ? 'light' : 'dark')}
+              />
+              <ListRow
+                icon={isChatMutedState ? BellOff : Bell}
+                title="Chat-Benachrichtigungen"
+                description={isChatMutedState ? 'Stumm, keine Push-Mitteilungen' : 'Push bei neuen Nachrichten'}
+                switchValue={!isChatMutedState}
+                onPress={async () => {
+                  const nextMuted = !isChatMutedState;
                   setIsChatMutedState(nextMuted);
                   await setIsChatMuted(nextMuted);
                 }}
-                trackColor={{ false: isDark ? '#374151' : '#d1d5db', true: colors.primary }}
-                thumbColor="#ffffff"
+                dividerBottom={IS_WEB}
               />
-            </View>
+              {/* Push-Token und Live-Updates gibt es nur in der App, nicht im Browser */}
+              {!IS_WEB ? (
+                <>
+                  <ListRow
+                    icon={Smartphone}
+                    title="Push-Empfang auf diesem Gerät aktivieren"
+                    description="Verknüpft dein Gerät, damit Chat-Nachrichten auch bei geschlossener App ankommen."
+                    loading={registeringPush}
+                    onPress={handleRegisterPush}
+                  />
+                  <StatusMessage status={pushStatus} style={styles.rowStatus} />
+                  <ListRow
+                    icon={RefreshCw}
+                    title={checkingUpdate ? 'Suche nach Updates …' : 'Nach Updates suchen'}
+                    description={APP_VERSION ? `Installiert: Version ${APP_VERSION}` : undefined}
+                    loading={checkingUpdate}
+                    onPress={handleCheckOtaUpdate}
+                    dividerBottom
+                  />
+                  <StatusMessage status={updateStatus} />
+                </>
+              ) : null}
+            </Section>
 
-            {/* PUSH-TOKEN REGISTRIEREN */}
-            <TouchableOpacity 
-              style={[
-                styles.ticketCompactCard, 
-                { 
-                  backgroundColor: colors.cardBg, 
-                  borderColor: colors.border,
-                  marginTop: -2,
-                  marginBottom: 12,
-                  paddingVertical: 10
-                }
-              ]}
-              onPress={async () => {
-                if (!currentUser?.id) {
-                  Alert.alert('Hinweis', 'Bitte melde dich erst an.');
-                  return;
-                }
-                const res = await registerForPushNotificationsAsync(currentUser.id);
-                if (res.token) {
-                  Alert.alert(
-                    '✅ Push-Token registriert!',
-                    `Dein Smartphone ist jetzt direkt mit der Cloud verknüpft!\n\nToken: ${res.token.substring(0, 30)}...\n\nSperrbildschirm-Nachrichten erreichen dich ab sofort auch bei geschlossener App!`
-                  );
-                } else {
-                  Alert.alert(
-                    '⚙️ Push-Status',
-                    res.error || 'Konnte keinen Push-Token von Android erhalten.'
-                  );
-                }
-              }}
-              activeOpacity={0.7}
-            >
-              <View style={[styles.ticketCompactIconBg, { backgroundColor: '#10b98118' }]}>
-                <Smartphone size={18} color="#10b981" />
-              </View>
-              <View style={{ flex: 1, marginLeft: 12 }}>
-                <Text style={[styles.ticketCompactTitle, { color: colors.text, fontSize: 13 }]}>
-                  Push-Empfang für dieses Handy aktivieren
-                </Text>
-                <Text style={[styles.ticketCompactSubtitle, { color: colors.textMuted, fontSize: 11 }]}>
-                  Verknüpft dein Gerät mit der Cloud für Chat-Nachrichten
-                </Text>
-              </View>
-              <ChevronRight size={18} color={colors.textMuted} />
-            </TouchableOpacity>
+            {/* RECHTLICHES */}
+            <Section title="Rechtliches">
+              {LEGAL_ENTRIES.map((entry) => {
+                const isOpen = openLegalEntry === entry.id;
+                return (
+                  <View key={entry.id}>
+                    <ListRow
+                      title={entry.title}
+                      expanded={isOpen}
+                      onPress={() => setOpenLegalEntry(isOpen ? null : entry.id)}
+                    />
+                    {isOpen ? <View style={styles.legalBody}>{renderLegalBody(entry.id)}</View> : null}
+                  </View>
+                );
+              })}
+              <View style={[styles.divider, { backgroundColor: colors.border }]} />
+            </Section>
 
-            {/* FARBSCHEMA / DESIGN WECHSELN (HELL / DUNKEL) */}
-            <View style={[styles.ticketCompactCard, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
-              <View style={[styles.ticketCompactIconBg, { backgroundColor: isDark ? '#818cf822' : '#f59e0b22' }]}>
-                {isDark ? <Moon size={22} color="#818cf8" /> : <Sun size={22} color="#d97706" />}
-              </View>
-              <View style={{ flex: 1, marginLeft: 12, marginRight: 8 }}>
-                <Text style={[styles.ticketCompactTitle, { color: colors.text }]}>
-                  Erscheinungsbild / Design
-                </Text>
-                <Text style={[styles.ticketCompactSubtitle, { color: colors.textMuted }]}>
-                  {isDark ? 'Dunkles Design (Dark Mode)' : 'Helles Design (Light Mode)'}
-                </Text>
-              </View>
-              <Switch
-                value={isDark}
-                onValueChange={(active) => {
-                  setThemePreference(active ? 'dark' : 'light');
-                }}
-                trackColor={{ false: '#cbd5e1', true: colors.primary }}
-                thumbColor="#ffffff"
+            {/* KONTO: ganz unten, Löschen klar abgesetzt */}
+            <Section title="Konto">
+              <Button
+                variant="secondary"
+                icon={LogOut}
+                title="Abmelden"
+                loadingTitle="Wird abgemeldet …"
+                loading={loggingOut}
+                onPress={handleLogout}
               />
-            </View>
-
-            {/* STATS SECTION */}
-            <View style={[styles.section, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
-              <Text style={[styles.secTitle, { color: colors.text }]}>Deine Quiz-Statistik</Text>
-              
-              <View style={styles.statsGrid}>
-                <View style={[styles.statBox, { backgroundColor: colors.background }]}>
-                  <Activity size={24} color={colors.primary} />
-                  <Text style={[styles.statVal, { color: colors.text }]}>{statsCount}</Text>
-                  <Text style={[styles.statLbl, { color: colors.textMuted }]}>Absolvierte Tests</Text>
-                </View>
-
-                <View style={[styles.statBox, { backgroundColor: colors.background }]}>
-                  <Award size={24} color="#f59e0b" />
-                  <Text style={[styles.statVal, { color: colors.text }]}>{bestScore} Pkt.</Text>
-                  <Text style={[styles.statLbl, { color: colors.textMuted }]}>Höchste Punktzahl</Text>
-                </View>
+              <View style={[styles.dangerZone, { borderTopColor: colors.border }]}>
+                <Heading level={3}>Konto löschen</Heading>
+                <Text style={[styles.bodyText, styles.dangerText, { color: colors.textMuted }]}>
+                  Löscht dein Benutzerkonto und alle persönlichen Daten: Lernfortschritte, Quiz-Ergebnisse und Chat-Beiträge. Das lässt sich nicht rückgängig machen.
+                </Text>
+                <Button
+                  variant="secondary"
+                  danger
+                  icon={Trash2}
+                  title="Konto und alle Daten löschen"
+                  onPress={handleDeleteAccount}
+                  disabled={deletingAccount}
+                />
               </View>
-            </View>
+              <StatusMessage status={accountStatus} />
+            </Section>
 
-            {/* LIVE UPDATE CHECK BUTTON */}
-            <TouchableOpacity 
-              style={[
-                styles.logoutBtn, 
-                { 
-                  backgroundColor: colors.cardBg, 
-                  borderColor: colors.primary, 
-                  borderWidth: 1.5, 
-                  marginBottom: 12 
-                }
-              ]} 
-              onPress={handleCheckOtaUpdate}
-              disabled={checkingUpdate}
-              activeOpacity={0.8}
-            >
-              {checkingUpdate ? (
-                <ActivityIndicator size="small" color={colors.primary} style={{ marginRight: 8 }} />
-              ) : (
-                <RefreshCw size={18} color={colors.primary} style={{ marginRight: 8 }} />
-              )}
-              <Text style={[styles.logoutText, { color: colors.primary, fontWeight: 'bold' }]}>
-                {checkingUpdate ? 'Suche nach Updates...' : '🔄 Auf Live-Updates prüfen'}
-              </Text>
-            </TouchableOpacity>
-
-            {/* LOGOUT & KONTO LÖSCHEN BUTTONS */}
-            <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
-              <LogOut size={20} color="#ffffff" style={{ marginRight: 8 }} />
-              <Text style={styles.logoutText}>Abmelden</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={[
-                styles.logoutBtn, 
-                { 
-                  backgroundColor: 'transparent', 
-                  borderColor: isDark ? '#ef444460' : '#ef4444', 
-                  borderWidth: 1, 
-                  marginTop: 10 
-                }
-              ]} 
-              onPress={handleDeleteAccount}
-            >
-              <Trash2 size={18} color="#ef4444" style={{ marginRight: 8 }} />
-              <Text style={[styles.logoutText, { color: '#ef4444' }]}>Konto & alle Daten endgültig löschen</Text>
-            </TouchableOpacity>
-
-            {/* SCHRIFT: Tf-Trainer by Dennis Köster */}
-            <View style={{ marginTop: 24, marginBottom: 12, alignItems: 'center' }}>
-              <Text style={{ textAlign: 'center', color: colors.text, fontSize: 14, fontWeight: 'bold' }}>
-                Tf-Trainer • © by Dennis Köster
-              </Text>
-              <Text style={{ textAlign: 'center', color: colors.textMuted, fontSize: 11, marginTop: 2 }}>
-                Interaktive Lern- & Wissensplattform (Version 2.0.0)
+            <View style={styles.footer}>
+              <Text style={[styles.footerText, { color: colors.textMuted }]}>{APP_NAME} © by Dennis Köster</Text>
+              <Text style={[styles.footerText, { color: colors.textMuted }]}>
+                Interaktive Lern- & Wissensplattform{APP_VERSION ? ` · Version ${APP_VERSION}` : ''}
               </Text>
             </View>
-
-            {/* AUFKLAPPBARES IMPRESSUM DIREKT DARUNTER */}
-            <View style={[styles.inlineImpressumCard, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
-              <TouchableOpacity 
-                style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
-                onPress={() => setShowImpressum(!showImpressum)}
-                activeOpacity={0.7}
-              >
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <ShieldCheck size={18} color={colors.primary} />
-                  <Text style={[styles.impressumSectionTitle, { color: colors.text, marginBottom: 0 }]}>
-                    Impressum, Datenschutz & Kontolöschung
-                  </Text>
-                </View>
-                {showImpressum ? (
-                  <ChevronUp size={18} color={colors.textMuted} />
-                ) : (
-                  <ChevronDown size={18} color={colors.textMuted} />
-                )}
-              </TouchableOpacity>
-
-              {showImpressum && (
-                <View style={{ marginTop: 14, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12 }}>
-                  {/* Angaben gem. § 5 TMG */}
-                  <View style={{ marginBottom: 12 }}>
-                    <Text style={[styles.impressumTextBold, { color: colors.text }]}>Angaben gemäß § 5 TMG:</Text>
-                    <Text style={[styles.impressumText, { color: isDark ? '#e5e7eb' : '#4b5563' }]}>
-                      Herausgeber & Entwicklung: Dennis Köster
-                    </Text>
-                    <Text style={[styles.impressumText, { color: colors.textMuted, marginTop: 2 }]}>
-                      Interaktive Lernplattform für Triebfahrzeugführer, Wagenprüfer & Bahnbetriebspersonal.
-                    </Text>
-                  </View>
-
-                  {/* Support */}
-                  <View style={{ marginBottom: 12 }}>
-                    <Text style={[styles.impressumTextBold, { color: colors.text }]}>Support & Feedback:</Text>
-                    <Text style={[styles.impressumText, { color: isDark ? '#e5e7eb' : '#4b5563' }]}>
-                      Über das integrierte Support-Ticketsystem im Benutzerkonto oder per E-Mail an: support@tf-trainer.de
-                    </Text>
-                  </View>
-
-                  {/* Datenschutz & Kontolöschung */}
-                  <View style={{ marginBottom: 12 }}>
-                    <Text style={[styles.impressumTextBold, { color: colors.text }]}>Datenschutz & Kontolöschung:</Text>
-                    <Text style={[styles.impressumText, { color: colors.textMuted, marginTop: 2 }]}>
-                      Nutzer können ihr Konto jederzeit in der App oder online über die offizielle Lösch-Seite unwiderruflich löschen lassen.
-                    </Text>
-                  </View>
-
-                  {/* Regelwerke */}
-                  <View style={{ marginBottom: 12 }}>
-                    <Text style={[styles.impressumTextBold, { color: colors.text }]}>Fachliche Regelwerks-Grundlagen:</Text>
-                    <Text style={[styles.impressumBullet, { color: isDark ? '#e5e7eb' : '#4b5563' }]}>• VDV-Schrift 757 (Bremsen und Bremsproben im Eisenbahnbetrieb)</Text>
-                    <Text style={[styles.impressumBullet, { color: isDark ? '#e5e7eb' : '#4b5563' }]}>• VDV-Schrift 758 (Wagenprüfung im Güterverkehr)</Text>
-                    <Text style={[styles.impressumBullet, { color: isDark ? '#e5e7eb' : '#4b5563' }]}>• Ril 301 (Signalbuch der DB InfraGO AG)</Text>
-                    <Text style={[styles.impressumBullet, { color: isDark ? '#e5e7eb' : '#4b5563' }]}>• Ril 408 (Fahrdienstvorschrift) / FV-NE</Text>
-                  </View>
-
-                  {/* Haftungsausschluss */}
-                  <View style={{ marginBottom: 12 }}>
-                    <Text style={[styles.impressumTextBold, { color: colors.text }]}>Haftungsausschluss (Disclaimer):</Text>
-                    <Text style={[styles.impressumText, { color: colors.textMuted, marginTop: 2 }]}>
-                      Die in dieser Anwendung bereitgestellten Lerninhalte, Musterlösungen und Regelwerkszitate dienen ausschließlich als Ausbildungs- und Übungshilfe. Im praktischen Betriebsdienst sind stets die offiziellen und aktuell gültigen Regelwerke des zuständigen Eisenbahnverkehrsunternehmens (EVU) bzw. Infrastrukturbetreibers maßgebend.
-                    </Text>
-                  </View>
-
-                  {/* Urheberrecht */}
-                  <View>
-                    <Text style={[styles.impressumTextBold, { color: colors.text }]}>Urheberrecht:</Text>
-                    <Text style={[styles.impressumText, { color: colors.textMuted, marginTop: 2 }]}>
-                      © Dennis Köster. Alle Rechte an der Software und den redaktionellen Ausarbeitungen vorbehalten.
-                    </Text>
-                  </View>
-                </View>
-              )}
-            </View>
-          </>
+          </View>
         )}
       </ScrollView>
+
+      {/* KONTO LÖSCHEN: Bestätigung im Screen, „Abbrechen“ ist der sichere Standard */}
+      <ConfirmDialog
+        visible={deleteDialogVisible}
+        title="Konto endgültig löschen?"
+        message="Dein Benutzerkonto und alle deine persönlichen Daten (Lernfortschritte, Quiz-Ergebnisse, Chat-Beiträge) werden unwiderruflich gelöscht. Das kann nicht rückgängig gemacht werden."
+        confirmTitle="Konto endgültig löschen"
+        confirmLoadingTitle="Konto wird gelöscht …"
+        confirmIcon={Trash2}
+        destructive
+        loading={deletingAccount}
+        error={deleteError}
+        onConfirm={handleConfirmDeleteAccount}
+        onCancel={() => setDeleteDialogVisible(false)}
+      />
 
       {/* TICKET-SYSTEM MODAL */}
       <Modal
         visible={ticketModalVisible}
         animationType="slide"
         presentationStyle="pageSheet"
-        onRequestClose={() => {
-          setTicketModalVisible(false);
-          setShowTicketForm(false);
-          setTicketDropdownOpen(false);
-        }}
+        onRequestClose={closeTicketModal}
       >
-        <SafeAreaView style={[
-          styles.modalSafeArea, 
-          { backgroundColor: colors.background },
-          isTablet && { maxWidth: 780, width: '100%', alignSelf: 'center' }
-        ]}>
-          {/* Modal Header */}
-          <View style={[styles.modalHeader, { backgroundColor: colors.cardBg, borderBottomColor: colors.border }]}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, marginRight: 8 }}>
-              <LifeBuoy size={22} color={colors.primary} />
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.modalHeaderTitle, { color: colors.text }]} numberOfLines={1}>Support</Text>
-                <Text style={{ color: colors.textMuted, fontSize: 11 }} numberOfLines={1}>Ticketsystem</Text>
-              </View>
-            </View>
+        <SafeAreaView style={[styles.modalSafeArea, { backgroundColor: screenBg }]}>
+          {renderModalHeader('Support', closeTicketModal, 'Support schließen')}
 
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-              <TouchableOpacity
-                style={[
-                  styles.newTicketToggleBtn,
-                  { backgroundColor: showTicketForm ? colors.border : colors.primary }
-                ]}
-                onPress={() => {
-                  setShowTicketForm(!showTicketForm);
-                  setTicketDropdownOpen(false);
-                }}
-                activeOpacity={0.8}
-              >
-                <Text style={{ color: showTicketForm ? colors.text : '#ffffff', fontSize: 12, fontWeight: 'bold' }} numberOfLines={1}>
-                  {showTicketForm ? 'Übersicht' : '+ Ticket'}
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.modalCloseBtn, { backgroundColor: colors.background, borderColor: colors.border }]}
-                onPress={() => {
-                  setTicketModalVisible(false);
-                  setShowTicketForm(false);
-                  setTicketDropdownOpen(false);
-                }}
-              >
-                <X size={18} color={colors.text} />
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          <ScrollView 
+          <ScrollView
             automaticallyAdjustKeyboardInsets={true}
-            keyboardDismissMode="on-drag"
-            contentContainerStyle={[styles.modalScrollContent, { paddingBottom: dynamicKeyboardPadding ? dynamicKeyboardPadding + 32 : 32 }]} 
+            keyboardDismissMode={KEYBOARD_DISMISS_MODE}
+            contentContainerStyle={[
+              styles.modalScrollContent,
+              { paddingBottom: dynamicKeyboardPadding ? dynamicKeyboardPadding + 32 : 32 },
+            ]}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
-            {/* TICKET FORMULAR */}
-            {showTicketForm ? (
-              <View style={[styles.ticketFormBox, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
-                <Text style={[styles.secTitle, { color: colors.text, marginBottom: 12 }]}>Neues Ticket erstellen</Text>
-
-                <Text style={[styles.label, { color: colors.text }]}>Kategorie / Anliegen *</Text>
-                
-                {/* DROPDOWN TRIGGER */}
-                <TouchableOpacity
-                  style={[styles.dropdownTrigger, { backgroundColor: colors.background, borderColor: colors.border }]}
-                  onPress={() => setTicketDropdownOpen(!ticketDropdownOpen)}
-                >
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    {ticketType === 'exam_question' ? (
-                      <>
-                        <GraduationCap size={16} color="#8b5cf6" />
-                        <Text style={{ color: colors.text, fontWeight: 'bold', fontSize: 13 }}>🎓 Prüfungsfrage einreichen</Text>
-                      </>
-                    ) : ticketType === 'bug' ? (
-                      <>
-                        <Bug size={16} color="#ef4444" />
-                        <Text style={{ color: colors.text, fontWeight: 'bold', fontSize: 13 }}>🐞 Fehler melden</Text>
-                      </>
-                    ) : (
-                      <>
-                        <Lightbulb size={16} color="#3b82f6" />
-                        <Text style={{ color: colors.text, fontWeight: 'bold', fontSize: 13 }}>💡 Verbesserungsvorschlag</Text>
-                      </>
-                    )}
-                  </View>
-                  {ticketDropdownOpen ? <ChevronUp size={16} color={colors.textMuted} /> : <ChevronDown size={16} color={colors.textMuted} />}
-                </TouchableOpacity>
-
-                {/* DROPDOWN MENU ITEMS */}
-                {ticketDropdownOpen && (
-                  <View style={[styles.dropdownMenu, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
-                    <TouchableOpacity
-                      style={[
-                        styles.dropdownItem,
-                        ticketType === 'exam_question' && { backgroundColor: isDark ? '#3b0764' : '#ede9fe' }
-                      ]}
-                      onPress={() => {
-                        setTicketType('exam_question');
-                        setTicketDropdownOpen(false);
-                      }}
-                    >
-                      <GraduationCap size={16} color="#8b5cf6" />
-                      <View style={{ flex: 1 }}>
-                        <Text style={{ color: '#8b5cf6', fontWeight: 'bold', fontSize: 13 }}>🎓 Prüfungsfrage einreichen</Text>
-                        <Text style={{ color: colors.textMuted, fontSize: 11 }}>Frage aus Prüfung/Unterlagen fotografieren & einreichen</Text>
-                      </View>
-                      {ticketType === 'exam_question' && <Check size={16} color="#8b5cf6" />}
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={[
-                        styles.dropdownItem,
-                        ticketType === 'bug' && { backgroundColor: isDark ? '#374151' : '#fee2e2' },
-                        { borderTopWidth: 1, borderTopColor: colors.border }
-                      ]}
-                      onPress={() => {
-                        setTicketType('bug');
-                        setTicketDropdownOpen(false);
-                      }}
-                    >
-                      <Bug size={16} color="#ef4444" />
-                      <View style={{ flex: 1 }}>
-                        <Text style={{ color: '#ef4444', fontWeight: 'bold', fontSize: 13 }}>🐞 Fehler melden</Text>
-                        <Text style={{ color: colors.textMuted, fontSize: 11 }}>Falsche Frage, Tippfehler, Bug in der App</Text>
-                      </View>
-                      {ticketType === 'bug' && <Check size={16} color="#ef4444" />}
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={[
-                        styles.dropdownItem,
-                        ticketType === 'feature' && { backgroundColor: isDark ? '#374151' : '#dbeafe' },
-                        { borderTopWidth: 1, borderTopColor: colors.border }
-                      ]}
-                      onPress={() => {
-                        setTicketType('feature');
-                        setTicketDropdownOpen(false);
-                      }}
-                    >
-                      <Lightbulb size={16} color="#3b82f6" />
-                      <View style={{ flex: 1 }}>
-                        <Text style={{ color: '#2563eb', fontWeight: 'bold', fontSize: 13 }}>💡 Verbesserungsvorschlag</Text>
-                        <Text style={{ color: colors.textMuted, fontSize: 11 }}>Neue Lerninhalte, Funktionswünsche, Ideen</Text>
-                      </View>
-                      {ticketType === 'feature' && <Check size={16} color="#2563eb" />}
-                    </TouchableOpacity>
-                  </View>
-                )}
-
-                {/* TITEL */}
-                <Text style={[styles.label, { color: colors.text, marginTop: 12 }]}>Betreff / Titel *</Text>
-                <TextInput
-                  style={[styles.input, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
-                  placeholder={
-                    ticketType === 'exam_question' 
-                      ? 'z.B. Prüfungsfrage zu PZB Restriktiv / FV-NE...' 
-                      : ticketType === 'bug' 
-                      ? 'z.B. Fehler bei Quizfrage zur Bremsprobe...' 
-                      : 'z.B. Mehr Fragen zu ETCS Betriebsarten...'
-                  }
-                  placeholderTextColor={colors.textMuted}
-                  value={ticketTitle}
-                  onChangeText={setTicketTitle}
-                />
-
-                {/* BESCHREIBUNG */}
-                <Text style={[styles.label, { color: colors.text, marginTop: 12 }]}>Beschreibung / Frage *</Text>
-                <TextInput
-                  style={[
-                    styles.input, 
-                    { 
-                      backgroundColor: colors.background, 
-                      color: colors.text, 
-                      borderColor: colors.border,
-                      minHeight: 80,
-                      textAlignVertical: 'top',
-                      paddingTop: 10
-                    }
-                  ]}
-                  placeholder={
-                    ticketType === 'exam_question'
-                      ? 'Beschreibe die Frage oder den Kontext aus der Prüfung...'
-                      : 'Beschreibe dein Anliegen möglichst detailliert...'
-                  }
-                  placeholderTextColor={colors.textMuted}
-                  multiline
-                  scrollEnabled={false}
-                  value={ticketDescription}
-                  onChangeText={setTicketDescription}
-                />
-
-                {/* KAMERA & FOTO ANHANG */}
-                <Text style={[styles.label, { color: colors.text, marginTop: 12 }]}>
-                  Foto / Prüfungsunterlage (optional)
-                </Text>
-                <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
-                  <TouchableOpacity
-                    style={[styles.smallActionBtn, { flex: 1, backgroundColor: colors.background, borderColor: colors.border, borderWidth: 1 }]}
-                    onPress={handlePickTicketCamera}
-                  >
-                    <Camera size={16} color={colors.primary} style={{ marginRight: 6 }} />
-                    <Text style={{ color: colors.primary, fontWeight: 'bold', fontSize: 12 }}>Kamera (Foto)</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[styles.smallActionBtn, { flex: 1, backgroundColor: colors.background, borderColor: colors.border, borderWidth: 1 }]}
-                    onPress={handlePickTicketImage}
-                  >
-                    <ImageIcon size={16} color={colors.primary} style={{ marginRight: 6 }} />
-                    <Text style={{ color: colors.primary, fontWeight: 'bold', fontSize: 12 }}>Aus Galerie</Text>
-                  </TouchableOpacity>
-                </View>
-
-                {ticketImageUrl && (
-                  <View style={{ marginTop: 10, position: 'relative', borderRadius: 8, overflow: 'hidden', borderWidth: 1, borderColor: colors.border, backgroundColor: colors.background }}>
-                    <Image source={{ uri: ticketImageUrl }} style={{ width: '100%', height: 160 }} resizeMode="contain" />
-                    <TouchableOpacity
-                      style={{ position: 'absolute', top: 6, right: 6, backgroundColor: '#ef4444', padding: 6, borderRadius: 16 }}
-                      onPress={() => setTicketImageUrl(null)}
-                    >
-                      <X size={14} color="#ffffff" />
-                    </TouchableOpacity>
-                  </View>
-                )}
-
-                {/* SUBMIT BUTTON */}
-                <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
-                  <TouchableOpacity
-                    style={[styles.actionBtn, styles.cancelBtn, { borderColor: colors.border }]}
-                    onPress={() => {
-                      setShowTicketForm(false);
-                      setTicketDropdownOpen(false);
-                      setTicketImageUrl(null);
-                    }}
-                  >
-                    <Text style={{ color: colors.text }}>Abbrechen</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[styles.actionBtn, styles.saveBtn, { backgroundColor: colors.primary }]}
-                    onPress={handleCreateTicket}
+            <View style={styles.column}>
+              {showTicketForm ? (
+                /* TICKET FORMULAR */
+                <>
+                  <Button
+                    variant="text"
+                    icon={ChevronLeft}
+                    title="Zur Ticketübersicht"
+                    align="start"
+                    onPress={() => setShowTicketForm(false)}
                     disabled={submittingTicket}
-                  >
-                    <Send size={15} color="#ffffff" style={{ marginRight: 6 }} />
-                    <Text style={{ color: '#ffffff', fontWeight: 'bold' }}>
-                      {submittingTicket ? 'Wird gesendet...' : 'Ticket absenden'}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            ) : (
-              /* TICKET-LISTE (MEINE TICKETS) */
-              <View>
-                <Text style={[styles.subSecTitle, { color: colors.text, marginBottom: 12 }]}>
-                  Meine eingereichten Tickets ({tickets.length})
-                </Text>
+                  />
+                  <Heading level={2} style={styles.modalSectionTitle}>
+                    Neues Ticket
+                  </Heading>
 
-                {tickets.length === 0 ? (
-                  <View style={[styles.emptyTicketsBox, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
-                    <MessageSquare size={32} color={colors.textMuted} />
-                    <Text style={{ color: colors.text, fontSize: 14, fontWeight: 'bold', marginTop: 10 }}>
-                      Keine Tickets vorhanden
-                    </Text>
-                    <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: 4, textAlign: 'center', paddingHorizontal: 20 }}>
-                      Du hast bisher keine Tickets eingereicht. Klicke oben auf "+ Ticket", um Prüfungsfragen, Feedback oder Fehlermeldungen mit Foto zu senden.
-                    </Text>
-                  </View>
-                ) : (
-                  tickets.map((t) => {
-                    const isBug = t.type === 'bug';
-                    const isExam = t.type === 'exam_question';
-                    const isPwdReset = t.type === 'password_reset';
-                    const isResolved = t.status === 'resolved';
-                    const isInProgress = t.status === 'in_progress';
-
-                    return (
-                      <View 
-                        key={t.id} 
-                        style={[styles.ticketCard, { backgroundColor: colors.cardBg, borderColor: colors.border }]}
-                      >
-                        {/* Header: Typ-Badge + Status-Badge */}
-                        <View style={styles.ticketCardHeader}>
-                          <View style={[
-                            styles.ticketTypeBadge, 
-                            { 
-                              backgroundColor: isDark 
-                                ? (isPwdReset ? '#78350f' : isExam ? '#4c1d95' : isBug ? '#7f1d1d' : '#1e3a8a') 
-                                : (isPwdReset ? '#fef3c7' : isExam ? '#ede9fe' : isBug ? '#fee2e2' : '#dbeafe') 
-                            }
-                          ]}>
-                            {isPwdReset ? (
-                              <KeyRound size={12} color={isDark ? '#fde68a' : '#d97706'} />
-                            ) : isExam ? (
-                              <GraduationCap size={12} color={isDark ? '#c4b5fd' : '#7c3aed'} />
-                            ) : isBug ? (
-                              <Bug size={12} color={isDark ? '#fca5a5' : '#dc2626'} />
-                            ) : (
-                              <Lightbulb size={12} color={isDark ? '#93c5fd' : '#2563eb'} />
-                            )}
-                            <Text style={{ 
-                              color: isDark 
-                                ? (isPwdReset ? '#fde68a' : isExam ? '#c4b5fd' : isBug ? '#fca5a5' : '#93c5fd') 
-                                : (isPwdReset ? '#d97706' : isExam ? '#7c3aed' : isBug ? '#dc2626' : '#2563eb'), 
-                              fontSize: 11, 
-                              fontWeight: 'bold',
-                              marginLeft: 4 
-                            }}>
-                              {isPwdReset ? 'Passwort-Reset' : isExam ? 'Prüfungsfrage' : isBug ? 'Fehler' : 'Vorschlag'}
-                            </Text>
-                          </View>
-
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                            <View style={[
-                              styles.ticketStatusBadge,
-                              { 
-                                backgroundColor: isDark 
-                                ? (isResolved ? '#064e3b' : (isInProgress ? '#1e3a8a' : '#78350f')) 
-                                : (isResolved ? '#d1fae5' : (isInProgress ? '#dbeafe' : '#fef3c7'))
-                              }
-                            ]}>
-                              {isResolved ? (
-                                <CheckCircle2 size={11} color={isDark ? '#6ee7b7' : '#059669'} />
-                              ) : isInProgress ? (
-                                <Clock size={11} color={isDark ? '#93c5fd' : '#2563eb'} />
-                              ) : (
-                                <AlertCircle size={11} color={isDark ? '#fde68a' : '#d97706'} />
-                              )}
-                              <Text style={{
-                                color: isDark 
-                                  ? (isResolved ? '#6ee7b7' : (isInProgress ? '#93c5fd' : '#fde68a')) 
-                                  : (isResolved ? '#059669' : (isInProgress ? '#2563eb' : '#d97706')),
-                                fontSize: 10,
-                                fontWeight: 'bold',
-                                marginLeft: 3
-                              }}>
-                                {isResolved ? 'Beantwortet' : (isInProgress ? 'In Bearbeitung' : 'Offen')}
-                              </Text>
-                            </View>
-
-                            <TouchableOpacity onPress={() => handleDeleteTicket(t.id)}>
-                              <Trash2 size={14} color={colors.textMuted} />
-                            </TouchableOpacity>
-                          </View>
-                        </View>
-
-                        {/* Title & Description */}
-                        <Text style={[styles.ticketTitleText, { color: colors.text }]}>{t.title}</Text>
-                        <Text style={[styles.ticketDescText, { color: isDark ? '#e5e7eb' : '#4b5563' }]}>{t.description}</Text>
-
-                        {/* Foto-Anhang Vorschau */}
-                        {t.imageUrl && (
-                          <TouchableOpacity 
-                            style={{ marginTop: 8, borderRadius: 8, overflow: 'hidden', borderWidth: 1, borderColor: colors.border, backgroundColor: colors.background }}
-                            onPress={() => setPreviewModalImage(t.imageUrl || null)}
-                            activeOpacity={0.8}
+                  <Heading level={3} style={styles.subHeadingTight}>
+                    Worum geht es?
+                  </Heading>
+                  <View role="radiogroup" accessibilityLabel="Worum geht es?" style={styles.radioGroup}>
+                    {TICKET_TYPES.map((option) => {
+                      const selected = ticketType === option.id;
+                      const OptionIcon = option.icon;
+                      return (
+                        <Pressable
+                          key={option.id}
+                          onPress={() => setTicketType(option.id)}
+                          accessibilityRole="radio"
+                          accessibilityState={{ checked: selected }}
+                          aria-checked={selected}
+                          style={({ pressed }) => [
+                            styles.radioRow,
+                            { borderTopColor: colors.border },
+                            pressed && { backgroundColor: colors.buttonSecondaryPressedBg },
+                          ]}
+                        >
+                          <View
+                            aria-hidden
+                            style={[styles.radioOuter, { borderColor: selected ? colors.primary : colors.fieldBorder }]}
                           >
-                            <Image source={{ uri: t.imageUrl }} style={{ width: '100%', height: 140 }} resizeMode="cover" />
-                            <View style={{ position: 'absolute', bottom: 6, right: 6, backgroundColor: '#00000088', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 }}>
-                              <Text style={{ color: '#ffffff', fontSize: 10, fontWeight: 'bold' }}>🔍 Antippen zum Vergrößern</Text>
-                            </View>
-                          </TouchableOpacity>
-                        )}
-
-                        <Text style={[styles.ticketDateText, { color: colors.textMuted, marginTop: 8 }]}>
-                          📅 {new Date(t.createdAt).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                        </Text>
-
-                        {/* Ausbilder-Antwort (falls vorhanden) */}
-                        {t.response && (
-                          <View style={[styles.ticketResponseBox, { backgroundColor: isDark ? '#064e3b20' : '#ecfdf5', borderColor: '#10b981' }]}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                              <CheckCircle2 size={14} color="#10b981" />
-                              <Text style={{ color: '#10b981', fontWeight: 'bold', fontSize: 12 }}>
-                                Antwort von {t.responderName} [{t.responderRole || 'Ausbilder'}]:
-                              </Text>
-                            </View>
-                            <Text style={[styles.ticketResponseText, { color: colors.text }]}>
-                              {t.response}
-                            </Text>
-                            {t.respondedAt && (
-                              <Text style={{ color: colors.textMuted, fontSize: 10, marginTop: 4 }}>
-                                {new Date(t.respondedAt).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                              </Text>
-                            )}
+                            {selected ? <View style={[styles.radioInner, { backgroundColor: colors.primary }]} /> : null}
                           </View>
-                        )}
-                      </View>
-                    );
-                  })
-                )}
-              </View>
-            )}
+                          <View style={styles.flex}>
+                            <Text style={[styles.radioTitle, { color: colors.text }]}>{option.title}</Text>
+                            <Text style={[styles.radioDescription, { color: colors.textMuted }]}>
+                              {option.description}
+                            </Text>
+                          </View>
+                          <View aria-hidden>
+                            <OptionIcon size={22} color={colors.textMuted} />
+                          </View>
+                        </Pressable>
+                      );
+                    })}
+                    <View style={[styles.divider, { backgroundColor: colors.border }]} />
+                  </View>
+
+                  <TextField
+                    ref={ticketTitleRef}
+                    label="Betreff"
+                    placeholder={
+                      ticketType === 'exam_question'
+                        ? 'z. B. Prüfungsfrage zu PZB Restriktiv / FV-NE'
+                        : ticketType === 'bug'
+                          ? 'z. B. Fehler bei Quizfrage zur Bremsprobe'
+                          : 'z. B. Mehr Fragen zu ETCS-Betriebsarten'
+                    }
+                    value={ticketTitle}
+                    onChangeText={(value) => {
+                      setTicketTitle(value);
+                      clearTicketError('title');
+                    }}
+                    error={ticketErrors.title}
+                    returnKeyType="next"
+                    submitBehavior="submit"
+                    onSubmitEditing={() => ticketDescriptionRef.current?.focus()}
+                    containerStyle={styles.ticketFirstField}
+                  />
+                  <TextField
+                    ref={ticketDescriptionRef}
+                    label="Beschreibung"
+                    placeholder={
+                      ticketType === 'exam_question'
+                        ? 'Beschreibe die Frage oder den Kontext aus der Prüfung'
+                        : 'Beschreibe dein Anliegen möglichst genau'
+                    }
+                    multiline
+                    scrollEnabled={false}
+                    value={ticketDescription}
+                    onChangeText={(value) => {
+                      setTicketDescription(value);
+                      clearTicketError('description');
+                    }}
+                    error={ticketErrors.description}
+                  />
+
+                  <Text style={[styles.fieldLabel, { color: colors.text }]}>Foto (optional)</Text>
+                  <View style={styles.photoActions}>
+                    <Button
+                      variant="secondary"
+                      icon={Camera}
+                      title="Foto aufnehmen"
+                      onPress={handlePickTicketCamera}
+                      style={styles.photoActionButton}
+                    />
+                    <Button
+                      variant="secondary"
+                      icon={ImageIcon}
+                      title="Aus Galerie wählen"
+                      onPress={handlePickTicketImage}
+                      style={styles.photoActionButton}
+                    />
+                  </View>
+
+                  {ticketImageUrl && (
+                    <View style={styles.ticketImagePreview}>
+                      <Image
+                        source={{ uri: ticketImageUrl }}
+                        style={[styles.ticketImage, { borderColor: colors.border }]}
+                        resizeMode="contain"
+                        accessibilityLabel="Angehängtes Foto"
+                        accessibilityIgnoresInvertColors
+                      />
+                      <Button variant="secondary" icon={X} title="Foto entfernen" onPress={() => setTicketImageUrl(null)} />
+                    </View>
+                  )}
+
+                  <StatusMessage status={ticketFormStatus} />
+                  <View style={styles.formActions}>
+                    <Button
+                      variant="secondary"
+                      title="Abbrechen"
+                      onPress={() => {
+                        setShowTicketForm(false);
+                        setTicketImageUrl(null);
+                        setTicketErrors({});
+                        setTicketFormStatus(null);
+                      }}
+                      disabled={submittingTicket}
+                      style={styles.formActionButton}
+                    />
+                    <Button
+                      title="Ticket senden"
+                      loadingTitle="Wird gesendet …"
+                      loading={submittingTicket}
+                      onPress={handleCreateTicket}
+                      style={styles.formActionButton}
+                    />
+                  </View>
+                </>
+              ) : (
+                /* TICKET-LISTE (MEINE TICKETS) */
+                <>
+                  <Text style={[styles.bodyText, { color: colors.textMuted }]}>
+                    Fehler melden, Vorschläge machen oder Prüfungsfragen mit Foto einreichen. Die Antworten des Ausbilder-Teams findest du hier.
+                  </Text>
+                  <Button
+                    icon={Plus}
+                    title="Neues Ticket erstellen"
+                    onPress={() => {
+                      setTicketListStatus(null);
+                      setShowTicketForm(true);
+                    }}
+                    style={styles.newTicketButton}
+                  />
+                  <StatusMessage status={ticketListStatus} />
+
+                  <Heading level={2} style={styles.modalSectionTitle}>
+                    Deine Tickets ({tickets.length})
+                  </Heading>
+
+                  {tickets.length === 0 ? (
+                    <Text style={[styles.bodyText, styles.emptyText, { color: colors.textMuted }]}>
+                      Du hast bisher keine Tickets eingereicht.
+                    </Text>
+                  ) : (
+                    <View style={styles.itemList}>
+                      {tickets.map((t) => {
+                        const typeMeta = getTicketTypeMeta(t.type);
+                        const statusMeta = getTicketStatusMeta(t.status);
+                        const TypeIcon = typeMeta.Icon;
+                        const StatusIcon = statusMeta.Icon;
+                        const isPendingDelete = ticketPendingDelete === t.id;
+
+                        return (
+                          <View key={t.id} style={[styles.listItem, { borderTopColor: colors.border }]}>
+                            <View style={styles.itemHeader}>
+                              <View style={styles.itemMeta}>
+                                <View style={styles.metaItem}>
+                                  <View aria-hidden>
+                                    <TypeIcon size={16} color={typeMeta.color} />
+                                  </View>
+                                  <Text style={[styles.metaText, { color: typeMeta.color }]}>{typeMeta.label}</Text>
+                                </View>
+                                <View style={styles.metaItem}>
+                                  <View aria-hidden>
+                                    <StatusIcon size={16} color={statusMeta.color} />
+                                  </View>
+                                  <Text style={[styles.metaText, { color: statusMeta.color }]}>{statusMeta.label}</Text>
+                                </View>
+                              </View>
+                              <Pressable
+                                onPress={() => setTicketPendingDelete(isPendingDelete ? null : t.id)}
+                                accessibilityRole="button"
+                                accessibilityLabel={`Ticket „${t.title}“ löschen`}
+                                accessibilityState={{ expanded: isPendingDelete }}
+                                aria-expanded={isPendingDelete}
+                                style={({ pressed }) => [
+                                  styles.iconButton,
+                                  pressed && { backgroundColor: colors.buttonSecondaryPressedBg },
+                                ]}
+                              >
+                                <Trash2 size={20} color={colors.textMuted} />
+                              </Pressable>
+                            </View>
+
+                            <Text style={[styles.itemTitle, { color: colors.text }]}>{t.title}</Text>
+                            <Text style={[styles.bodyText, { color: colors.text }]}>{t.description}</Text>
+
+                            {t.imageUrl && (
+                              <Pressable
+                                onPress={() => setPreviewModalImage(t.imageUrl || null)}
+                                accessibilityRole="button"
+                                accessibilityLabel="Foto zum Ticket vergrößern"
+                                style={({ pressed }) => [
+                                  styles.ticketThumb,
+                                  { borderColor: colors.border },
+                                  pressed && styles.pressed,
+                                ]}
+                              >
+                                <Image
+                                  source={{ uri: t.imageUrl }}
+                                  style={styles.ticketThumbImage}
+                                  resizeMode="cover"
+                                  accessibilityIgnoresInvertColors
+                                />
+                              </Pressable>
+                            )}
+
+                            <Text style={[styles.itemFootnote, { color: colors.textMuted }]}>
+                              Erstellt am {formatDateTime(t.createdAt)}
+                            </Text>
+
+                            {/* Ausbilder-Antwort (falls vorhanden) */}
+                            {t.response && (
+                              <View style={[styles.responseBlock, { borderLeftColor: colors.successText }]}>
+                                <Text style={[styles.responseTitle, { color: colors.successText }]}>
+                                  Antwort von {t.responderName} ({t.responderRole || 'Ausbilder'})
+                                </Text>
+                                <Text style={[styles.bodyText, { color: colors.text }]}>{t.response}</Text>
+                                {t.respondedAt && (
+                                  <Text style={[styles.itemFootnote, { color: colors.textMuted }]}>
+                                    {formatDateTime(t.respondedAt)}
+                                  </Text>
+                                )}
+                              </View>
+                            )}
+
+                            {isPendingDelete ? (
+                              <View style={styles.inlineConfirm}>
+                                <Text style={[styles.bodyText, styles.inlineConfirmText, { color: colors.text }]}>
+                                  Möchtest du dieses Ticket wirklich entfernen?
+                                </Text>
+                                <View style={styles.formActions}>
+                                  <Button
+                                    variant="secondary"
+                                    title="Abbrechen"
+                                    onPress={() => setTicketPendingDelete(null)}
+                                    disabled={deletingTicket}
+                                    style={styles.formActionButton}
+                                  />
+                                  <Button
+                                    variant="destructive"
+                                    title="Ticket löschen"
+                                    loadingTitle="Wird gelöscht …"
+                                    loading={deletingTicket}
+                                    onPress={() => handleDeleteTicket(t.id)}
+                                    style={styles.formActionButton}
+                                  />
+                                </View>
+                              </View>
+                            ) : null}
+                          </View>
+                        );
+                      })}
+                      <View style={[styles.divider, { backgroundColor: colors.border }]} />
+                    </View>
+                  )}
+                </>
+              )}
+            </View>
           </ScrollView>
         </SafeAreaView>
       </Modal>
@@ -1528,21 +1549,33 @@ export default function ProfileScreen() {
         animationType="fade"
         onRequestClose={() => setPreviewModalImage(null)}
       >
-        <TouchableOpacity 
-          style={{ flex: 1, backgroundColor: '#000000dd', justifyContent: 'center', alignItems: 'center', padding: 16 }}
-          activeOpacity={1}
-          onPress={() => setPreviewModalImage(null)}
-        >
-          <TouchableOpacity 
-            style={{ position: 'absolute', top: 50, right: 20, backgroundColor: '#ffffff33', padding: 8, borderRadius: 20, zIndex: 10 }}
+        <SafeAreaView style={styles.previewBackdrop}>
+          {/* Tipp auf den Hintergrund schließt ebenfalls; für Screenreader gibt es den Schließen-Button */}
+          <Pressable
+            style={StyleSheet.absoluteFill}
             onPress={() => setPreviewModalImage(null)}
-          >
-            <X size={24} color="#ffffff" />
-          </TouchableOpacity>
+            accessible={false}
+            focusable={false}
+            importantForAccessibility="no"
+          />
           {previewModalImage && (
-            <Image source={{ uri: previewModalImage }} style={{ width: '100%', height: '80%' }} resizeMode="contain" />
+            <Image
+              source={{ uri: previewModalImage }}
+              style={styles.previewImage}
+              resizeMode="contain"
+              accessibilityLabel="Foto zum Ticket"
+              accessibilityIgnoresInvertColors
+            />
           )}
-        </TouchableOpacity>
+          <Pressable
+            onPress={() => setPreviewModalImage(null)}
+            accessibilityRole="button"
+            accessibilityLabel="Vorschau schließen"
+            style={({ pressed }) => [styles.previewClose, pressed && styles.pressed]}
+          >
+            <X size={28} color="#ffffff" />
+          </Pressable>
+        </SafeAreaView>
       </Modal>
 
       {/* CREATE FACT MODAL */}
@@ -1570,169 +1603,80 @@ export default function ProfileScreen() {
         transparent={false}
         onRequestClose={() => setSubmissionsModalVisible(false)}
       >
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
-          <View style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            paddingHorizontal: 16,
-            paddingVertical: 14,
-            borderBottomWidth: 1,
-            borderBottomColor: colors.border,
-            backgroundColor: colors.cardBg
-          }}>
-            <View>
-              <Text style={{ fontSize: 18, fontWeight: 'bold', color: colors.text }}>
-                Deine Einreichungen
+        <SafeAreaView style={[styles.modalSafeArea, { backgroundColor: screenBg }]}>
+          {renderModalHeader('Deine Einreichungen', () => setSubmissionsModalVisible(false), 'Einreichungen schließen')}
+
+          <ScrollView contentContainerStyle={styles.modalScrollContent}>
+            <View style={styles.column}>
+              <Text style={[styles.bodyText, { color: colors.textMuted }]}>
+                Übersicht deiner eingereichten Lernkarten und Quizfragen.
               </Text>
-              <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 2 }}>
-                Übersicht deiner eingereichten Lernkarten & Quizfragen
-              </Text>
+
+              {/* LERNKARTEN */}
+              <Heading level={2} style={styles.modalSectionTitle}>
+                Lernkarten ({userSubmissions.facts.length})
+              </Heading>
+              {userSubmissions.facts.length === 0 ? (
+                <Text style={[styles.bodyText, styles.emptyText, { color: colors.textMuted }]}>
+                  Noch keine Lernkarten eingereicht.
+                </Text>
+              ) : (
+                <View style={styles.itemList}>
+                  {userSubmissions.facts.map(f => (
+                    <View key={f.id} style={[styles.listItem, { borderTopColor: colors.border }]}>
+                      <View style={styles.itemMeta}>
+                        <Text style={[styles.metaText, { color: colors.primary }]}>{f.category}</Text>
+                        {renderVerification(f.isVerified)}
+                      </View>
+                      <Text style={[styles.itemTitle, { color: colors.text }]}>{f.title}</Text>
+                      <Text style={[styles.bodyText, { color: colors.textMuted }]} numberOfLines={3}>
+                        {f.content}
+                      </Text>
+                      {f.reference && (
+                        <Text style={[styles.itemFootnote, { color: colors.textMuted }]}>Quelle: {f.reference}</Text>
+                      )}
+                      {f.isVerified && f.verifiedByName && (
+                        <Text style={[styles.itemFootnote, { color: colors.successText }]}>
+                          Geprüft und freigegeben von: {f.verifiedByName}
+                        </Text>
+                      )}
+                    </View>
+                  ))}
+                  <View style={[styles.divider, { backgroundColor: colors.border }]} />
+                </View>
+              )}
+
+              {/* QUIZFRAGEN */}
+              <Heading level={2} style={styles.modalSectionTitle}>
+                Quizfragen ({userSubmissions.questions.length})
+              </Heading>
+              {userSubmissions.questions.length === 0 ? (
+                <Text style={[styles.bodyText, styles.emptyText, { color: colors.textMuted }]}>
+                  Noch keine Quizfragen eingereicht.
+                </Text>
+              ) : (
+                <View style={styles.itemList}>
+                  {userSubmissions.questions.map(q => (
+                    <View key={q.id} style={[styles.listItem, { borderTopColor: colors.border }]}>
+                      <View style={styles.itemMeta}>
+                        <Text style={[styles.metaText, { color: colors.primary }]}>{q.category}</Text>
+                        {renderVerification(q.isVerified)}
+                      </View>
+                      <Text style={[styles.itemTitle, { color: colors.text }]}>{q.text}</Text>
+                      <Text style={[styles.bodyText, { color: colors.textMuted }]}>
+                        {q.options?.length} Antwortmöglichkeiten ({q.questionType === 'order' ? 'Reihenfolge' : q.questionType === 'multiple' ? 'Multiple Choice' : 'Single Choice'})
+                      </Text>
+                      {q.isVerified && q.verifiedByName && (
+                        <Text style={[styles.itemFootnote, { color: colors.successText }]}>
+                          Geprüft und freigegeben von: {q.verifiedByName}
+                        </Text>
+                      )}
+                    </View>
+                  ))}
+                  <View style={[styles.divider, { backgroundColor: colors.border }]} />
+                </View>
+              )}
             </View>
-            <TouchableOpacity
-              onPress={() => setSubmissionsModalVisible(false)}
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: 18,
-                backgroundColor: isDark ? '#374151' : '#f3f4f6',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}
-            >
-              <X size={20} color={colors.text} />
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
-            {/* LERNKARTEN ABSCHNITT */}
-            <Text style={{ fontSize: 15, fontWeight: 'bold', color: colors.text, marginBottom: 10 }}>
-              📚 Eingereichte Lernkarten ({userSubmissions.facts.length})
-            </Text>
-            {userSubmissions.facts.length === 0 ? (
-              <Text style={{ color: colors.textMuted, fontSize: 13, fontStyle: 'italic', marginBottom: 20 }}>
-                Noch keine Lernkarten eingereicht.
-              </Text>
-            ) : (
-              <View style={{ gap: 10, marginBottom: 24 }}>
-                {userSubmissions.facts.map(f => (
-                  <View
-                    key={f.id}
-                    style={{
-                      backgroundColor: colors.cardBg,
-                      borderWidth: 1,
-                      borderColor: colors.border,
-                      borderRadius: 12,
-                      padding: 14
-                    }}
-                  >
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                      <View style={{ backgroundColor: colors.primary + '18', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 }}>
-                        <Text style={{ color: colors.primary, fontSize: 11, fontWeight: 'bold' }}>{f.category}</Text>
-                      </View>
-                      <View style={{
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        gap: 4,
-                        backgroundColor: f.isVerified ? '#10b98120' : '#f59e0b20',
-                        paddingHorizontal: 8,
-                        paddingVertical: 3,
-                        borderRadius: 6
-                      }}>
-                        {f.isVerified ? (
-                          <>
-                            <CheckCircle2 size={13} color="#10b981" />
-                            <Text style={{ color: '#10b981', fontSize: 11, fontWeight: 'bold' }}>Freigegeben</Text>
-                          </>
-                        ) : (
-                          <>
-                            <Clock size={13} color="#f59e0b" />
-                            <Text style={{ color: '#f59e0b', fontSize: 11, fontWeight: 'bold' }}>In Prüfung</Text>
-                          </>
-                        )}
-                      </View>
-                    </View>
-
-                    <Text style={{ fontSize: 15, fontWeight: 'bold', color: colors.text }}>{f.title}</Text>
-                    <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: 4 }} numberOfLines={3}>{f.content}</Text>
-                    
-                    {f.reference && (
-                      <Text style={{ fontSize: 11, color: colors.primary, marginTop: 6, fontStyle: 'italic' }}>
-                        Quelle: {f.reference}
-                      </Text>
-                    )}
-                    {f.isVerified && f.verifiedByName && (
-                      <Text style={{ fontSize: 11, color: '#10b981', marginTop: 4 }}>
-                        🛡️ Geprüft & freigegeben von: {f.verifiedByName}
-                      </Text>
-                    )}
-                  </View>
-                ))}
-              </View>
-            )}
-
-            {/* QUIZFRAGEN ABSCHNITT */}
-            <Text style={{ fontSize: 15, fontWeight: 'bold', color: colors.text, marginBottom: 10 }}>
-              🎯 Eingereichte Quizfragen ({userSubmissions.questions.length})
-            </Text>
-            {userSubmissions.questions.length === 0 ? (
-              <Text style={{ color: colors.textMuted, fontSize: 13, fontStyle: 'italic', marginBottom: 20 }}>
-                Noch keine Quizfragen eingereicht.
-              </Text>
-            ) : (
-              <View style={{ gap: 10 }}>
-                {userSubmissions.questions.map(q => (
-                  <View
-                    key={q.id}
-                    style={{
-                      backgroundColor: colors.cardBg,
-                      borderWidth: 1,
-                      borderColor: colors.border,
-                      borderRadius: 12,
-                      padding: 14
-                    }}
-                  >
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                      <View style={{ backgroundColor: colors.primary + '18', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 }}>
-                        <Text style={{ color: colors.primary, fontSize: 11, fontWeight: 'bold' }}>{q.category}</Text>
-                      </View>
-                      <View style={{
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        gap: 4,
-                        backgroundColor: q.isVerified ? '#10b98120' : '#f59e0b20',
-                        paddingHorizontal: 8,
-                        paddingVertical: 3,
-                        borderRadius: 6
-                      }}>
-                        {q.isVerified ? (
-                          <>
-                            <CheckCircle2 size={13} color="#10b981" />
-                            <Text style={{ color: '#10b981', fontSize: 11, fontWeight: 'bold' }}>Freigegeben</Text>
-                          </>
-                        ) : (
-                          <>
-                            <Clock size={13} color="#f59e0b" />
-                            <Text style={{ color: '#f59e0b', fontSize: 11, fontWeight: 'bold' }}>In Prüfung</Text>
-                          </>
-                        )}
-                      </View>
-                    </View>
-
-                    <Text style={{ fontSize: 14, fontWeight: 'bold', color: colors.text }}>{q.text}</Text>
-                    <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 4 }}>
-                      {q.options?.length} Antwortmöglichkeiten ({q.questionType === 'order' ? 'Reihenfolge' : q.questionType === 'multiple' ? 'Multiple Choice' : 'Single Choice'})
-                    </Text>
-
-                    {q.isVerified && q.verifiedByName && (
-                      <Text style={{ fontSize: 11, color: '#10b981', marginTop: 4 }}>
-                        🛡️ Geprüft & freigegeben von: {q.verifiedByName}
-                      </Text>
-                    )}
-                  </View>
-                ))}
-              </View>
-            )}
           </ScrollView>
         </SafeAreaView>
       </Modal>
@@ -1744,210 +1688,277 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  flex: {
+    flex: 1,
+  },
   scrollContent: {
-    padding: 16,
-    gap: 16,
+    paddingHorizontal: SCREEN_PADDING,
+    paddingTop: 24,
   },
-  profileCard: {
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
+  column: {
+    width: '100%',
+    maxWidth: CONTENT_MAX_WIDTH,
+    alignSelf: 'center',
   },
-  cardHeader: {
+  pressed: {
+    opacity: 0.7,
+  },
+
+  // Profil
+  profileHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 16,
   },
-  avatarWrapper: {
-    position: 'relative',
-    width: 64,
-    height: 64,
+  avatarButton: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
   },
-  avatarContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+  avatar: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
     overflow: 'hidden',
   },
-  avatarCameraBadge: {
-    position: 'absolute',
-    bottom: -2,
-    right: -2,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#ffffff',
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-  },
   avatarImg: {
     width: '100%',
     height: '100%',
   },
-  avatarEmoji: {
-    fontSize: 36,
-  },
-  userInfo: {
-    flex: 1,
-    gap: 4,
-  },
-  userName: {
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  userEmail: {
-    fontSize: 13,
-  },
-  badge: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  badgeText: {
-    fontSize: 10,
-    fontWeight: 'bold',
-  },
-  editToggleBtn: {
-    marginTop: 16,
-    flexDirection: 'row',
+  avatarBadge: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 10,
-    borderRadius: 8,
   },
-  editToggleText: {
-    color: '#ffffff',
-    fontWeight: 'bold',
-    fontSize: 13,
+  identity: {
+    flex: 1,
+    minWidth: 0,
   },
-  editPanel: {
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
+  userName: {
+    fontSize: 24,
+    lineHeight: 30,
   },
-  panelTitle: {
+  userEmail: {
+    fontSize: 16,
+    lineHeight: 22,
+    marginTop: 2,
+  },
+  userRole: {
     fontSize: 15,
-    fontWeight: 'bold',
+    lineHeight: 22,
+    fontWeight: '500',
+    marginTop: 2,
+  },
+  editButton: {
+    marginTop: 16,
+  },
+  editForm: {
+    marginTop: 24,
+    paddingTop: 24,
+    borderTopWidth: 1,
+  },
+  firstField: {
+    marginTop: 16,
+  },
+  fieldLabel: {
+    fontSize: 15,
+    lineHeight: 20,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  fieldLabelSpaced: {
+    marginTop: 24,
+  },
+  avatarPickRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
     marginBottom: 12,
   },
-  label: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    marginBottom: 6,
-  },
-  input: {
+  avatarSmall: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 14,
+    overflow: 'hidden',
   },
   presetsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
-    marginBottom: 12,
   },
   presetBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 52,
+    height: 52,
+    borderRadius: RADIUS,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  galleryBtn: {
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderWidth: 1,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
+  presetEmoji: {
+    fontSize: 26,
   },
-  actionBtnRow: {
+  formActions: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexWrap: 'wrap',
     gap: 12,
-    marginTop: 20,
+    marginTop: 24,
   },
-  actionBtn: {
-    flex: 1,
+  formActionButton: {
+    flexGrow: 1,
+    flexBasis: 140,
+  },
+
+  // Ausbildung
+  chips: {
     flexDirection: 'row',
-    paddingVertical: 11,
-    borderRadius: 8,
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 12,
+  },
+  chip: {
+    minHeight: MIN_TOUCH_TARGET,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: RADIUS,
+    borderWidth: 1,
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
     gap: 6,
   },
-  cancelBtn: {
-    borderWidth: 1,
+  chipText: {
+    fontSize: 16,
+    lineHeight: 22,
+    fontWeight: '600',
   },
-  saveBtn: {
-    backgroundColor: '#16a34a',
-  },
-  section: {
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-  },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  secTitle: {
-    fontSize: 15,
-    fontWeight: 'bold',
+  titleField: {
     marginBottom: 12,
   },
-  subSecTitle: {
-    fontSize: 13,
-    fontWeight: 'bold',
-    marginBottom: 8,
+  subHeading: {
+    marginTop: 24,
   },
-  ticketCompactCard: {
+  subHeadingTight: {
+    marginTop: 16,
+  },
+  stats: {
     flexDirection: 'row',
-    alignItems: 'center',
-    padding: 14,
-    borderRadius: 12,
-    borderWidth: 1,
+    flexWrap: 'wrap',
+    gap: 16,
+    marginTop: 12,
   },
-  ticketCompactIconBg: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
+  stat: {
+    flexGrow: 1,
+    flexBasis: 140,
   },
-  ticketCompactTitle: {
+  statLabel: {
     fontSize: 15,
-    fontWeight: 'bold',
+    lineHeight: 20,
   },
-  ticketCompactSubtitle: {
-    fontSize: 12,
+  statValue: {
+    fontSize: 24,
+    lineHeight: 30,
+    fontWeight: '700',
     marginTop: 2,
   },
-  ticketCountBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 10,
+
+  // Allgemein
+  bodyText: {
+    fontSize: 15,
+    lineHeight: 22,
   },
-  ticketCountBadgeText: {
-    color: '#ffffff',
-    fontSize: 10,
-    fontWeight: 'bold',
+  rowStatus: {
+    marginBottom: 12,
   },
+  divider: {
+    height: 1,
+    marginHorizontal: -8,
+  },
+
+  // Rechtliches
+  legalBody: {
+    paddingTop: 4,
+    paddingBottom: 16,
+  },
+  legalLabel: {
+    fontSize: 15,
+    lineHeight: 22,
+    fontWeight: '600',
+  },
+  legalLabelSpaced: {
+    marginTop: 16,
+  },
+  legalText: {
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  legalParagraph: {
+    marginTop: 8,
+  },
+  legalStatus: {
+    marginTop: 4,
+  },
+  linkButton: {
+    minHeight: MIN_TOUCH_TARGET,
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 8,
+    marginTop: 4,
+  },
+  linkText: {
+    fontSize: 16,
+    lineHeight: 22,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
+  },
+  bulletRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    marginBottom: 6,
+  },
+  bulletDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginTop: 8,
+  },
+  bulletText: {
+    flex: 1,
+  },
+
+  // Konto
+  dangerZone: {
+    marginTop: 24,
+    paddingTop: 24,
+    borderTopWidth: 1,
+  },
+  dangerText: {
+    marginTop: 4,
+    marginBottom: 16,
+  },
+  footer: {
+    marginTop: 40,
+    alignItems: 'center',
+    gap: 2,
+  },
+  footerText: {
+    fontSize: 13,
+    lineHeight: 18,
+    textAlign: 'center',
+  },
+
+  // Modals
   modalSafeArea: {
     flex: 1,
   },
@@ -1955,205 +1966,185 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    gap: 12,
+    paddingLeft: SCREEN_PADDING,
+    paddingRight: 8,
+    paddingVertical: 8,
     borderBottomWidth: 1,
   },
-  modalHeaderTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
+  modalTitle: {
+    flex: 1,
+    fontSize: 24,
+    lineHeight: 30,
   },
-  modalCloseBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    borderWidth: 1,
+  iconButton: {
+    width: MIN_TOUCH_TARGET,
+    height: MIN_TOUCH_TARGET,
+    borderRadius: RADIUS,
     alignItems: 'center',
     justifyContent: 'center',
   },
   modalScrollContent: {
-    padding: 16,
+    paddingHorizontal: SCREEN_PADDING,
+    paddingTop: 16,
     paddingBottom: 40,
   },
-  newTicketToggleBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 8,
-    backgroundColor: '#16a34a',
+  modalSectionTitle: {
+    marginTop: 24,
   },
-  smallActionBtn: {
+  newTicketButton: {
+    marginTop: 16,
+  },
+  radioGroup: {
+    marginTop: 8,
+  },
+  radioRow: {
+    minHeight: 56,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 11,
-    paddingHorizontal: 14,
-    borderRadius: 8,
-  },
-  ticketFormBox: {
-    padding: 12,
-    borderRadius: 10,
-    borderWidth: 1,
-    marginBottom: 14,
-  },
-  dropdownTrigger: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-  },
-  dropdownMenu: {
-    borderRadius: 8,
-    borderWidth: 1,
-    marginTop: 4,
-    overflow: 'hidden',
-  },
-  dropdownItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    gap: 10,
-  },
-  emptyTicketsBox: {
-    padding: 16,
-    borderRadius: 8,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  ticketCard: {
-    padding: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    marginBottom: 10,
-    gap: 4,
-  },
-  ticketCardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 4,
-  },
-  ticketTypeBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    gap: 16,
+    paddingVertical: 12,
     paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
+    marginHorizontal: -8,
+    borderTopWidth: 1,
   },
-  ticketStatusBadge: {
-    flexDirection: 'row',
+  radioOuter: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
     alignItems: 'center',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
+    justifyContent: 'center',
   },
-  ticketTitleText: {
-    fontSize: 14,
-    fontWeight: 'bold',
+  radioInner: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
   },
-  ticketDescText: {
-    fontSize: 12,
-    lineHeight: 18,
+  radioTitle: {
+    fontSize: 17,
+    lineHeight: 24,
+    fontWeight: '500',
   },
-  ticketDateText: {
-    fontSize: 10,
+  radioDescription: {
+    fontSize: 15,
+    lineHeight: 21,
     marginTop: 2,
   },
-  ticketResponseBox: {
-    marginTop: 8,
-    padding: 10,
-    borderRadius: 6,
-    borderWidth: 1,
+  ticketFirstField: {
+    marginTop: 24,
   },
-  ticketResponseText: {
-    fontSize: 12,
-    lineHeight: 18,
-  },
-  statsGrid: {
+  photoActions: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 12,
   },
-  statBox: {
-    flex: 1,
-    padding: 12,
-    borderRadius: 8,
-    alignItems: 'center',
+  photoActionButton: {
+    flexGrow: 1,
+    // Auf dem Handy untereinander, ab ca. 460 px nebeneinander
+    flexBasis: 220,
+  },
+  ticketImagePreview: {
+    marginTop: 12,
+    gap: 12,
+  },
+  ticketImage: {
+    width: '100%',
+    height: 180,
+    borderRadius: RADIUS,
+    borderWidth: 1,
+  },
+  emptyText: {
+    marginTop: 8,
+  },
+  itemList: {
+    marginTop: 12,
+  },
+  listItem: {
+    paddingVertical: 16,
+    borderTopWidth: 1,
     gap: 6,
   },
-  statVal: {
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  statLbl: {
-    fontSize: 10,
-    textAlign: 'center',
-  },
-  logoutBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-  },
-  logoutText: {
-    fontWeight: 'bold',
-    fontSize: 14,
-  },
-  impressumCard: {
-    padding: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-    marginBottom: 12,
-  },
-  inlineImpressumCard: {
-    padding: 16,
-    borderRadius: 14,
-    borderWidth: 1,
-    marginTop: 4,
-    marginBottom: 20,
-  },
-  impressumSectionTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  impressumTextBold: {
-    fontSize: 13,
-    fontWeight: 'bold',
-  },
-  impressumText: {
-    fontSize: 12,
-    lineHeight: 18,
-  },
-  impressumBullet: {
-    fontSize: 12,
-    lineHeight: 17,
-  },
-  contributeActionBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 9,
-    borderRadius: 8,
-    borderWidth: 1,
-  },
-  contributeActionBtnText: {
-    fontSize: 13,
-    fontWeight: 'bold',
-  },
-  submissionStatusRow: {
+  itemHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 12,
-    paddingTop: 10,
-    borderTopWidth: 1,
+    gap: 8,
+  },
+  itemMeta: {
+    flex: 1,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    columnGap: 16,
+    rowGap: 4,
+  },
+  metaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  metaText: {
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: '600',
+  },
+  itemTitle: {
+    fontSize: 17,
+    lineHeight: 24,
+    fontWeight: '600',
+  },
+  itemFootnote: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  ticketThumb: {
+    marginTop: 6,
+    borderRadius: RADIUS,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  ticketThumbImage: {
+    width: '100%',
+    height: 160,
+  },
+  responseBlock: {
+    marginTop: 8,
+    paddingLeft: 12,
+    borderLeftWidth: 3,
+    gap: 4,
+  },
+  responseTitle: {
+    fontSize: 15,
+    lineHeight: 22,
+    fontWeight: '600',
+  },
+  inlineConfirm: {
+    marginTop: 8,
+  },
+  inlineConfirmText: {
+    fontWeight: '600',
+  },
+  previewBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: SCREEN_PADDING,
+  },
+  previewImage: {
+    width: '100%',
+    height: '80%',
+  },
+  previewClose: {
+    position: 'absolute',
+    top: 48,
+    right: SCREEN_PADDING,
+    width: 48,
+    height: 48,
+    borderRadius: RADIUS,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

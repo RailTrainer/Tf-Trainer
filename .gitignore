@@ -56,3 +56,6 @@ example
 
 # Interne Audit-Auswertungen (lokal, nie committen)
 auswertung-intern/
+
+# Playwright-MCP-Logs (lokal)
+.playwright-mcp/

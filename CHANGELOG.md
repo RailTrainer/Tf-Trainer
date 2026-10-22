@@ -4,12 +4,25 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
 ## [Unreleased]
 
+## [2.1.0] – 2026-10-22
+
 ### Hinzugefügt
 - Pre-Push-Tooling: Agenten `struktur-pflege`, `doku-pflege`, `security-audit`, Befehl `/pre-push`, Claude-Code-Hook und Gitleaks-Git-Hook (`.githooks/pre-push`).
+- Gemeinsame UI-Komponenten in `src/components/ui/` (Button, TextField, ListRow, Section, StatusMessage, ConfirmDialog, Design-Tokens).
+- Neue Theme-Farbwerte (`fieldBorder`, `buttonPrimary*`, `buttonSecondaryPressedBg`, `buttonDestructive*`) in `ThemeContext`.
+- `eslint.config.js` (Expo Flat Config); `npx expo lint` ist lauffähig.
+- Chat-Komponenten in `src/components/chat/` (ChannelSidebar, ThreadList, MessageList, MessageBubble, ChatComposer, ChatKeyboardPane, ChatNotice, ChatRestrictionNotice, RoleLabel, UserProfileDialog).
+- Neue UI-Bausteine: Dialog, ActionDialog, IconButton, Avatar, CountBadge, RadioGroup, Tabs, VisuallyHidden, `a11y.ts` (Fokus-Helfer); Tokens `ICON_BUTTON_SIZE`, `WIDE_MAX_WIDTH`; Theme-Farbe `surfaceSubtle`.
+- Hook `useReduceMotion`, Helfer `src/utils/chatFormat.ts`.
+- Agent `ui-ux-designer` (`.claude/agents/`).
 - Projektspezifische Dokumentation (README, CLAUDE.md, SECURITY.md, CHANGELOG.md).
-- Deploy-Workflow kopiert `admin-portal/` nach `dist/admin-portal/` und `play.html` nach `dist/play.html`.
+- Profil-Screen: neue Comic-Avatare, Support-Adresse `support@tf-trainer.de`, Weiterleitung zum Start nach Abmelden/Kontolöschung.
 
 ### Geändert
+- Anmelde- und Profil-Screen zeigen auch in der nativen App den Namen „Tf-Trainer“.
+- Chat-Redesign: `src/app/chat.tsx` in Komponenten unter `src/components/chat/` aufgeteilt; `ConfirmDialog` nutzt `Dialog`; `Button` unterstützt `ref`; `ListRow` mit `danger`-Variante.
+- `addChatMessage` (`mockDb`) wirft bei Supabase-Fehler; der Chat zeigt „Nicht gesendet“ mit „Erneut senden“.
+- App-Redesign: `profile.tsx` und `AuthScreen.tsx` nutzen die gemeinsamen UI-Komponenten.
 - Passwort-Reset nur noch über Supabase-Auth-OTP; ohne Supabase-Verbindung ist kein Reset möglich.
 - Auth-Sync beim Reset nutzt ein zufälliges Wegwerf-Passwort (`generateRandomSecret` in `src/utils/crypto.ts`).
 - Der erste Admin wird über die normale Registrierung angelegt und per SQL (`UPDATE public.users SET role = 'admin' ...`) hochgestuft.
@@ -30,6 +43,7 @@ Stand laut `package.json`/`app.json`; abgeleitet aus der Commit-Historie.
 ### Geändert
 - Webportal: Quizbattle- und Hangman-Korrekturen, Web-Paywall-Redirect, iOS-Zoom-Guard (laut Release-Commit).
 - Web-Export ohne `experiments.baseUrl`; Deploy-Workflow schreibt `dist/CNAME`.
+- Deploy-Workflow kopiert `admin-portal/` nach `dist/admin-portal/` und `admin-portal/play.html` nach `dist/play.html`.
 - App-Name in `app.json`: Tf-Trainer.
 
 ### Behoben

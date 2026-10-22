@@ -1,591 +1,567 @@
-import React, { useState } from 'react';
+import { useRef, useState, type RefObject } from 'react';
 import {
+  AccessibilityInfo,
+  Image,
+  Platform,
+  ScrollView,
   StyleSheet,
   Text,
-  View,
   TextInput,
-  TouchableOpacity,
-  ActivityIndicator,
-  Alert,
-  ScrollView,
-  KeyboardAvoidingView,
-  Platform,
-  Image,
-  Linking
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Constants from 'expo-constants';
+import { ChevronLeft, KeyRound, Lock, Mail, User as UserIcon } from 'lucide-react-native';
 import { mockDb, User } from '../database/mockDb';
 import { useAppTheme } from '../context/ThemeContext';
-import { useDeviceLayout } from '../hooks/useDeviceLayout';
-import { Mail, Lock, User as UserIcon, KeyRound, ShieldCheck, RefreshCw, GraduationCap, ExternalLink } from 'lucide-react-native';
 import { useDynamicKeyboard } from '../hooks/useDynamicKeyboard';
+import { TextField } from './ui/TextField';
+import { Button } from './ui/Button';
+import { SCREEN_PADDING } from './ui/tokens';
 
 interface AuthScreenProps {
   onLoginSuccess: (user: User) => void;
 }
 
-export default function AuthScreen({ onLoginSuccess }: AuthScreenProps) {
-  const { isDark, colors: appColors } = useAppTheme();
-  const { isTablet } = useDeviceLayout();
-  const { dynamicKeyboardPadding } = useDynamicKeyboard(32);
+type Mode = 'login' | 'register' | 'forgot';
+type ForgotStep = 'email' | 'otp';
+type FieldName = 'name' | 'email' | 'password' | 'code';
+type FieldErrors = Partial<Record<FieldName, string>>;
+type Pending = 'submit' | 'resend' | null;
 
-  // Modes: 'login' | 'register' | 'forgot'
-  const [mode, setMode] = useState<'login' | 'register' | 'forgot'>('login');
-  const [forgotStep, setForgotStep] = useState<'email' | 'otp'>('email');
-  const [otpCode, setOtpCode] = useState('');
+const IS_WEB = Platform.OS === 'web';
+const APP_NAME = 'Tf-Trainer';
+const APP_VERSION = Constants.expoConfig?.version;
+const MIN_PASSWORD_LENGTH = 6;
+const PASSWORD_HINT = `Mindestens ${MIN_PASSWORD_LENGTH} Zeichen`;
+
+const MESSAGES = {
+  emailMissing: 'Gib deine E-Mail-Adresse ein.',
+  passwordMissing: 'Gib dein Passwort ein.',
+  newPasswordMissing: 'Gib ein Passwort ein.',
+  passwordTooShort: `Das Passwort muss mindestens ${MIN_PASSWORD_LENGTH} Zeichen haben.`,
+  nameMissing: 'Gib deinen Namen ein.',
+  codeMissing: 'Gib den Code aus der E-Mail ein.',
+  fallback: 'Das hat nicht geklappt. Bitte versuche es noch einmal.',
+};
+
+/** iOS liest Live-Regionen nicht vor – dort explizit ansagen. Android und Web nutzen Live-Region bzw. role="alert". */
+function announce(message: string) {
+  if (Platform.OS === 'ios') {
+    AccessibilityInfo.announceForAccessibility(message);
+  }
+}
+
+function errorMessage(e: unknown): string {
+  return e instanceof Error && e.message ? e.message : MESSAGES.fallback;
+}
+
+export default function AuthScreen({ onLoginSuccess }: AuthScreenProps) {
+  const { isDark, colors } = useAppTheme();
+  const { dynamicKeyboardPadding, isKeyboardVisible } = useDynamicKeyboard(16);
+
+  const [mode, setMode] = useState<Mode>('login');
+  const [forgotStep, setForgotStep] = useState<ForgotStep>('email');
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [webKey, setWebKey] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [otpCode, setOtpCode] = useState('');
+  const [pending, setPending] = useState<Pending>(null);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  const [formError, setFormError] = useState<string | null>(null);
+  const [codeResent, setCodeResent] = useState(false);
+  // Scrollen nur, wenn der Inhalt wirklich höher ist als der sichtbare Bereich (Tastatur, kleines Gerät, große Schrift).
+  const [viewportHeight, setViewportHeight] = useState(0);
+  const [contentHeight, setContentHeight] = useState(0);
 
-  const colors = {
-    ...appColors,
-    error: '#ef4444',
+  const nameRef = useRef<TextInput>(null);
+  const emailRef = useRef<TextInput>(null);
+  const passwordRef = useRef<TextInput>(null);
+  const codeRef = useRef<TextInput>(null);
+
+  const isForgot = mode === 'forgot';
+  const isOtpStep = isForgot && forgotStep === 'otp';
+  const isBusy = pending !== null;
+  const screenBg = isDark ? colors.background : colors.cardBg;
+  const trimmedEmail = email.trim();
+  const canScroll = viewportHeight > 0 && contentHeight > viewportHeight + 1;
+
+  const fieldRefs: Record<FieldName, RefObject<TextInput | null>> = {
+    name: nameRef,
+    email: emailRef,
+    password: passwordRef,
+    code: codeRef,
   };
 
-  const handleAuth = async () => {
-    if (!email.trim() || !password.trim()) {
-      Alert.alert('Fehler', 'Bitte fülle alle Pflichtfelder aus.');
-      return;
-    }
+  // --- Hilfen für Fehlerzustände ---------------------------------------------
 
-    if (mode === 'register') {
-      if (!name.trim()) {
-        Alert.alert('Fehler', 'Bitte gib deinen Namen an.');
-        return;
-      }
-      if (password !== confirmPassword) {
-        Alert.alert('Fehler', 'Die Passwörter stimmen nicht überein.');
-        return;
-      }
-      if (password.length < 6) {
-        Alert.alert('Fehler', 'Das Passwort muss mindestens 6 Zeichen lang sein.');
-        return;
-      }
-    }
+  /** Setzt Feldfehler, fokussiert das erste fehlerhafte Feld. Gibt true zurück, wenn es Fehler gab. */
+  const applyFieldErrors = (errors: FieldErrors, order: FieldName[]): boolean => {
+    setFieldErrors(errors);
+    const first = order.find((field) => errors[field]);
+    if (!first) return false;
+    announce(errors[first] as string);
+    // Nach dem Rendern fokussieren, damit Fehlertext und aria-describedby schon da sind.
+    setTimeout(() => fieldRefs[first].current?.focus(), 0);
+    return true;
+  };
 
-    setLoading(true);
+  const clearFieldError = (field: FieldName) => {
+    if (fieldErrors[field]) {
+      setFieldErrors((prev) => ({ ...prev, [field]: undefined }));
+    }
+    if (formError) setFormError(null);
+  };
+
+  const showFormError = (message: string) => {
+    setFormError(message);
+    announce(message);
+  };
+
+  const switchMode = (next: Mode) => {
+    // E-Mail und Name bleiben erhalten, Passwort und Code werden geleert.
+    setMode(next);
+    setForgotStep('email');
+    setPassword('');
+    setOtpCode('');
+    setFieldErrors({});
+    setFormError(null);
+    setCodeResent(false);
+  };
+
+  // --- Aktionen (Aufrufe an mockDb unverändert) -------------------------------
+
+  const handleLogin = async () => {
+    if (isBusy) return;
+    const errors: FieldErrors = {};
+    if (!email.trim()) errors.email = MESSAGES.emailMissing;
+    if (!password.trim()) errors.password = MESSAGES.passwordMissing;
+    if (applyFieldErrors(errors, ['email', 'password'])) return;
+
+    setFormError(null);
+    setPending('submit');
     try {
-      if (mode === 'login') {
-        const user = await mockDb.loginUser(email, password);
-        onLoginSuccess(user);
-      } else {
-        const user = await mockDb.registerUser(name, email, password, webKey);
-        Alert.alert('Willkommen!', `Dein Account wurde erfolgreich erstellt, ${name}!`);
-        onLoginSuccess(user);
-      }
-    } catch (e: any) {
-      Alert.alert('Fehler', e.message || 'Ein Fehler ist aufgetreten.');
+      const user = await mockDb.loginUser(email, password);
+      onLoginSuccess(user);
+    } catch (e) {
+      showFormError(errorMessage(e));
     } finally {
-      setLoading(false);
+      setPending(null);
     }
   };
 
-  // Schritt 1: 6-stelligen OTP per E-Mail anfordern
-  const handleRequestOtp = async () => {
-    if (!email.trim()) {
-      Alert.alert('Hinweis', 'Bitte gib deine registrierte E-Mail-Adresse ein.');
+  const handleRegister = async () => {
+    if (isBusy) return;
+    const errors: FieldErrors = {};
+    if (!name.trim()) errors.name = MESSAGES.nameMissing;
+    if (!email.trim()) errors.email = MESSAGES.emailMissing;
+    if (!password.trim()) errors.password = MESSAGES.newPasswordMissing;
+    else if (password.length < MIN_PASSWORD_LENGTH) errors.password = MESSAGES.passwordTooShort;
+    if (applyFieldErrors(errors, ['name', 'email', 'password'])) return;
+
+    setFormError(null);
+    setPending('submit');
+    try {
+      // Web-Freischaltung (PayPal/Freischaltcode) erfolgt danach auf dem WebPaywallScreen.
+      const user = await mockDb.registerUser(name, email, password);
+      onLoginSuccess(user);
+    } catch (e) {
+      showFormError(errorMessage(e));
+    } finally {
+      setPending(null);
+    }
+  };
+
+  const handleRequestOtp = async (isResend: boolean) => {
+    if (isBusy) return;
+    if (!isResend && applyFieldErrors(email.trim() ? {} : { email: MESSAGES.emailMissing }, ['email'])) {
       return;
     }
 
-    setLoading(true);
+    setFormError(null);
+    setPending(isResend ? 'resend' : 'submit');
     try {
       await mockDb.sendPasswordResetOtp(email);
       setForgotStep('otp');
-      Alert.alert(
-        'Code gesendet! 📩',
-        `Ein Bestätigungscode wurde an ${email.trim()} gesendet.\n\nBitte prüfe deinen Posteingang und deinen Spam-Ordner.`
-      );
-    } catch (e: any) {
-      Alert.alert('Fehler', e.message || 'Konnte keinen Sicherheitscode anfordern.');
+      setCodeResent(isResend);
+      announce(`${isResend ? 'Neuer Code' : 'Code'} an ${email.trim()} gesendet.`);
+    } catch (e) {
+      showFormError(errorMessage(e));
     } finally {
-      setLoading(false);
+      setPending(null);
     }
   };
 
-  // Schritt 2: OTP prüfen und neues Passwort setzen
   const handleVerifyOtpAndReset = async () => {
-    if (!otpCode.trim()) {
-      Alert.alert('Fehler', 'Bitte gib den Bestätigungscode aus deiner E-Mail ein.');
-      return;
-    }
-    if (!password.trim() || !confirmPassword.trim()) {
-      Alert.alert('Fehler', 'Bitte gib dein neues Passwort ein und bestätige es.');
-      return;
-    }
-    if (password !== confirmPassword) {
-      Alert.alert('Fehler', 'Die Passwörter stimmen nicht überein.');
-      return;
-    }
-    if (password.length < 6) {
-      Alert.alert('Fehler', 'Das neue Passwort muss mindestens 6 Zeichen lang sein.');
-      return;
-    }
+    if (isBusy) return;
+    const errors: FieldErrors = {};
+    if (!otpCode.trim()) errors.code = MESSAGES.codeMissing;
+    if (!password.trim()) errors.password = MESSAGES.newPasswordMissing;
+    else if (password.length < MIN_PASSWORD_LENGTH) errors.password = MESSAGES.passwordTooShort;
+    if (applyFieldErrors(errors, ['code', 'password'])) return;
 
-    setLoading(true);
+    setFormError(null);
+    setPending('submit');
     try {
       const updatedUser = await mockDb.verifyOtpAndResetPassword(email, otpCode, password);
-      Alert.alert(
-        'Passwort erfolgreich geändert! 🎉',
-        'Dein neues Passwort wurde gespeichert. Du wurdest automatisch angemeldet.'
-      );
       onLoginSuccess(updatedUser);
-    } catch (e: any) {
-      Alert.alert('Fehler', e.message || 'Konnte das Passwort nicht zurücksetzen.');
+    } catch (e) {
+      showFormError(errorMessage(e));
     } finally {
-      setLoading(false);
+      setPending(null);
     }
   };
 
+  // --- Texte je Ansicht --------------------------------------------------------
+
+  const title =
+    mode === 'login'
+      ? `Willkommen beim ${APP_NAME}`
+      : mode === 'register'
+        ? 'Konto erstellen'
+        : isOtpStep
+          ? 'Code eingeben'
+          : 'Passwort zurücksetzen';
+
+  const primaryAction =
+    mode === 'login'
+      ? { title: 'Anmelden', loadingTitle: 'Wird angemeldet …', onPress: handleLogin }
+      : mode === 'register'
+        ? { title: 'Konto erstellen', loadingTitle: 'Konto wird erstellt …', onPress: handleRegister }
+        : isOtpStep
+          ? { title: 'Passwort speichern', loadingTitle: 'Wird gespeichert …', onPress: handleVerifyOtpAndReset }
+          : { title: 'Code senden', loadingTitle: 'Code wird gesendet …', onPress: () => handleRequestOtp(false) };
+
+  // --- Felder ------------------------------------------------------------------
+
+  const nameField = (
+    <TextField
+      ref={nameRef}
+      label="Name"
+      placeholder="Vor- und Nachname"
+      icon={UserIcon}
+      value={name}
+      onChangeText={(value) => {
+        setName(value);
+        clearFieldError('name');
+      }}
+      error={fieldErrors.name}
+      autoCapitalize="words"
+      autoCorrect={false}
+      autoComplete="name"
+      textContentType="name"
+      returnKeyType="next"
+      submitBehavior="submit"
+      onSubmitEditing={() => emailRef.current?.focus()}
+    />
+  );
+
+  const emailField = (
+    <TextField
+      ref={emailRef}
+      label="E-Mail-Adresse"
+      placeholder="name@beispiel.de"
+      icon={Mail}
+      value={email}
+      onChangeText={(value) => {
+        setEmail(value);
+        clearFieldError('email');
+      }}
+      error={fieldErrors.email}
+      keyboardType="email-address"
+      autoCapitalize="none"
+      autoCorrect={false}
+      autoComplete="email"
+      textContentType="emailAddress"
+      returnKeyType={isForgot ? 'send' : 'next'}
+      submitBehavior={isForgot ? 'blurAndSubmit' : 'submit'}
+      onSubmitEditing={isForgot ? () => handleRequestOtp(false) : () => passwordRef.current?.focus()}
+    />
+  );
+
+  const passwordField = (
+    <TextField
+      ref={passwordRef}
+      label={isOtpStep ? 'Neues Passwort' : 'Passwort'}
+      placeholder={isOtpStep ? 'Neues Passwort eingeben' : 'Passwort eingeben'}
+      icon={Lock}
+      password
+      value={password}
+      onChangeText={(value) => {
+        setPassword(value);
+        clearFieldError('password');
+      }}
+      error={fieldErrors.password}
+      hint={mode === 'login' ? undefined : PASSWORD_HINT}
+      autoCapitalize="none"
+      autoCorrect={false}
+      autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+      textContentType={mode === 'login' ? 'password' : 'newPassword'}
+      returnKeyType={mode === 'login' ? 'go' : 'done'}
+      submitBehavior="blurAndSubmit"
+      onSubmitEditing={primaryAction.onPress}
+      containerStyle={mode === 'login' ? styles.fieldBeforeLink : undefined}
+    />
+  );
+
+  const codeField = (
+    <TextField
+      ref={codeRef}
+      label="Code"
+      placeholder="Code aus der E-Mail"
+      icon={KeyRound}
+      value={otpCode}
+      onChangeText={(value) => {
+        setOtpCode(value);
+        clearFieldError('code');
+      }}
+      error={fieldErrors.code}
+      keyboardType="number-pad"
+      autoComplete="one-time-code"
+      textContentType="oneTimeCode"
+      maxLength={10}
+      autoFocus
+      returnKeyType="next"
+      submitBehavior="submit"
+      onSubmitEditing={() => passwordRef.current?.focus()}
+    />
+  );
+
+  // --- Darstellung -------------------------------------------------------------
+
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={{ flex: 1, paddingBottom: dynamicKeyboardPadding }}>
-        <ScrollView 
-          contentContainerStyle={[
-            styles.scrollContainer, 
-            { paddingBottom: dynamicKeyboardPadding ? dynamicKeyboardPadding + 20 : 48 },
-            isTablet && { maxWidth: 460, width: '100%', alignSelf: 'center' }
-          ]} 
-          showsVerticalScrollIndicator={false}
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: screenBg }]}>
+      <View style={[styles.flex, { paddingBottom: dynamicKeyboardPadding }]}>
+        <ScrollView
+          style={styles.flex}
+          contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          scrollEnabled={canScroll}
+          bounces={canScroll}
+          alwaysBounceVertical={false}
+          overScrollMode="never"
+          onLayout={(event) => setViewportHeight(event.nativeEvent.layout.height)}
+          onContentSizeChange={(_width, height) => setContentHeight(height)}
         >
-          {/* LOGO & TITEL */}
-          <View style={styles.header}>
-            <View style={[styles.logoContainer, { borderColor: colors.border, backgroundColor: colors.cardBg }]}>
-              <Image 
-                source={require('../../assets/images/icon.png')} 
-                style={styles.logoImage} 
-                resizeMode="cover"
+          <View style={styles.column}>
+            {isForgot ? (
+              <Button
+                variant="text"
+                icon={ChevronLeft}
+                title="Zurück"
+                accessibilityLabel="Zurück zur Anmeldung"
+                align="start"
+                onPress={() => switchMode('login')}
+                disabled={isBusy}
               />
-            </View>
-            <Text style={[styles.title, { color: colors.text }]}>
-              Tf-Trainer
-            </Text>
-            <Text style={[styles.subtitle, { color: colors.textMuted }]}>
-              Die Eisenbahn-Lernhilfe für Triebfahrzeugführer & Quereinsteiger
-            </Text>
+            ) : null}
 
-            {Platform.OS === 'web' && (
-              <View style={{ marginTop: 12, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20, backgroundColor: isDark ? '#1e3a8a40' : '#dbeafe', borderColor: colors.primary, borderWidth: 1 }}>
-                <GraduationCap size={15} color={colors.primary} />
-                <Text style={{ fontSize: 12, fontWeight: 'bold', color: colors.primary }}>
-                  Tf-Trainer Web-Edition
+            <View style={styles.main}>
+              <View style={styles.header}>
+                {!isForgot ? (
+                  <Image
+                    source={require('../../assets/images/icon.png')}
+                    style={styles.logo}
+                    resizeMode="cover"
+                    accessibilityRole="image"
+                    accessibilityLabel={`${APP_NAME}-Logo`}
+                    accessibilityIgnoresInvertColors
+                  />
+                ) : null}
+                <Text accessibilityRole="header" style={[styles.title, { color: colors.text }]}>
+                  {title}
                 </Text>
-              </View>
-            )}
-          </View>
 
-          {/* FORMULAR-KARTE */}
-          <View style={[styles.card, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
-            <Text style={[styles.cardTitle, { color: colors.text }]}>
-              {mode === 'login' 
-                ? 'Anmelden' 
-                : mode === 'register' 
-                ? 'Registrieren' 
-                : (forgotStep === 'email' ? 'Passwort vergessen?' : 'Sicherheitscode eingeben')}
-            </Text>
-
-            {/* INFO-BOX IM WEB: SYNCHRONISATION */}
-            {Platform.OS === 'web' && mode === 'login' && (
-              <View style={{ marginBottom: 16, padding: 12, borderRadius: 10, backgroundColor: isDark ? '#1e3a8a90' : '#f8fafc', borderColor: colors.border, borderWidth: 1 }}>
-                <Text style={{ fontSize: 12, color: colors.textMuted, lineHeight: 18, textAlign: 'center' }}>
-                  🖥️ <Text style={{ fontWeight: 'bold', color: colors.text }}>Tf-Trainer Web:</Text> Melde dich mit deinem Konto an. Deine Fortschritte werden 1:1 mit deiner Smartphone-App synchronisiert!
-                </Text>
-              </View>
-            )}
-
-            {/* INFO-TEXT FÜR PASSWORT-ZURÜCKSETZEN */}
-            {mode === 'forgot' && forgotStep === 'email' && (
-              <View style={{ marginBottom: 14, padding: 12, borderRadius: 8, backgroundColor: isDark ? '#1e3a8a30' : '#dbeafe', borderColor: colors.border, borderWidth: 1 }}>
-                <Text style={{ fontSize: 13, color: colors.text, lineHeight: 18 }}>
-                  🔐 Gib deine registrierte E-Mail-Adresse ein. Wir senden dir einen Bestätigungscode per E-Mail zu.
-                </Text>
-              </View>
-            )}
-
-            {mode === 'forgot' && forgotStep === 'otp' && (
-              <View style={{ marginBottom: 14, padding: 12, borderRadius: 8, backgroundColor: isDark ? '#064e3b30' : '#dcfce7', borderColor: '#10b98150', borderWidth: 1 }}>
-                <Text style={{ fontSize: 13, color: colors.text, lineHeight: 18 }}>
-                  📩 Ein Bestätigungscode wurde an <Text style={{ fontWeight: 'bold' }}>{email}</Text> gesendet. Bitte prüfe auch deinen Spam-Ordner.
-                </Text>
-              </View>
-            )}
-
-            {/* WEB-HINWEIS & PAYPAL-KAUF BEI REGISTRIERUNG */}
-            {Platform.OS === 'web' && mode === 'register' && (
-              <View style={{ 
-                marginBottom: 16, 
-                padding: 14, 
-                borderRadius: 12, 
-                backgroundColor: isDark ? '#1e293b' : '#eff6ff', 
-                borderWidth: 1, 
-                borderColor: '#3b82f6' 
-              }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                  <ShieldCheck size={20} color="#3b82f6" />
-                  <Text style={{ fontSize: 14, fontWeight: 'bold', color: colors.text }}>
-                    Web-Zugang: Einmalig 4,99 €
+                {mode === 'login' ? (
+                  <Text style={[styles.intro, { color: colors.textMuted }]}>Melde dich mit deinem Konto an.</Text>
+                ) : null}
+                {mode === 'register' ? (
+                  <Text style={[styles.intro, { color: colors.textMuted }]}>
+                    Gib deinen Namen, deine E-Mail-Adresse und ein Passwort ein.
                   </Text>
-                </View>
-                <Text style={{ fontSize: 12, color: colors.textMuted, lineHeight: 18, marginBottom: 12 }}>
-                  Registriere dich mit deinem Namen & E-Mail. Du kannst direkt per PayPal zahlen oder einen Freischaltcode nutzen:
-                </Text>
-
-                <TouchableOpacity
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    backgroundColor: '#ffc439',
-                    paddingVertical: 10,
-                    paddingHorizontal: 14,
-                    borderRadius: 8,
-                    gap: 8,
-                  }}
-                  onPress={() => {
-                    Linking.openURL(mockDb.PAYPAL_CONFIG.paymentUrl);
-                  }}
-                  activeOpacity={0.85}
-                >
-                  <Text style={{ color: '#003087', fontWeight: 'bold', fontSize: 13 }}>
-                    💳 Für 4,99 € per PayPal kaufen
+                ) : null}
+                {isForgot && !isOtpStep ? (
+                  <Text style={[styles.intro, { color: colors.textMuted }]}>
+                    {/* Geschützte Bindestriche (U+2011), damit „E-Mail-Adresse“ nicht umbricht. */}
+                    Wir schicken dir einen Code an deine {'E\u2011Mail\u2011Adresse'}.
                   </Text>
-                  <ExternalLink size={15} color="#003087" />
-                </TouchableOpacity>
-                <Text style={{ fontSize: 11, color: colors.textMuted, textAlign: 'center', marginTop: 8 }}>
-                  Empfänger: dschmitz112@web.de • Betrag: 4,99 €
-                </Text>
-              </View>
-            )}
-
-            {/* NAME (nur bei Registrierung) */}
-            {mode === 'register' && (
-              <View style={styles.inputWrapper}>
-                <Text style={[styles.inputLabel, { color: colors.text }]}>Name</Text>
-                <View style={[styles.inputContainer, { borderColor: colors.inputBorder, backgroundColor: colors.inputBg }]}>
-                  <UserIcon size={18} color={colors.textMuted} style={styles.inputIcon} />
-                  <TextInput
-                    style={[styles.input, { color: colors.text }]}
-                    placeholder="Dein vollständiger Name"
-                    placeholderTextColor={colors.textMuted}
-                    value={name}
-                    onChangeText={setName}
-                  />
-                </View>
-              </View>
-            )}
-
-            {/* E-MAIL (bei Login, Register und Forgot Step 1) */}
-            {(mode !== 'forgot' || forgotStep === 'email') && (
-              <View style={styles.inputWrapper}>
-                <Text style={[styles.inputLabel, { color: colors.text }]}>E-Mail-Adresse</Text>
-                <View style={[styles.inputContainer, { borderColor: colors.inputBorder, backgroundColor: colors.inputBg }]}>
-                  <Mail size={18} color={colors.textMuted} style={styles.inputIcon} />
-                  <TextInput
-                    style={[styles.input, { color: colors.text }]}
-                    placeholder="z.B. name@bahn.de"
-                    placeholderTextColor={colors.textMuted}
-                    value={email}
-                    onChangeText={setEmail}
-                    autoCapitalize="none"
-                    keyboardType="email-address"
-                  />
-                </View>
-              </View>
-            )}
-
-            {/* SICHERHEITSCODE (nur bei Forgot Step 2) */}
-            {mode === 'forgot' && forgotStep === 'otp' && (
-              <View style={styles.inputWrapper}>
-                <Text style={[styles.inputLabel, { color: colors.text }]}>Bestätigungscode (aus der E-Mail)</Text>
-                <View style={[styles.inputContainer, { borderColor: colors.primary, backgroundColor: colors.inputBg }]}>
-                  <KeyRound size={18} color={colors.primary} style={styles.inputIcon} />
-                  <TextInput
-                    style={[styles.input, { color: colors.text, letterSpacing: 4, fontWeight: 'bold', fontSize: 18 }]}
-                    placeholder="12345678"
-                    placeholderTextColor={colors.textMuted}
-                    value={otpCode}
-                    onChangeText={setOtpCode}
-                    keyboardType="number-pad"
-                    maxLength={10}
-                  />
-                </View>
-              </View>
-            )}
-
-            {/* PASSWORT (bei Login, Register und Forgot Step 2) */}
-            {(mode !== 'forgot' || forgotStep === 'otp') && (
-              <View style={styles.inputWrapper}>
-                <Text style={[styles.inputLabel, { color: colors.text }]}>
-                  {mode === 'forgot' ? 'Neues Passwort festlegen' : 'Passwort'}
-                </Text>
-                <View style={[styles.inputContainer, { borderColor: colors.inputBorder, backgroundColor: colors.inputBg }]}>
-                  <Lock size={18} color={colors.textMuted} style={styles.inputIcon} />
-                  <TextInput
-                    style={[styles.input, { color: colors.text }]}
-                    placeholder={mode === 'forgot' ? 'Mind. 6 Zeichen' : 'Dein Passwort'}
-                    placeholderTextColor={colors.textMuted}
-                    secureTextEntry
-                    value={password}
-                    onChangeText={setPassword}
-                    autoCapitalize="none"
-                  />
-                </View>
-              </View>
-            )}
-
-            {/* PASSWORT BESTÄTIGEN (bei Register und Forgot Step 2) */}
-            {(mode === 'register' || (mode === 'forgot' && forgotStep === 'otp')) && (
-              <View style={styles.inputWrapper}>
-                <Text style={[styles.inputLabel, { color: colors.text }]}>Neues Passwort wiederholen</Text>
-                <View style={[styles.inputContainer, { borderColor: colors.inputBorder, backgroundColor: colors.inputBg }]}>
-                  <Lock size={18} color={colors.textMuted} style={styles.inputIcon} />
-                  <TextInput
-                    style={[styles.input, { color: colors.text }]}
-                    placeholder="Passwort wiederholen"
-                    placeholderTextColor={colors.textMuted}
-                    secureTextEntry
-                    value={confirmPassword}
-                    onChangeText={setConfirmPassword}
-                    autoCapitalize="none"
-                  />
-                </View>
-              </View>
-            )}
-
-            {/* FREISCHALTCODE / PAYPAL-KEY (optional bei Web-Registrierung) */}
-            {Platform.OS === 'web' && mode === 'register' && (
-              <View style={styles.inputWrapper}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                  <Text style={[styles.inputLabel, { color: colors.text, marginBottom: 0 }]}>
-                    Freischaltcode / PayPal-Key (Optional)
+                ) : null}
+                {isOtpStep ? (
+                  <Text accessibilityLiveRegion="polite" style={[styles.intro, { color: colors.textMuted }]}>
+                    {codeResent ? 'Neuer Code an ' : 'Code an '}
+                    <Text style={[styles.emphasis, { color: colors.text }]}>{trimmedEmail}</Text>
+                    {' gesendet. Schau auch im Spam-Ordner nach.'}
                   </Text>
-                  <View style={{ backgroundColor: '#10b98120', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
-                    <Text style={{ fontSize: 11, color: '#10b981', fontWeight: 'bold' }}>Optional</Text>
-                  </View>
-                </View>
-                <View style={[styles.inputContainer, { borderColor: webKey.trim() ? colors.primary : colors.inputBorder, backgroundColor: colors.inputBg }]}>
-                  <KeyRound size={18} color={webKey.trim() ? colors.primary : colors.textMuted} style={styles.inputIcon} />
-                  <TextInput
-                    style={[styles.input, { color: colors.text, fontWeight: 'bold', letterSpacing: 1 }]}
-                    placeholder="z.B. RT-WEB-XXXX-YYYY (falls vorhanden)"
-                    placeholderTextColor={colors.textMuted}
-                    value={webKey}
-                    onChangeText={setWebKey}
-                    autoCapitalize="characters"
-                  />
-                </View>
-                <Text style={{ fontSize: 11, color: colors.textMuted, marginTop: 4 }}>
-                  Hast du schon einen Key? Hier eintragen für Sofort-Freischaltung. Ansonsten kannst du dich ohne Code registrieren und dein Zugang wird nach PayPal-Eingang freigeschaltet.
-                </Text>
+                ) : null}
               </View>
-            )}
 
-            {/* SUBMIT BUTTON */}
-            <TouchableOpacity 
-              style={[styles.submitButton, { backgroundColor: colors.primary }]}
-              onPress={
-                mode === 'login' || mode === 'register'
-                  ? handleAuth
-                  : forgotStep === 'email'
-                  ? handleRequestOtp
-                  : handleVerifyOtpAndReset
-              }
-              disabled={loading}
-              activeOpacity={0.8}
-            >
-              {loading ? (
-                <ActivityIndicator color="#ffffff" size="small" />
-              ) : (
-                <Text style={styles.submitButtonText}>
-                  {mode === 'login' 
-                    ? 'Einloggen' 
-                    : mode === 'register' 
-                    ? 'Account erstellen' 
-                    : forgotStep === 'email' 
-                    ? '📩 6-stelligen Code anfordern' 
-                    : '🔓 Passwort speichern & Einloggen'}
-                </Text>
-              )}
-            </TouchableOpacity>
+              {/* role="form" wird im Web zu <form>, damit Passwort-Manager das Formular erkennen. */}
+              <View role="form" accessibilityLabel={title} style={styles.form}>
+                {mode === 'register' ? nameField : null}
+                {!isOtpStep ? emailField : null}
+                {isOtpStep ? codeField : null}
+                {!isForgot || isOtpStep ? passwordField : null}
 
-            {/* CODE ERNEUT ANFORDERN BUTTON (nur bei Forgot Step 2) */}
-            {mode === 'forgot' && forgotStep === 'otp' && (
-              <TouchableOpacity 
-                style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 14 }}
-                onPress={handleRequestOtp}
-                disabled={loading}
-              >
-                <RefreshCw size={14} color={colors.primary} />
-                <Text style={{ color: colors.primary, fontSize: 13, fontWeight: '600' }}>Code erneut anfordern</Text>
-              </TouchableOpacity>
-            )}
+                {mode === 'login' ? (
+                  <Button
+                    variant="text"
+                    title="Passwort vergessen?"
+                    align="end"
+                    onPress={() => switchMode('forgot')}
+                    disabled={isBusy}
+                    style={styles.forgotLink}
+                  />
+                ) : null}
 
-            {/* TOGGLE LINKS */}
-            <View style={styles.linksContainer}>
-              {mode === 'login' ? (
-                <>
-                  <TouchableOpacity 
-                    style={styles.linkBtn} 
-                    onPress={() => { setMode('register'); setPassword(''); setConfirmPassword(''); setEmail(''); }}
-                    activeOpacity={0.7}
+                {IS_WEB && mode === 'register' ? (
+                  <Text style={[styles.note, { color: colors.textMuted }]}>
+                    Der Web-Zugang kostet einmalig 4,99 €. Bezahlen kannst du nach der Registrierung.
+                  </Text>
+                ) : null}
+
+                {formError ? (
+                  <Text
+                    role="alert"
+                    accessibilityLiveRegion="assertive"
+                    style={[styles.formError, { color: colors.errorText }]}
                   >
-                    <Text style={[styles.linkText, { color: colors.primary }]}>Konto erstellen</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity 
-                    style={styles.linkBtn} 
-                    onPress={() => { setMode('forgot'); setForgotStep('email'); setOtpCode(''); setPassword(''); setConfirmPassword(''); setEmail(''); }}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={[styles.linkText, { color: colors.primary }]}>Passwort vergessen?</Text>
-                  </TouchableOpacity>
-                </>
-              ) : (
-                <TouchableOpacity 
-                  style={[styles.linkBtn, { width: '100%', alignItems: 'center' }]} 
-                  onPress={() => { setMode('login'); setForgotStep('email'); setOtpCode(''); setPassword(''); setConfirmPassword(''); setEmail(''); }}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[styles.linkText, { color: colors.primary }]}>Zurück zum Login</Text>
-                </TouchableOpacity>
-              )}
+                    {formError}
+                  </Text>
+                ) : null}
+
+                <Button
+                  title={primaryAction.title}
+                  loadingTitle={primaryAction.loadingTitle}
+                  loading={pending === 'submit'}
+                  disabled={pending === 'resend'}
+                  onPress={primaryAction.onPress}
+                />
+
+                {mode === 'login' ? (
+                  <Button
+                    variant="text"
+                    leadingText="Noch kein Konto?"
+                    title="Konto erstellen"
+                    onPress={() => switchMode('register')}
+                    disabled={isBusy}
+                    style={styles.secondaryAction}
+                  />
+                ) : null}
+                {mode === 'register' ? (
+                  <Button
+                    variant="text"
+                    leadingText="Schon ein Konto?"
+                    title="Anmelden"
+                    onPress={() => switchMode('login')}
+                    disabled={isBusy}
+                    style={styles.secondaryAction}
+                  />
+                ) : null}
+                {isOtpStep ? (
+                  <Button
+                    variant="text"
+                    title="Code erneut senden"
+                    loadingTitle="Code wird gesendet …"
+                    loading={pending === 'resend'}
+                    disabled={pending === 'submit'}
+                    onPress={() => handleRequestOtp(true)}
+                    style={styles.secondaryAction}
+                  />
+                ) : null}
+              </View>
             </View>
           </View>
-
-          {/* COPYRIGHT */}
-          <Text style={[styles.copyrightText, { color: colors.textMuted }]}>
-            Tf-Trainer © by Dennis Köster • Version 1.1.5
-          </Text>
         </ScrollView>
       </View>
+
+      {/* Footer steht fest unten (außerhalb der ScrollView); bei offener Tastatur ausgeblendet. */}
+      {!isKeyboardVisible ? (
+        <Text style={[styles.footer, { color: colors.textMuted }]}>
+          {APP_NAME} © by Dennis Köster{APP_VERSION ? ` • Version ${APP_VERSION}` : ''}
+        </Text>
+      ) : null}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
     flex: 1,
   },
-  scrollContainer: {
-    padding: 24,
-    paddingBottom: 48,
-    alignItems: 'stretch',
-    maxWidth: Platform.OS === 'web' ? 460 : '100%',
+  flex: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: SCREEN_PADDING,
+    paddingTop: 8,
+    paddingBottom: 16,
+  },
+  column: {
+    flexGrow: 1,
     width: '100%',
+    maxWidth: 420,
     alignSelf: 'center',
+  },
+  main: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    paddingVertical: 16,
   },
   header: {
     alignItems: 'center',
-    marginTop: 16,
-    marginBottom: 28,
   },
-  logoContainer: {
-    width: 88,
-    height: 88,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-    borderWidth: 1.5,
-    overflow: 'hidden',
-    elevation: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-  },
-  logoImage: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 20,
+  logo: {
+    width: 72,
+    height: 72,
+    borderRadius: 16,
+    marginBottom: 24,
   },
   title: {
     fontSize: 26,
-    fontWeight: 'bold',
-    marginBottom: 6,
+    lineHeight: 32,
+    fontWeight: '700',
     textAlign: 'center',
-    letterSpacing: 0.3,
   },
-  subtitle: {
-    fontSize: 14,
+  intro: {
+    fontSize: 16,
+    lineHeight: 24,
     textAlign: 'center',
-    lineHeight: 20,
-    paddingHorizontal: 16,
+    marginTop: 8,
   },
-  card: {
-    borderRadius: 14,
-    padding: 20,
-    borderWidth: 1,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 4,
-  },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 18,
-  },
-  inputWrapper: {
-    marginBottom: 14,
-  },
-  inputLabel: {
-    fontSize: 13,
+  emphasis: {
     fontWeight: '600',
-    marginBottom: 6,
   },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 14,
+  form: {
+    marginTop: 32,
   },
-  inputIcon: {
-    marginRight: 10,
+  fieldBeforeLink: {
+    marginBottom: 4,
   },
-  input: {
-    flex: 1,
-    height: 46,
-    fontSize: 14,
+  forgotLink: {
+    marginBottom: 12,
   },
-  submitButton: {
-    height: 48,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 10,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 3,
-  },
-  submitButtonText: {
-    color: '#ffffff',
+  note: {
     fontSize: 15,
-    fontWeight: 'bold',
-    letterSpacing: 0.2,
+    lineHeight: 22,
+    marginBottom: 16,
   },
-  linksContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 18,
-  },
-  linkBtn: {
-    paddingVertical: 6,
-  },
-  linkText: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  copyrightText: {
-    textAlign: 'center',
-    fontSize: 12,
-    marginTop: 28,
+  formError: {
+    fontSize: 15,
+    lineHeight: 22,
     fontWeight: '500',
+    marginBottom: 12,
+  },
+  secondaryAction: {
+    marginTop: 16,
+  },
+  footer: {
+    fontSize: 13,
+    lineHeight: 18,
+    textAlign: 'center',
+    paddingHorizontal: SCREEN_PADDING,
+    paddingTop: 8,
+    paddingBottom: 12,
   },
 });
