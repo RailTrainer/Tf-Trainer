@@ -9,7 +9,7 @@
 - Admin-Portal: statisch in `admin-portal/`, lokal via `npm run admin`.
 
 ## Wichtige Pfade
-- `src/app/` Screens, `src/components/` UI (gemeinsame Bausteine und Design-Tokens in `src/components/ui/`; Farben über `ThemeContext`), `src/services/` Services, `src/utils/` Helfer, `src/database/` lokale Inhalte
+- `src/app/` Screens, `src/components/` UI (gemeinsame Bausteine und Design-Tokens in `src/components/ui/`, Chat-Bausteine in `src/components/chat/`; Farben über `ThemeContext`), `src/services/` Services, `src/utils/` Helfer, `src/database/` lokale Inhalte
 - `scripts/` Node-Hilfsskripte (OTA, Admin-Server, Import/Generatoren)
 - `data/import/` CSVs, `data/generated/` JSON-Dumps, `docs/store/` Store-Grafiken, `supabase/` SQL
 - `auswertung-intern/` – intern, gitignored (Agentenberichte). Inhalte nie in versionierte Dateien übernehmen.

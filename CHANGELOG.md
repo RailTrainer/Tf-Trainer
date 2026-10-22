@@ -9,10 +9,15 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 - Gemeinsame UI-Komponenten in `src/components/ui/` (Button, TextField, ListRow, Section, StatusMessage, ConfirmDialog, Design-Tokens).
 - Neue Theme-Farbwerte (`fieldBorder`, `buttonPrimary*`, `buttonSecondaryPressedBg`, `buttonDestructive*`) in `ThemeContext`.
 - `eslint.config.js` (Expo Flat Config); `npx expo lint` ist lauffähig.
+- Chat-Komponenten in `src/components/chat/` (ChannelSidebar, ThreadList, MessageList, MessageBubble, ChatComposer, ChatKeyboardPane, ChatNotice, ChatRestrictionNotice, RoleLabel, UserProfileDialog).
+- Neue UI-Bausteine: Dialog, ActionDialog, IconButton, Avatar, CountBadge, RadioGroup, Tabs, VisuallyHidden, `a11y.ts` (Fokus-Helfer); Tokens `ICON_BUTTON_SIZE`, `WIDE_MAX_WIDTH`; Theme-Farbe `surfaceSubtle`.
+- Hook `useReduceMotion`, Helfer `src/utils/chatFormat.ts`.
 - Agent `ui-ux-designer` (`.claude/agents/`).
 - Projektspezifische Dokumentation (README, CLAUDE.md, SECURITY.md, CHANGELOG.md).
 
 ### Geändert
+- Chat-Redesign: `src/app/chat.tsx` in Komponenten unter `src/components/chat/` aufgeteilt; `ConfirmDialog` nutzt `Dialog`; `Button` unterstützt `ref`; `ListRow` mit `danger`-Variante.
+- `addChatMessage` (`mockDb`) wirft bei Supabase-Fehler; der Chat zeigt „Nicht gesendet“ mit „Erneut senden“.
 - App-Redesign: `profile.tsx` und `AuthScreen.tsx` nutzen die gemeinsamen UI-Komponenten.
 - Passwort-Reset nur noch über Supabase-Auth-OTP; ohne Supabase-Verbindung ist kein Reset möglich.
 - Auth-Sync beim Reset nutzt ein zufälliges Wegwerf-Passwort (`generateRandomSecret` in `src/utils/crypto.ts`).

@@ -69,10 +69,11 @@ Typprüfung: `npx tsc --noEmit`. Lint-Konfiguration: `eslint.config.js` (Expo Fl
 src/
   app/          Expo-Router-Screens (index, quiz, chat, admin, profile, _layout)
   components/   UI-Komponenten (AuthScreen, WebPaywallScreen, Modals, ...)
-  components/ui/  Gemeinsame UI-Bausteine (Button, TextField, ListRow, Section, StatusMessage, ConfirmDialog, tokens.ts)
+  components/ui/  Gemeinsame UI-Bausteine (Button, IconButton, TextField, ListRow, Section, StatusMessage, Dialog, ActionDialog, ConfirmDialog, Avatar, CountBadge, RadioGroup, Tabs, VisuallyHidden, a11y.ts, tokens.ts)
+  components/chat/  Chat-Bausteine (ChannelSidebar, ThreadList, MessageList, MessageBubble, ChatComposer, ...)
   context/      ThemeContext
   database/     Lokale Inhalte (JSON) und mockDb.ts
-  hooks/        Layout-/Theme-/Keyboard-Hooks
+  hooks/        Layout-/Theme-/Keyboard-/Reduce-Motion-Hooks
   services/     supabaseClient, notificationService
   utils/        crypto (SHA-256), imageOptimizer, similarity
 admin-portal/   Statisches Admin-Portal (index.html, play.html, app.js)
