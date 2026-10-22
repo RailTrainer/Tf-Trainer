@@ -1,5 +1,8 @@
 const fs = require('fs');
+const path = require('path');
 const https = require('https');
+
+const ALL_FLASHCARDS_PATH = path.join(__dirname, '..', 'data', 'generated', 'all_flashcards.json');
 
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
@@ -561,8 +564,8 @@ async function run() {
 
   // 2. Update all_flashcards.json
   console.log('Updating all_flashcards.json...');
-  if (fs.existsSync('all_flashcards.json')) {
-    const all = JSON.parse(fs.readFileSync('all_flashcards.json', 'utf8'));
+  if (fs.existsSync(ALL_FLASHCARDS_PATH)) {
+    const all = JSON.parse(fs.readFileSync(ALL_FLASHCARDS_PATH, 'utf8'));
     const idMap = new Map();
     all.forEach(c => idMap.set(c.id, c));
     results.forEach(c => {
@@ -578,7 +581,7 @@ async function run() {
       });
     });
     const merged = Array.from(idMap.values());
-    fs.writeFileSync('all_flashcards.json', JSON.stringify(merged, null, 2));
+    fs.writeFileSync(ALL_FLASHCARDS_PATH, JSON.stringify(merged, null, 2));
     console.log('all_flashcards.json updated, total cards:', merged.length);
   }
 

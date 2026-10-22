@@ -21,11 +21,11 @@ _backup_pre_button_redesign/
 admin-portal/
 scripts/
 
-# Large import CSVs & scratch JSONs
+# Large import CSVs & scratch JSONs (data/import/, data/generated/)
 *.csv
-all_flashcards.json
-generated_wm_quiz_questions.json
-scratch_unique_cards.json
+data/generated/all_flashcards.json
+data/generated/generated_wm_quiz_questions.json
+data/generated/scratch_unique_cards.json
 
 # IDE / OS
 .vscode/
@@ -33,3 +33,6 @@ scratch_unique_cards.json
 *.log
 .DS_Store
 *.tsbuildinfo
+
+# Interne Audit-Auswertungen
+auswertung-intern/

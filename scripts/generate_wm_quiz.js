@@ -1,7 +1,9 @@
 const fs = require('fs');
+const path = require('path');
 const https = require('https');
 
-const rawCards = JSON.parse(fs.readFileSync('scratch_unique_cards.json', 'utf-8'));
+const GENERATED_DIR = path.join(__dirname, '..', 'data', 'generated');
+const rawCards = JSON.parse(fs.readFileSync(path.join(GENERATED_DIR, 'scratch_unique_cards.json'), 'utf-8'));
 
 function clean(str) {
   if (!str) return '';
@@ -318,5 +320,5 @@ function cardToQuizQuestion(card, index) {
 const allQuestions = rawCards.map((c, idx) => cardToQuizQuestion(c, idx));
 console.log('Successfully prepared ' + allQuestions.length + ' questions for Wagenmeister Quiz.');
 
-fs.writeFileSync('generated_wm_quiz_questions.json', JSON.stringify(allQuestions, null, 2), 'utf-8');
-console.log('Saved to generated_wm_quiz_questions.json');
+fs.writeFileSync(path.join(GENERATED_DIR, 'generated_wm_quiz_questions.json'), JSON.stringify(allQuestions, null, 2), 'utf-8');
+console.log('Saved to data/generated/generated_wm_quiz_questions.json');

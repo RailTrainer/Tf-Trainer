@@ -1,0 +1,28 @@
+#!/bin/sh
+# Git pre-push: Gitleaks-Scan über genau die Commits, die gepusht werden.
+# Greift auch bei Pushes aus Terminal/IDE (außerhalb von Claude Code).
+# Aktivieren: git config core.hooksPath .githooks
+
+if ! command -v gitleaks >/dev/null 2>&1; then
+  echo "pre-push: gitleaks nicht installiert (brew install gitleaks) – Push abgebrochen." >&2
+  exit 1
+fi
+
+status=0
+while read -r local_ref local_sha remote_ref remote_sha; do
+  case "$local_sha" in *[!0]*) ;; *) continue ;; esac  # Branch wird gelöscht
+
+  case "$remote_sha" in
+    *[!0]*) range="$remote_sha..$local_sha" ;;
+    *)      range="$local_sha --not --remotes" ;;  # neuer Branch
+  esac
+
+  echo "pre-push: gitleaks scannt $local_ref ($range)" >&2
+  gitleaks git --no-banner --redact -v --log-opts="$range" >&2 || status=1
+done
+
+if [ "$status" -ne 0 ]; then
+  echo "pre-push: Gitleaks hat mögliche Secrets gefunden – Push abgebrochen." >&2
+  echo "pre-push: Details prüfen, Secret entfernen + rotieren. Für den vollständigen Audit in Claude Code: /pre-push" >&2
+fi
+exit $status

@@ -127,6 +127,25 @@ export function hashPassword(password: string): string {
 }
 
 /**
+ * Generates a random 64-character hex secret (e.g. a throwaway password).
+ * Uses crypto.getRandomValues where available (Web, Node) and falls back to
+ * Math.random mixed through SHA-256 on runtimes without Web Crypto (Hermes).
+ */
+export function generateRandomSecret(): string {
+  const cryptoApi = (globalThis as any).crypto;
+  if (cryptoApi && typeof cryptoApi.getRandomValues === 'function') {
+    const bytes = new Uint8Array(32);
+    cryptoApi.getRandomValues(bytes);
+    return Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+  }
+  let seed = `${Date.now()}`;
+  for (let i = 0; i < 8; i++) {
+    seed += Math.random().toString(36).slice(2);
+  }
+  return sha256(seed);
+}
+
+/**
  * Checks if a given string is formatted as a 64-character hex SHA-256 hash.
  */
 export function isSha256Hash(str?: string): boolean {

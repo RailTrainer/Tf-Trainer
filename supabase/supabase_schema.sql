@@ -91,29 +91,12 @@ CREATE INDEX IF NOT EXISTS idx_support_messages_timestamp ON public.support_mess
 CREATE INDEX IF NOT EXISTS idx_quiz_attempts_user ON public.quiz_attempts(user_id);
 CREATE INDEX IF NOT EXISTS idx_news_items_created ON public.news_items(created_at DESC);
 
--- INITIALER DEFAULT-ADMIN (Passwort: Annilynn215524!-)
-INSERT INTO public.users (id, name, email, password, role, title)
-VALUES (
-  'admin-default-id',
-  'Administrator',
-  'admin@railtrainer.de',
-  'fa955f14a79b12fe91ca162157a9775f0a3b6aa4cb6b010f36ae058d867c2965',
-  'admin',
-  'Hauptausbilder & Prüfer'
-)
-ON CONFLICT (email) DO NOTHING;
-
--- Initialer Test-Schüler (Passwort: Schueler123!)
-INSERT INTO public.users (id, name, email, password, role, title)
-VALUES (
-  'user-default-id',
-  'Tf-Anwärter Dennis',
-  'schueler@railtrainer.de',
-  'd9c79e7c4f4244c4faeef86f26d83ec0e3860bb632128ae3415ef1e06d997230',
-  'user',
-  'Triebfahrzeugführer i.A.'
-)
-ON CONFLICT (email) DO NOTHING;
+-- INITIALER ADMIN
+-- Bewusst kein Seed mit Passwort oder Passwort-Hash im Repo.
+-- Ersten Admin über die normale Registrierung in der App anlegen (Passwort selbst wählen)
+-- und danach im Supabase SQL-Editor zum Admin machen:
+--   UPDATE public.users SET role = 'admin', title = 'Hauptausbilder & Prüfer'
+--   WHERE email = '<admin-email>';
 
 -- ==============================================================================
 -- ROW LEVEL SECURITY (RLS) & SICHERHEITSRICHTLINIEN
