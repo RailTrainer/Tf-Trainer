@@ -17,7 +17,7 @@ import * as Linking from 'expo-linking';
 import { mockDb, User, QuizAttempt, Ticket, Category, Question, Fact } from '../database/mockDb';
 import * as ImagePicker from 'expo-image-picker';
 import * as Updates from 'expo-updates';
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { uploadAndOptimizeImage } from '../utils/imageOptimizer';
 import { useDynamicKeyboard } from '../hooks/useDynamicKeyboard';
 import { CreateFactModal } from '../components/CreateFactModal';
@@ -64,23 +64,52 @@ import { TextField } from '../components/ui/TextField';
 import { CONTENT_MAX_WIDTH, MIN_TOUCH_TARGET, RADIUS, SCREEN_PADDING } from '../components/ui/tokens';
 
 const IS_WEB = Platform.OS === 'web';
-const APP_NAME = IS_WEB ? 'Tf-Trainer' : 'RailTrainer';
+const APP_NAME = 'Tf-Trainer';
 const APP_VERSION = Constants.expoConfig?.version;
-const SUPPORT_EMAIL = 'support@railtrainer.de';
+const SUPPORT_EMAIL = 'support@tf-trainer.de';
 // RN Web blurt bei „on-drag“ jedes fokussierte Feld, sobald die ScrollView scrollt (z. B. beim Fokus-Sprung) – im Web daher aus.
 const KEYBOARD_DISMISS_MODE = IS_WEB ? 'none' : 'on-drag';
 
-// Symbol-Avatare sind Nutzerdaten (avatarUrl speichert das Zeichen), daher bleiben sie erhalten.
-const AVATAR_PRESETS = ['🚂', '👮', '🛡️', '🔧', '🚄', '⭐', '🚇', '🎒'];
+// Avatare sind Nutzerdaten (avatarUrl speichert das Zeichen); früher gewählte Symbole werden weiter angezeigt.
+const AVATAR_PRESETS = [
+  '👨‍✈️', '👩‍✈️', '🤪', '🥸', '🤠', '🤓', '😎', '🧐',
+  '🥳', '🤯', '🤩', '🤑', '🤤', '🤡', '🧑‍🎤', '🧙‍♂️',
+  '🦹‍♂️', '🦸‍♂️', '🧑‍🍳', '🧔‍♂️', '👨‍🦰', '👨‍🦳', '👨‍🦱', '👨‍🦲',
+  '🕵️‍♂️', '🤭', '🥱', '🥶', '🥵', '😈', '🤖', '👽',
+];
 const AVATAR_PRESET_LABELS: Record<string, string> = {
-  '🚂': 'Lokomotive',
-  '👮': 'Polizist',
-  '🛡️': 'Schild',
-  '🔧': 'Schraubenschlüssel',
-  '🚄': 'Hochgeschwindigkeitszug',
-  '⭐': 'Stern',
-  '🚇': 'U-Bahn',
-  '🎒': 'Rucksack',
+  '👨‍✈️': 'Pilot',
+  '👩‍✈️': 'Pilotin',
+  '🤪': 'Albernes Gesicht',
+  '🥸': 'Verkleidetes Gesicht',
+  '🤠': 'Cowboy',
+  '🤓': 'Gesicht mit Brille',
+  '😎': 'Gesicht mit Sonnenbrille',
+  '🧐': 'Gesicht mit Monokel',
+  '🥳': 'Partygesicht',
+  '🤯': 'Explodierender Kopf',
+  '🤩': 'Begeistertes Gesicht',
+  '🤑': 'Geldgesicht',
+  '🤤': 'Sabberndes Gesicht',
+  '🤡': 'Clown',
+  '🧑‍🎤': 'Rockstar',
+  '🧙‍♂️': 'Zauberer',
+  '🦹‍♂️': 'Superschurke',
+  '🦸‍♂️': 'Superheld',
+  '🧑‍🍳': 'Koch',
+  '🧔‍♂️': 'Mann mit Bart',
+  '👨‍🦰': 'Mann mit roten Haaren',
+  '👨‍🦳': 'Mann mit weißen Haaren',
+  '👨‍🦱': 'Mann mit Locken',
+  '👨‍🦲': 'Mann mit Glatze',
+  '🕵️‍♂️': 'Detektiv',
+  '🤭': 'Kicherndes Gesicht',
+  '🥱': 'Gähnendes Gesicht',
+  '🥶': 'Frierendes Gesicht',
+  '🥵': 'Schwitzendes Gesicht',
+  '😈': 'Teufelchen',
+  '🤖': 'Roboter',
+  '👽': 'Außerirdischer',
 };
 
 const TRAINING_TITLES = ['Lokführer', 'Wagenmeister', 'Zf/Rb-bau'] as const;
@@ -132,6 +161,16 @@ type TicketErrors = { title?: string; description?: string };
 function announce(message: string) {
   if (Platform.OS === 'ios') {
     AccessibilityInfo.announceForAccessibility(message);
+  }
+}
+
+/** Nach Abmelden oder Kontolöschung zurück zum Start; im Web per Neuladen, damit kein Sitzungszustand übrig bleibt. */
+function goToStart() {
+  if (IS_WEB && typeof window !== 'undefined') {
+    window.location.href = '/';
+    window.location.reload();
+  } else {
+    router.replace('/');
   }
 }
 
@@ -356,6 +395,7 @@ export default function ProfileScreen() {
     try {
       await mockDb.logoutUser();
       setAccountStatus({ tone: 'success', message: 'Du bist abgemeldet.' });
+      goToStart();
     } catch (e: any) {
       setAccountStatus({ tone: 'error', message: 'Abmelden hat nicht geklappt: ' + (e?.message || e) });
     } finally {
@@ -380,6 +420,7 @@ export default function ProfileScreen() {
       await mockDb.logoutUser();
       setDeleteDialogVisible(false);
       setAccountStatus({ tone: 'success', message: 'Dein Konto und alle zugehörigen Daten wurden gelöscht.' });
+      goToStart();
     } catch (e: any) {
       setDeleteError('Das Konto konnte nicht gelöscht werden: ' + (e?.message || e));
     } finally {
@@ -906,9 +947,9 @@ export default function ProfileScreen() {
                 <StatusMessage status={profileStatus} />
 
                 <Text style={[styles.fieldLabel, styles.fieldLabelSpaced, { color: colors.text }]}>
-                  Oder ein Symbol wählen
+                  Oder einen Comic-Avatar wählen
                 </Text>
-                <View role="radiogroup" accessibilityLabel="Symbol als Profilbild" style={styles.presetsGrid}>
+                <View role="radiogroup" accessibilityLabel="Comic-Avatar als Profilbild" style={styles.presetsGrid}>
                   {AVATAR_PRESETS.map((p) => {
                     const selected = editAvatarUrl === p;
                     return (

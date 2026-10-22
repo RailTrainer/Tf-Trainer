@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>RailTrainer • Ausbilder & Dozenten Portal</title>
+  <title>Tf-Trainer • Ausbilder & Dozenten Portal</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -277,20 +277,20 @@
 </head>
 <body class="bg-gray-950 text-gray-100 min-h-screen flex flex-col transition-colors duration-200 relative overflow-x-hidden">
 
-  <!-- SUBTILER RAILTRAINER LOGO-HINTERGRUND (WATERMARK) -->
+  <!-- SUBTILER TF-TRAINER LOGO-HINTERGRUND (WATERMARK) -->
   <div class="fixed inset-0 pointer-events-none z-0 flex items-center justify-center overflow-hidden opacity-[0.06] select-none">
-    <img src="logo.png" alt="RailTrainer Hintergrund" class="w-[1250px] md:w-[1450px] lg:w-[1650px] max-w-none transform -rotate-12 filter grayscale contrast-125">
+    <img src="logo.png" alt="Tf-Trainer Hintergrund" class="w-[1250px] md:w-[1450px] lg:w-[1650px] max-w-none transform -rotate-12 filter grayscale contrast-125">
   </div>
 
   <!-- HEADER -->
   <header class="bg-gray-900/90 backdrop-blur-md border-b border-gray-800 sticky top-0 z-40 px-6 py-3.5 flex items-center justify-between shadow-lg">
     <div class="flex items-center gap-3.5">
       <div class="w-11 h-11 rounded-2xl overflow-hidden shadow-lg shadow-brand-600/30 border border-brand-500/40 flex items-center justify-center bg-gray-900 shrink-0">
-        <img src="logo.png" alt="RailTrainer Logo" class="w-full h-full object-cover">
+        <img src="logo.png" alt="Tf-Trainer Logo" class="w-full h-full object-cover">
       </div>
       <div>
         <div class="flex items-center gap-2">
-          <h1 class="font-extrabold text-lg tracking-tight text-white">RailTrainer</h1>
+          <h1 class="font-extrabold text-lg tracking-tight text-white">Tf-Trainer</h1>
           <span class="text-xs font-semibold px-2 py-0.5 bg-brand-500/20 text-brand-400 border border-brand-500/30 rounded-full">Ausbilder-Portal</span>
         </div>
         <p class="text-xs text-gray-400">Interaktive Prüfungsfragen- & Lernkarten-Zentrale</p>
@@ -358,9 +358,9 @@
 
       <div class="text-center mb-6 relative z-10">
         <div class="w-20 h-20 rounded-2xl overflow-hidden shadow-2xl shadow-brand-600/30 border border-brand-500/40 mx-auto mb-4 bg-gray-900">
-          <img src="logo.png" alt="RailTrainer Logo" class="w-full h-full object-cover">
+          <img src="logo.png" alt="Tf-Trainer Logo" class="w-full h-full object-cover">
         </div>
-        <h2 class="text-2xl font-extrabold text-white tracking-tight">RailTrainer Portal</h2>
+        <h2 class="text-2xl font-extrabold text-white tracking-tight">Tf-Trainer Portal</h2>
         <p class="text-xs text-gray-400 mt-1">Ausbilder & Dozenten Login</p>
       </div>
 
@@ -419,6 +419,12 @@
         <span>Kategorien</span>
       </button>
 
+      <button onclick="switchTab('tickets')" id="tab-btn-tickets" class="nav-tab flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition text-gray-400 hover:bg-gray-800 hover:text-white">
+        <i data-lucide="message-square" class="w-4 h-4"></i>
+        <span>Tickets & Support</span>
+        <span id="badge-tickets-count" class="ml-auto text-xs px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30">0</span>
+      </button>
+
       <button onclick="switchTab('import')" id="tab-btn-import" class="nav-tab flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition text-gray-400 hover:bg-gray-800 hover:text-white">
         <i data-lucide="upload" class="w-4 h-4"></i>
         <span>CSV / Excel Import</span>
@@ -440,7 +446,7 @@
           <i data-lucide="shield-check" class="w-3.5 h-3.5 text-brand-500"></i>
           <span class="font-medium text-gray-400">DSGVO Konform</span>
         </div>
-        <div>RailTrainer Cloud v1.0.11a</div>
+        <div>Tf-Trainer Cloud v2.0.0</div>
       </div>
     </aside>
 
@@ -673,6 +679,79 @@
         <div id="categoriesContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
       </section>
 
+      <!-- TAB: TICKETS -->
+      <section id="tab-tickets" class="tab-content hidden">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+          <div>
+            <div class="flex items-center gap-2.5">
+              <h2 class="text-2xl font-bold text-white tracking-tight">Tickets & Support-Anfragen</h2>
+              <span id="ticketsOpenBadge" class="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                <i data-lucide="inbox" class="w-3.5 h-3.5 text-amber-400"></i>
+                <span id="ticketsOpenStatText">0 offen</span>
+              </span>
+            </div>
+            <p class="text-sm text-gray-400">Prüfungsfragen-Meldungen, Fehlerberichte und Supportanfragen von Schülern einsehen und beantworten.</p>
+          </div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <button onclick="openCreateTicketModal()" class="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-semibold text-xs sm:text-sm shadow-lg shadow-brand-600/30 transition">
+              <i data-lucide="plus-circle" class="w-4 h-4"></i>
+              <span>Neues Ticket anlegen</span>
+            </button>
+            <button onclick="loadTickets()" class="p-2.5 bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white rounded-xl border border-gray-700 transition" title="Tickets aktualisieren">
+              <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- FILTER & SUCHE FÜR TICKETS -->
+        <div class="space-y-3 mb-6 bg-gray-900 p-4 rounded-2xl border border-gray-800">
+          <div class="flex flex-col md:flex-row gap-3 items-center justify-between">
+            <div class="w-full relative">
+              <i data-lucide="search" class="w-4 h-4 absolute left-3.5 top-3 text-gray-400"></i>
+              <input type="text" id="searchTicketsInput" oninput="filterTickets()" placeholder="Tickets nach Titel, Beschreibung, Frage oder Schüler durchsuchen..." class="w-full pl-10 pr-4 py-2 bg-gray-950 border border-gray-800 rounded-xl text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:border-brand-500 transition">
+            </div>
+            <div class="flex items-center gap-2 w-full md:w-auto shrink-0">
+              <select id="filterTicketType" onchange="filterTickets()" class="w-full md:w-auto px-3 py-2 bg-gray-950 border border-gray-800 rounded-xl text-xs font-semibold text-gray-300 focus:outline-none focus:border-brand-500">
+                <option value="all">Alle Ticket-Typen</option>
+                <option value="question_error">⚠️ Fehler in Prüfungsfrage</option>
+                <option value="app_bug">🐛 App-Fehler / Bug</option>
+                <option value="password_reset">🔑 Passwort-Zurücksetzung</option>
+                <option value="question_help">❓ Fachfrage / Verständnis</option>
+                <option value="general_feedback">💡 Feedback / Verbesserung</option>
+                <option value="other">📌 Sonstiges</option>
+              </select>
+              <select id="filterTicketPriority" onchange="filterTickets()" class="w-full md:w-auto px-3 py-2 bg-gray-950 border border-gray-800 rounded-xl text-xs font-semibold text-gray-300 focus:outline-none focus:border-brand-500">
+                <option value="all">Alle Prioritäten</option>
+                <option value="urgent">🔴 Dringend</option>
+                <option value="high">🟠 Hoch</option>
+                <option value="medium">🟡 Normal</option>
+                <option value="low">⚪ Niedrig</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- STATUS TABS -->
+          <div class="flex items-center gap-2 flex-wrap pt-2 border-t border-gray-800/80">
+            <span class="text-xs text-gray-400 font-semibold mr-1">Status:</span>
+            <button type="button" onclick="setTicketStatusFilter('all')" id="btn-ticket-filter-all" class="px-3 py-1.5 rounded-xl text-xs font-bold transition border bg-brand-600 text-white border-brand-500">
+              Alle (<span id="ticket-count-all">0</span>)
+            </button>
+            <button type="button" onclick="setTicketStatusFilter('open')" id="btn-ticket-filter-open" class="px-3 py-1.5 rounded-xl text-xs font-semibold transition border bg-gray-950 text-gray-400 border-gray-800 hover:text-amber-300 hover:border-amber-500/40">
+              ⏳ Offen (<span id="ticket-count-open">0</span>)
+            </button>
+            <button type="button" onclick="setTicketStatusFilter('in_progress')" id="btn-ticket-filter-in_progress" class="px-3 py-1.5 rounded-xl text-xs font-semibold transition border bg-gray-950 text-gray-400 border-gray-800 hover:text-blue-300 hover:border-blue-500/40">
+              🔄 In Bearbeitung (<span id="ticket-count-in_progress">0</span>)
+            </button>
+            <button type="button" onclick="setTicketStatusFilter('resolved')" id="btn-ticket-filter-resolved" class="px-3 py-1.5 rounded-xl text-xs font-semibold transition border bg-gray-950 text-gray-400 border-gray-800 hover:text-emerald-300 hover:border-emerald-500/40">
+              ✓ Gelöst / Geschlossen (<span id="ticket-count-resolved">0</span>)
+            </button>
+          </div>
+        </div>
+
+        <!-- TICKETS LIST CONTAINER -->
+        <div id="ticketsContainer" class="space-y-4"></div>
+      </section>
+
       <!-- TAB 4: IMPORT -->
       <section id="tab-import" class="tab-content hidden">
         <div class="mb-6">
@@ -754,14 +833,41 @@
       <section id="tab-users" class="tab-content hidden">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div>
-            <h2 class="text-2xl font-bold text-white tracking-tight">Benutzerübersicht</h2>
-            <p class="text-sm text-gray-400">Übersicht aller registrierten Benutzer, Schüler, Prüfer und Ausbilder.</p>
+            <h2 class="text-2xl font-bold text-white tracking-tight">Benutzer- & Rollenverwaltung</h2>
+            <p class="text-sm text-gray-400">Übersicht aller registrierten Benutzer, Schüler, Prüfer und Ausbilder mit Rollenberechtigungen.</p>
           </div>
-          <div id="userLockControls">
-            <button id="userUnlockBtn" onclick="window.unlockUserManagement()" class="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-semibold border border-gray-700 transition">
-              <i data-lucide="lock" class="w-4 h-4 text-amber-400"></i>
-              <span>Rollen-Bearbeitung gesperrt</span>
+          <div id="userLockControls" class="flex items-center gap-2 flex-wrap">
+            <button id="btnOpenRolePermissions" onclick="openRolePermissionsModal()" class="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-brand-600 via-indigo-600 to-purple-600 hover:from-brand-500 hover:to-indigo-500 text-white text-xs font-bold shadow-md shadow-brand-600/30 transition">
+              <i data-lucide="shield-check" class="w-4 h-4 text-emerald-400"></i>
+              <span>Rollen & Berechtigungen bearbeiten</span>
             </button>
+            <button id="userUnlockBtn" onclick="window.unlockUserManagement()" class="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-semibold border border-gray-700 transition">
+              <i data-lucide="shield" class="w-4 h-4 text-amber-400"></i>
+              <span>Admin-Rechte aktiv</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- ROLLEN-BERECHTIGUNGEN ÜBERSICHTS-KARTE -->
+        <div id="rolePermissionsOverviewCard" class="bg-gray-900 border border-gray-800 rounded-2xl p-5 mb-6 shadow-lg space-y-4">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-gray-800/80">
+            <div class="flex items-center gap-2.5">
+              <div class="w-8 h-8 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center border border-indigo-500/30">
+                <i data-lucide="key" class="w-4 h-4"></i>
+              </div>
+              <div>
+                <h3 class="text-sm font-bold text-white">Rollen-Berechtigungen im Webportal</h3>
+                <p class="text-xs text-gray-400">Aktive Berechtigungen für Moderatoren und Schüler (vom Admin konfigurierbar)</p>
+              </div>
+            </div>
+            <button onclick="openRolePermissionsModal()" class="text-xs font-bold text-indigo-400 hover:text-indigo-300 flex items-center gap-1.5 transition self-start sm:self-auto">
+              <i data-lucide="sliders" class="w-3.5 h-3.5"></i>
+              <span>Rechte anpassen</span>
+            </button>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="rolePermissionsGridSummary">
+            <!-- Wird dynamisch durch renderRolePermissionsOverview() befüllt -->
           </div>
         </div>
 
@@ -1275,7 +1381,7 @@
               </div>
             </div>
 
-            <div class="grid grid-cols-2 gap-3">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <label class="block text-xs font-bold text-gray-300 uppercase tracking-wider mb-1 flex items-center gap-1.5">
                   <i data-lucide="help-circle" class="w-3.5 h-3.5 text-emerald-400"></i>
@@ -1300,6 +1406,44 @@
                   <option value="20" selected>20 Sekunden</option>
                   <option value="30">30 Sekunden</option>
                 </select>
+              </div>
+
+              <div>
+                <label class="block text-xs font-bold text-gray-300 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                  <i data-lucide="music" class="w-3.5 h-3.5 text-emerald-400"></i>
+                  <span>Hintergrundmusik</span>
+                </label>
+                <select id="battleMusicSelect" class="w-full px-3 py-2.5 bg-gray-950/90 border border-gray-800 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 rounded-xl text-xs md:text-sm font-semibold text-gray-100 focus:outline-none transition shadow-inner">
+                  <option value="tetris" selected>🕹️ Tetris (Game Boy Original Theme A)</option>
+                  <option value="marioland">🌴 Super Mario Land (Game Boy Original)</option>
+                  <option value="mario">🍄 Super Mario Bros. (NES Original Theme)</option>
+                  <option value="kahoot">🎵 Kahoot Beat (Groove)</option>
+                  <option value="none">🔇 Musik Aus</option>
+                </select>
+                <!-- Original Audio Elements for Background Music -->
+                <audio id="battleAudioTetris" preload="auto" loop class="hidden">
+                  <source src="audio/tetris.mp3" type="audio/mpeg">
+                  <source src="./audio/tetris.mp3" type="audio/mpeg">
+                  <source src="/audio/tetris.mp3" type="audio/mpeg">
+                  <source src="admin-portal/audio/tetris.mp3" type="audio/mpeg">
+                  <source src="https://archive.org/download/thevideogamejukebox-a-type-korobeiniki-tetris-game-boy-tetris-nintendogameboy-ni/thevideogamejukebox-a-type-korobeiniki-tetris-game-boy-tetris-nintendogameboy-ni.mp3" type="audio/mpeg">
+                </audio>
+                <audio id="battleAudioMarioLand" preload="auto" loop class="hidden">
+                  <source src="audio/marioland.m4a" type="audio/mp4">
+                  <source src="./audio/marioland.m4a" type="audio/mp4">
+                  <source src="/audio/marioland.m4a" type="audio/mp4">
+                  <source src="admin-portal/audio/marioland.m4a" type="audio/mp4">
+                  <source src="https://archive.org/download/THE-30TH-ANNIVERSARY-SUPER-MARIO-BROS.-MUSIC/1-11%20Ground%20BGM%20-%20Super%20Mario%20Land.m4a" type="audio/mp4">
+                </audio>
+                <audio id="battleAudioMario" preload="auto" loop class="hidden">
+                  <source src="audio/mario.mp3" type="audio/mpeg">
+                  <source src="./audio/mario.mp3" type="audio/mpeg">
+                  <source src="/audio/mario.mp3" type="audio/mpeg">
+                  <source src="audio/mariobros.m4a" type="audio/mp4">
+                  <source src="./audio/mariobros.m4a" type="audio/mp4">
+                  <source src="admin-portal/audio/mariobros.m4a" type="audio/mp4">
+                  <source src="https://archive.org/download/gs_nintendo-super-mario-history-1985-2010/01%20Super%20Mario%20Bros.%20Ground%20Theme.mp3" type="audio/mpeg">
+                </audio>
               </div>
             </div>
 
@@ -1361,19 +1505,9 @@
                   </button>
                 </div>
 
-                <div id="battleServerStatusBadge" class="flex items-center justify-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[11px] font-semibold">
+                <div id="battleServerStatusBadge" class="flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[11px] font-semibold">
                   <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                  <span id="battleServerStatusText">Server aktiv (192.168.188.78:3000)</span>
-                </div>
-
-                <div class="p-2 rounded-xl bg-gray-950/90 border border-gray-800 text-left text-[10px] text-gray-300 space-y-0.5 leading-snug">
-                  <div class="flex items-center gap-1 font-bold text-white text-[11px]">
-                    <i data-lucide="wifi" class="w-3 h-3 text-emerald-400"></i>
-                    <span>WLAN-Voraussetzung:</span>
-                  </div>
-                  <div class="text-gray-400">
-                    Smartphone muss im <strong>selben WLAN</strong> (z.B. FRITZ!Box) sein wie dieser PC.
-                  </div>
+                  <span id="battleServerStatusText">Cloud-Online-Modus aktiv 🌐</span>
                 </div>
               </div>
             </div>
@@ -1413,10 +1547,19 @@
             <div class="flex items-center gap-2 md:gap-3 flex-wrap">
               <span class="px-3 py-1 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-black text-xs md:text-sm shadow-md shadow-emerald-600/30" id="battleQNumBadge">Frage 1 / 10</span>
               <span class="text-xs font-extrabold text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-1 rounded-xl" id="battleQCatBadge">#Signale</span>
-              <button type="button" onclick="window.toggleBattleMusic()" id="btnBattleMusicToggle" class="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-gray-800/80 hover:bg-gray-700 text-xs font-bold text-emerald-300 border border-emerald-500/30 transition shadow" title="Kahoot Hintergrundmusik an/aus">
-                <i data-lucide="volume-2" class="w-3.5 h-3.5" id="battleMusicIcon"></i>
-                <span id="battleMusicToggleText">Musik: An</span>
-              </button>
+              <span id="battleMultipleTopBadge" class="hidden px-2.5 py-1 rounded-xl bg-gradient-to-r from-amber-500 to-purple-600 text-white font-black text-xs border border-yellow-300 shadow-md animate-pulse">✦ MEHRFACHAUSWAHL</span>
+              <div class="flex items-center gap-1 bg-gray-800/80 rounded-xl border border-emerald-500/30 p-0.5 shadow">
+                <button type="button" onclick="window.toggleBattleMusic()" id="btnBattleMusicToggle" class="flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-gray-700 text-xs font-bold text-emerald-300 transition" title="Hintergrundmusik an/aus">
+                  <i data-lucide="volume-2" class="w-3.5 h-3.5" id="battleMusicIcon"></i>
+                  <span id="battleMusicToggleText">Musik</span>
+                </button>
+                <select id="battleLiveMusicSelect" onchange="window.setBattleMusicTrack(this.value)" class="bg-gray-900 border-0 rounded-lg text-xs font-bold text-emerald-300 py-1 px-1.5 focus:outline-none cursor-pointer" title="Hintergrundmusik auswählen">
+                  <option value="tetris">🕹️ Tetris Theme A (Game Boy)</option>
+                  <option value="marioland">🌴 Super Mario Land (Game Boy)</option>
+                  <option value="mario">🍄 Super Mario Bros. (NES)</option>
+                  <option value="kahoot">🎵 Kahoot Beat</option>
+                </select>
+              </div>
               <button type="button" onclick="window.toggleClassroomFullscreen()" class="btn-fs-toggle flex items-center gap-1 px-2.5 py-1 rounded-xl bg-gray-800/80 hover:bg-gray-700 text-xs font-bold text-amber-300 border border-amber-500/30 transition shadow" title="Beamer-Vollbild an/aus (F11)">
                 <i data-lucide="maximize" class="w-3.5 h-3.5 text-amber-400"></i>
                 <span class="fs-toggle-text hidden sm:inline">Vollbild</span>
@@ -1425,10 +1568,11 @@
             <!-- Countdown -->
             <div class="flex items-center gap-2.5 shrink-0">
               <div class="flex flex-col items-end">
-                <div class="flex items-center gap-1.5 text-xs font-black text-white bg-gray-950/80 px-2.5 py-1 rounded-xl border border-gray-800 shadow-inner">
+                <button type="button" onclick="window.openParticipantsOverviewModal()" class="flex items-center gap-1.5 text-xs font-black text-white bg-gray-950/80 hover:bg-gray-800 px-2.5 py-1 rounded-xl border border-gray-800 hover:border-emerald-500/50 shadow-inner transition cursor-pointer" title="Klicken um Teilnehmer & Antworten zu sehen">
                   <i data-lucide="users" class="w-3.5 h-3.5 text-emerald-400"></i>
                   <span id="battleAnsweredStats" class="text-emerald-400 font-mono font-black">0 / 0 geantwortet</span>
-                </div>
+                  <i data-lucide="eye" class="w-3 h-3 text-gray-400 ml-0.5"></i>
+                </button>
                 <span id="battleTimerSubtext" class="text-[9px] font-bold text-emerald-400/80 uppercase tracking-wider mt-0.5 hidden sm:inline">Wartet auf Antwort</span>
               </div>
               <div class="w-10 h-10 md:w-11 md:h-11 rounded-full border-4 border-emerald-400 bg-gray-950 flex items-center justify-center text-lg md:text-xl font-black text-emerald-400 shadow-xl shadow-emerald-400/30 animate-pulse shrink-0" id="battleTimerBox">
@@ -1440,7 +1584,7 @@
           <!-- Question Content Card -->
           <div class="bg-gradient-to-b from-gray-900/95 to-gray-950/95 border-2 border-emerald-500/25 rounded-2xl md:rounded-3xl p-3.5 md:p-4 shadow-2xl shadow-emerald-950/40 space-y-2 backdrop-blur-xl transition-all duration-300 shrink-0">
             <div id="battleQuestionImageContainer" class="hidden justify-center mb-1">
-              <div id="battleQuestionImageBox" onclick="window.toggleBattleImageFocus()" class="relative group cursor-pointer max-h-32 md:max-h-40 max-w-sm rounded-xl bg-gray-950 border-2 border-emerald-500/30 hover:border-emerald-400 p-1.5 overflow-hidden shadow-2xl shadow-emerald-950/50 transition-all duration-300 hover:scale-[1.01]" title="Klicken für Großansicht">
+              <div id="battleQuestionImageBox" onclick="window.openBattleImageLightbox()" class="relative group cursor-pointer max-h-32 md:max-h-40 max-w-sm rounded-xl bg-gray-950 border-2 border-emerald-500/30 hover:border-emerald-400 p-1.5 overflow-hidden shadow-2xl shadow-emerald-950/50 transition-all duration-300 hover:scale-[1.02]" title="Klicken für riesige Beamer-Großansicht">
                 <img id="battleQuestionImage" src="" alt="Signalabbildung" class="max-h-28 md:max-h-36 object-contain mx-auto rounded-lg transition-all duration-300">
                 <div id="battleImageZoomHint" class="absolute bottom-1.5 right-1.5 px-2 py-0.5 rounded-lg bg-gray-950/85 backdrop-blur border border-emerald-500/40 text-[10px] font-bold text-emerald-300 flex items-center gap-1 opacity-90 group-hover:opacity-100 transition shadow">
                   <i data-lucide="maximize-2" class="w-3 h-3 text-emerald-400"></i>
@@ -1452,9 +1596,10 @@
           </div>
 
           <!-- Mehrfachauswahl Banner (wird nur bei Multiple-Choice-Fragen eingeblendet) -->
-          <div id="battleMultipleBanner" class="hidden py-1.5 px-3 rounded-xl bg-gradient-to-r from-purple-950/80 via-indigo-950/80 to-purple-950/80 border border-purple-500/60 text-purple-200 font-black text-xs md:text-sm shadow-xl flex items-center justify-center gap-2 animate-pulse shrink-0">
-            <span class="text-base">✨</span>
-            <span id="battleMultipleBannerText">MEHRFACHAUSWAHL: Mehrere Antworten sind richtig! Wähle alle zutreffenden Optionen auf deinem Smartphone.</span>
+          <div id="battleMultipleBanner" class="hidden py-3 px-4 md:py-3.5 md:px-6 rounded-2xl bg-gradient-to-r from-amber-500 via-purple-600 to-indigo-600 border-2 border-yellow-300 ring-4 ring-purple-500/40 text-white font-black text-sm md:text-base lg:text-lg shadow-2xl flex items-center justify-center gap-3 animate-pulse shrink-0">
+            <span class="text-xl md:text-2xl animate-bounce">⚡</span>
+            <span id="battleMultipleBannerText">ACHTUNG MEHRFACHAUSWAHL: Mehrere Antworten sind richtig! Wähle alle zutreffenden Optionen auf deinem Smartphone.</span>
+            <span class="text-xl md:text-2xl animate-bounce">⚡</span>
           </div>
 
           <!-- Reihenfolge Banner (wird nur bei Order-Fragen eingeblendet) -->
@@ -1560,7 +1705,7 @@
           <!-- Question Content Card (Frage & Abbildung auf Beamer) -->
           <div class="bg-gradient-to-b from-gray-900/95 to-gray-950/95 border-2 border-emerald-500/25 rounded-2xl md:rounded-3xl p-3 md:p-3.5 shadow-xl shadow-emerald-950/40 space-y-1.5 backdrop-blur-xl shrink-0">
             <div id="battleResultQuestionImageContainer" class="hidden justify-center mb-1">
-              <div class="max-h-24 md:max-h-28 max-w-xs rounded-xl bg-gray-950 border border-emerald-500/30 p-1.5 overflow-hidden shadow-xl shadow-emerald-950/50">
+              <div class="max-h-24 md:max-h-28 max-w-xs rounded-xl bg-gray-950 border border-emerald-500/30 hover:border-emerald-400 p-1.5 overflow-hidden shadow-xl shadow-emerald-950/50 cursor-pointer transition hover:scale-105" onclick="window.openBattleImageLightbox()" title="Klicken für riesige Beamer-Großansicht">
                 <img id="battleResultQuestionImage" src="" alt="Signalabbildung" class="max-h-20 md:max-h-24 object-contain mx-auto rounded-lg">
               </div>
             </div>
@@ -1668,7 +1813,7 @@
             <div class="bg-gradient-to-t from-gray-900 to-gray-800/90 border-2 border-gray-600/80 rounded-2xl p-3 text-center shadow-xl h-40 md:h-48 flex flex-col justify-between backdrop-blur-xl">
               <div>
                 <div class="text-2xl mb-0.5 drop-shadow">🥈</div>
-                <div class="text-xl" id="podiumAvatar2">🚂</div>
+                <div class="text-xl" id="podiumAvatar2">👨‍✈️</div>
                 <div class="font-extrabold text-xs md:text-sm text-white mt-0.5 truncate" id="podiumName2">Zweiter</div>
                 <div class="text-[11px] font-black text-gray-300 mt-0.5" id="podiumScore2">0 Pkt</div>
               </div>
@@ -1680,7 +1825,7 @@
               <div class="absolute inset-0 pointer-events-none bg-gradient-to-b from-emerald-500/10 to-transparent"></div>
               <div class="relative z-10">
                 <div class="text-3xl mb-0.5 animate-bounce drop-shadow-[0_0_15px_rgba(245,158,11,0.6)]">🥇</div>
-                <div class="text-2xl" id="podiumAvatar1">🚂</div>
+                <div class="text-2xl" id="podiumAvatar1">👨‍✈️</div>
                 <div class="font-black text-sm md:text-base text-amber-300 mt-0.5 truncate" id="podiumName1">Sieger</div>
                 <div class="text-xs font-black text-emerald-300 mt-0.5" id="podiumScore1">0 Pkt</div>
               </div>
@@ -1693,7 +1838,7 @@
             <div class="bg-gradient-to-t from-gray-900 to-gray-800/90 border-2 border-amber-900/60 rounded-2xl p-3 text-center shadow-xl h-32 md:h-40 flex flex-col justify-between backdrop-blur-xl">
               <div>
                 <div class="text-2xl mb-0.5 drop-shadow">🥉</div>
-                <div class="text-xl" id="podiumAvatar3">🚂</div>
+                <div class="text-xl" id="podiumAvatar3">👨‍✈️</div>
                 <div class="font-extrabold text-xs md:text-sm text-white mt-0.5 truncate" id="podiumName3">Dritter</div>
                 <div class="text-[11px] font-black text-amber-500 mt-0.5" id="podiumScore3">0 Pkt</div>
               </div>
@@ -1742,6 +1887,39 @@
 
       <div id="classroomJumpGridButtons" class="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 gap-2">
         <!-- Dynamische Buttons 1..N -->
+      </div>
+    </div>
+  </div>
+
+  <!-- TEILNEHMER-ANTWORTEN MODAL (AUSBILDERSTATION) -->
+  <div id="participantAnswersModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-md hidden items-center justify-center p-4" onclick="closeParticipantAnswersModal()">
+    <div class="bg-gray-900 border-2 border-emerald-500/40 rounded-3xl p-5 md:p-6 max-w-2xl w-full max-h-[85vh] flex flex-col shadow-2xl relative" onclick="event.stopPropagation()">
+      <div class="flex items-center justify-between pb-3 border-b border-gray-800 shrink-0 mb-3">
+        <div class="flex items-center gap-3">
+          <div id="participantAnswersAvatar" class="w-11 h-11 rounded-2xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center justify-center text-2xl shadow">
+            👨‍✈️
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h3 id="participantAnswersName" class="text-base md:text-lg font-black text-white">Spieler</h3>
+              <span id="participantAnswersBadge" class="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">0 Pkt</span>
+            </div>
+            <p id="participantAnswersSub" class="text-xs text-gray-400 mt-0.5">Antworten des Teilnehmers in diesem Quiz-Battle</p>
+          </div>
+        </div>
+        <button type="button" onclick="closeParticipantAnswersModal()" class="p-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white transition">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Quick Switcher Bar across all players -->
+      <div id="participantAnswersSwitcher" class="flex gap-1.5 overflow-x-auto custom-scrollbar pb-2 mb-2 border-b border-gray-800/60 shrink-0">
+        <!-- Dynamische Teilnehmer-Tabs -->
+      </div>
+
+      <!-- Content Scroll -->
+      <div id="participantAnswersList" class="flex-1 overflow-y-auto custom-scrollbar space-y-3 pr-1">
+        <!-- Dynamischer Inhalt -->
       </div>
     </div>
   </div>
@@ -2308,6 +2486,197 @@
     </div>
   </div>
 
+  <!-- ROLE PERMISSIONS MODAL -->
+  <div id="rolePermissionsModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="bg-gray-900 border border-gray-800 rounded-3xl w-full max-w-2xl max-h-[92vh] overflow-y-auto custom-scrollbar shadow-2xl p-6 space-y-6">
+      
+      <!-- MODAL HEADER -->
+      <div class="flex items-center justify-between pb-4 border-b border-gray-800">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-2xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center border border-indigo-500/30">
+            <i data-lucide="shield-check" class="w-5 h-5 text-indigo-400"></i>
+          </div>
+          <div>
+            <h3 class="text-lg font-black text-white">Rollen & Berechtigungen verwalten</h3>
+            <p class="text-xs text-gray-400">Lege fest, welche Funktionen für die Rollen im Webportal freigeschaltet sind.</p>
+          </div>
+        </div>
+        <button onclick="closeRolePermissionsModal()" class="p-2 text-gray-400 hover:text-white rounded-xl hover:bg-gray-800 transition">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- ROLE SELECTOR TABS -->
+      <div>
+        <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Zu bearbeitende Rolle auswählen:</label>
+        <div class="grid grid-cols-3 gap-2 bg-gray-950 p-1.5 rounded-2xl border border-gray-800">
+          <button type="button" onclick="switchRolePermModalTab('moderator')" id="btn-perm-role-moderator" class="py-2.5 px-3 rounded-xl text-xs font-extrabold flex items-center justify-center gap-2 transition bg-brand-600 text-white shadow">
+            <span>🛡️ Dozent / Mod</span>
+          </button>
+          <button type="button" onclick="switchRolePermModalTab('user')" id="btn-perm-role-user" class="py-2.5 px-3 rounded-xl text-xs font-extrabold flex items-center justify-center gap-2 transition text-gray-400 hover:text-white hover:bg-gray-800">
+            <span>🎓 Schüler / User</span>
+          </button>
+          <button type="button" onclick="switchRolePermModalTab('admin')" id="btn-perm-role-admin" class="py-2.5 px-3 rounded-xl text-xs font-extrabold flex items-center justify-center gap-2 transition text-gray-400 hover:text-white hover:bg-gray-800">
+            <span>👑 Ausbilder (Admin)</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- PERMISSION TOGGLES FOR SELECTED ROLE -->
+      <div id="rolePermTogglesContainer" class="space-y-3">
+        <!-- Werden per renderRolePermModalToggles() gerendert -->
+      </div>
+
+      <!-- HINWEISBOX -->
+      <div class="p-3.5 rounded-2xl bg-indigo-950/30 border border-indigo-500/20 text-xs text-indigo-300 flex items-start gap-2.5">
+        <i data-lucide="info" class="w-4 h-4 text-indigo-400 shrink-0 mt-0.5"></i>
+        <div class="leading-relaxed text-[11px] text-gray-300">
+          Änderungen werden in der Cloud gespeichert und gelten für alle Accounts der gewählten Rolle. Admins (Hauptausbilder) besitzen stets vollen Zugriff.
+        </div>
+      </div>
+
+      <!-- MODAL ACTIONS -->
+      <div class="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-gray-800">
+        <button type="button" onclick="resetRolePermissionsToDefault()" class="text-xs font-semibold text-gray-400 hover:text-amber-400 transition flex items-center gap-1.5">
+          <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+          <span>Standards wiederherstellen</span>
+        </button>
+        <div class="flex items-center gap-2.5 w-full sm:w-auto">
+          <button type="button" onclick="closeRolePermissionsModal()" class="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 font-semibold text-xs transition">
+            Abbrechen
+          </button>
+          <button type="button" onclick="saveRolePermissionsModal()" id="btnSaveRolePermissions" class="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-xs shadow-lg shadow-emerald-600/30 transition flex items-center justify-center gap-2">
+            <i data-lucide="check" class="w-4 h-4"></i>
+            <span>Berechtigungen speichern</span>
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- TICKET RESPONSE MODAL -->
+  <div id="ticketResponseModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="bg-gray-900 border border-gray-800 rounded-3xl w-full max-w-xl max-h-[92vh] overflow-y-auto custom-scrollbar shadow-2xl p-6 space-y-5">
+      <div class="flex items-center justify-between pb-3 border-b border-gray-800">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center border border-amber-500/30">
+            <i data-lucide="message-square" class="w-5 h-5 text-amber-400"></i>
+          </div>
+          <div>
+            <h3 class="text-base font-bold text-white">Auf Ticket antworten</h3>
+            <p class="text-xs text-gray-400" id="ticketResponseModalSub">Schüler-Rückmeldung verfassen</p>
+          </div>
+        </div>
+        <button onclick="closeTicketResponseModal()" class="p-1.5 text-gray-400 hover:text-white rounded-lg hover:bg-gray-800 transition"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+
+      <div class="p-3.5 rounded-2xl bg-gray-950 border border-gray-800 space-y-2 text-xs">
+        <div class="flex items-center justify-between">
+          <span id="ticketResponseHeaderType" class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-gray-800 text-gray-300">Ticket</span>
+          <span id="ticketResponseHeaderAuthor" class="text-gray-400 font-mono">Schüler</span>
+        </div>
+        <div class="font-bold text-white text-sm" id="ticketResponseHeaderTitle">Titel</div>
+        <div class="text-gray-300 leading-snug break-words" id="ticketResponseHeaderDesc">Beschreibung...</div>
+      </div>
+
+      <form id="ticketResponseForm" onsubmit="handleSaveTicketResponse(event)" class="space-y-4">
+        <input type="hidden" id="ticketResponseId">
+        <div>
+          <label class="block text-xs font-bold text-gray-300 uppercase mb-1.5">Deine Antwort / Rückmeldung *</label>
+          <textarea id="ticketResponseText" rows="4" required placeholder="Erkläre die Lösung, korrigierte Antwort oder Info an den Schüler..." class="w-full px-3.5 py-2.5 bg-gray-950 border border-gray-800 rounded-xl text-xs text-gray-100 placeholder-gray-600 focus:outline-none focus:border-brand-500 transition"></textarea>
+        </div>
+
+        <div class="flex items-center justify-between p-3 rounded-xl bg-gray-950 border border-gray-800">
+          <label class="flex items-center gap-2 text-xs font-semibold text-gray-200 cursor-pointer select-none">
+            <input type="checkbox" id="ticketResponseMarkResolved" checked class="w-4 h-4 rounded accent-emerald-500 cursor-pointer">
+            <span>Ticket nach dem Antworten als <strong class="text-emerald-400">Gelöst ✓</strong> markieren</span>
+          </label>
+        </div>
+
+        <div class="flex items-center justify-end gap-2.5 pt-2">
+          <button type="button" onclick="closeTicketResponseModal()" class="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 font-semibold text-xs rounded-xl transition">Abbrechen</button>
+          <button type="submit" class="px-5 py-2 bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-brand-600/30 transition flex items-center gap-2">
+            <i data-lucide="send" class="w-3.5 h-3.5"></i>
+            <span>Antwort absenden</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- TICKET CREATE MODAL -->
+  <div id="ticketCreateModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="bg-gray-900 border border-gray-800 rounded-3xl w-full max-w-lg max-h-[92vh] overflow-y-auto custom-scrollbar shadow-2xl p-6 space-y-5">
+      <div class="flex items-center justify-between pb-3 border-b border-gray-800">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-brand-500/20 text-brand-400 flex items-center justify-center border border-brand-500/30">
+            <i data-lucide="plus-circle" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h3 class="text-base font-bold text-white">Neues Ticket anlegen</h3>
+            <p class="text-xs text-gray-400">Erstelle ein neues Support- oder Prüfungs-Ticket</p>
+          </div>
+        </div>
+        <button onclick="closeCreateTicketModal()" class="p-1.5 text-gray-400 hover:text-white rounded-lg hover:bg-gray-800 transition"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+
+      <form id="ticketCreateForm" onsubmit="handleSaveNewTicket(event)" class="space-y-4">
+        <div>
+          <label class="block text-xs font-bold text-gray-300 uppercase mb-1">Betreff / Titel *</label>
+          <input type="text" id="new_ticket_title" required placeholder="z.B. Signal Zs 1 Beschreibung unklar" class="w-full px-3.5 py-2 bg-gray-950 border border-gray-800 rounded-xl text-xs text-gray-100 placeholder-gray-600 focus:outline-none focus:border-brand-500 transition">
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-gray-300 uppercase mb-1">Kategorie / Typ *</label>
+            <select id="new_ticket_type" class="w-full px-3 py-2 bg-gray-950 border border-gray-800 rounded-xl text-xs text-gray-200 focus:outline-none focus:border-brand-500">
+              <option value="question_error">⚠️ Fehler in Prüfungsfrage</option>
+              <option value="app_bug">🐛 App-Fehler / Bug</option>
+              <option value="password_reset">🔑 Passwort-Zurücksetzung</option>
+              <option value="question_help">❓ Fachfrage / Verständnis</option>
+              <option value="general_feedback">💡 Feedback / Verbesserung</option>
+              <option value="other">📌 Sonstiges</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-gray-300 uppercase mb-1">Priorität *</label>
+            <select id="new_ticket_priority" class="w-full px-3 py-2 bg-gray-950 border border-gray-800 rounded-xl text-xs text-gray-200 focus:outline-none focus:border-brand-500">
+              <option value="medium" selected>🟡 Normal</option>
+              <option value="high">🟠 Hoch</option>
+              <option value="urgent">🔴 Dringend</option>
+              <option value="low">⚪ Niedrig</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-gray-300 uppercase mb-1">Name des Erstellers</label>
+            <input type="text" id="new_ticket_username" placeholder="z.B. Max Mustermann" class="w-full px-3 py-2 bg-gray-950 border border-gray-800 rounded-xl text-xs text-gray-100 placeholder-gray-600 focus:outline-none focus:border-brand-500 transition">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-gray-300 uppercase mb-1">E-Mail</label>
+            <input type="email" id="new_ticket_useremail" placeholder="max@bahn.de" class="w-full px-3 py-2 bg-gray-950 border border-gray-800 rounded-xl text-xs text-gray-100 placeholder-gray-600 focus:outline-none focus:border-brand-500 transition">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-gray-300 uppercase mb-1">Problembeschreibung *</label>
+          <textarea id="new_ticket_desc" rows="4" required placeholder="Genaue Beschreibung des Problems oder der Frage..." class="w-full px-3.5 py-2 bg-gray-950 border border-gray-800 rounded-xl text-xs text-gray-100 placeholder-gray-600 focus:outline-none focus:border-brand-500 transition"></textarea>
+        </div>
+
+        <div class="flex items-center justify-end gap-2.5 pt-2">
+          <button type="button" onclick="closeCreateTicketModal()" class="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 font-semibold text-xs rounded-xl transition">Abbrechen</button>
+          <button type="submit" class="px-5 py-2 bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-brand-600/30 transition flex items-center gap-2">
+            <i data-lucide="check" class="w-3.5 h-3.5"></i>
+            <span>Ticket anlegen</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- TOAST -->
   <div id="toast" class="fixed bottom-6 right-6 z-50 bg-brand-600 text-white px-5 py-3 rounded-xl shadow-2xl font-semibold text-sm flex items-center gap-2.5 transform transition-all duration-300 translate-y-20 opacity-0 pointer-events-none">
     <i data-lucide="check-circle-2" class="w-5 h-5"></i>
@@ -2315,13 +2684,19 @@
   </div>
 
   <!-- IMAGE LIGHTBOX MODAL -->
-  <div id="imageLightboxModal" class="fixed inset-0 z-50 bg-black/90 backdrop-blur-md hidden items-center justify-center p-4" onclick="closeImageLightbox()">
-    <div class="relative max-w-4xl max-h-[90vh] flex flex-col items-center" onclick="event.stopPropagation()">
-      <button onclick="closeImageLightbox()" class="absolute -top-12 right-0 p-2 rounded-full bg-gray-800 hover:bg-gray-700 text-white transition flex items-center gap-1.5 text-xs font-semibold px-3">
-        <i data-lucide="x" class="w-4 h-4"></i>
-        <span>Schließen</span>
-      </button>
-      <img id="lightboxImage" src="" alt="Großansicht" class="max-w-full max-h-[85vh] object-contain rounded-2xl shadow-2xl border border-gray-800 bg-gray-950">
+  <div id="imageLightboxModal" class="fixed inset-0 z-50 bg-black/95 backdrop-blur-md hidden items-center justify-center p-3 md:p-6 cursor-zoom-out" onclick="closeImageLightbox()">
+    <div class="relative max-w-6xl w-full max-h-[92vh] flex flex-col items-center justify-center cursor-default" onclick="event.stopPropagation()">
+      <div class="w-full flex items-center justify-between pb-2">
+        <div id="lightboxBattleTimerBadge" class="hidden px-3.5 py-1.5 rounded-full bg-gray-900/90 border border-emerald-500/50 text-emerald-400 font-mono font-black text-sm md:text-base flex items-center gap-2 shadow-lg">
+          <i data-lucide="clock" class="w-4 h-4 text-emerald-400 animate-pulse"></i>
+          <span id="lightboxBattleTimerText">20s</span>
+        </div>
+        <button onclick="closeImageLightbox()" class="ml-auto p-2 rounded-full bg-gray-800 hover:bg-gray-700 text-white transition flex items-center gap-1.5 text-xs font-semibold px-3 shadow">
+          <i data-lucide="x" class="w-4 h-4"></i>
+          <span>Schließen (ESC)</span>
+        </button>
+      </div>
+      <img id="lightboxImage" src="" alt="Großansicht" class="max-w-full max-h-[85vh] object-contain rounded-2xl shadow-2xl border-2 border-emerald-500/40 bg-gray-950">
     </div>
   </div>
 
@@ -2669,10 +3044,22 @@ window.openImageLightbox = function(src) {
   if (!src) return;
   const modal = document.getElementById('imageLightboxModal');
   const img = document.getElementById('lightboxImage');
+  const timerBadge = document.getElementById('lightboxBattleTimerBadge');
+  const timerText = document.getElementById('lightboxBattleTimerText');
   if (img) img.src = src;
   if (modal) {
     modal.classList.remove('hidden');
     modal.classList.add('flex');
+  }
+  if (timerBadge && timerText) {
+    if (typeof battleSession !== 'undefined' && battleSession?.status === 'question') {
+      timerBadge.classList.remove('hidden');
+      timerBadge.classList.add('flex');
+      timerText.textContent = (typeof battleRemainingTime !== 'undefined' ? battleRemainingTime : 20) + 's';
+    } else {
+      timerBadge.classList.add('hidden');
+      timerBadge.classList.remove('flex');
+    }
   }
   if (window.lucide) lucide.createIcons();
 };
@@ -2948,7 +3335,7 @@ function processHangmanRound(session, qIdx) {
   if (!session || !Array.isArray(session.players)) return;
   
   // Nur aktive, noch nicht ausgeschiedene Spieler bewerten
-  const activePlayers = session.players.filter(p => !p.is_eliminated);
+  const activePlayers = session.players.filter(p => !p.is_eliminated && (p.hangman_strikes || 0) < 6);
   if (activePlayers.length === 0) return;
 
   const q = (battleQuestions && battleQuestions[qIdx]) ? battleQuestions[qIdx] : session.current_question_data;
@@ -2956,32 +3343,12 @@ function processHangmanRound(session, qIdx) {
   const correctIndices = q ? extractQuestionCorrectIndices(q) : [];
   const dangerIndices = q ? extractQuestionDangerIndices(q) : [];
 
-  // Welche aktiven Spieler haben in dieser Runde geantwortet?
-  const answered = activePlayers.filter(p => 
-    p.last_answered_q_index === qIdx && 
-    p.last_answer !== null && 
-    p.last_answer !== undefined
-  );
-
-  // Den langsamsten Spieler ermitteln (wer als Letzter geantwortet hat)
-  let slowestPlayerId = null;
-  if (answered.length > 0) {
-    const sortedByTimeDesc = [...answered].sort((a, b) => (b.last_answer_time || 0) - (a.last_answer_time || 0));
-    slowestPlayerId = sortedByTimeDesc[0]?.id;
-  }
-
-  session.players.forEach(p => {
-    // Bereits vor dieser Runde ausgeschiedene Spieler überspringen
-    if (p.is_eliminated) {
-      p.got_strike_this_round = false;
-      p.last_round_strike_reason = null;
-      return;
-    }
-
+  // Vorab-Auswertung aller aktiven Spieler
+  activePlayers.forEach(p => {
     p.hangman_strikes = p.hangman_strikes || 0;
     const hasAnswered = (p.last_answered_q_index === qIdx && p.last_answer !== null && p.last_answer !== undefined);
+    p._roundHasAnswered = hasAnswered;
 
-    // Unabhängige, verlässliche Überprüfung der Richtigkeit auf dem Server:
     if (q && hasAnswered) {
       if (qType === 'order') {
         const optCount = Array.isArray(q.options) ? q.options.length : 0;
@@ -2990,7 +3357,6 @@ function processHangmanRound(session, qIdx) {
         p.is_danger = false;
       } else if (qType === 'multiple') {
         const ans = Array.isArray(p.last_answer) ? p.last_answer.map(Number) : [Number(p.last_answer)];
-        // Streng: ALLE richtigen Antworten müssen gegeben sein und KEINE falschen!
         const hasAllCorrect = correctIndices.length > 0 && correctIndices.every(idx => ans.includes(idx));
         const hasNoWrong = ans.every(idx => correctIndices.includes(idx));
         p.is_correct = (hasAllCorrect && hasNoWrong);
@@ -3000,28 +3366,49 @@ function processHangmanRound(session, qIdx) {
         p.is_correct = (correctIndices.length === 1 && correctIndices.includes(chosen));
         p.is_danger = dangerIndices.includes(chosen);
       }
+    } else {
+      p.is_correct = false;
+      p.is_danger = false;
+    }
+  });
+
+  // Ermittlung des ALLERLETZTEN Spielers:
+  // Nur derjenige, der wirklich als Letzter antwortet (oder gar nicht), erhält den Strich für "Langsam"!
+  // Wer richtig geantwortet hat und nicht Letzter war, erhält KEINEN Strich für zu langsam!
+  let slowestPlayerId = null;
+  if (activePlayers.length > 1) {
+    const sorted = [...activePlayers].sort((a, b) => {
+      const aTime = a._roundHasAnswered ? (Number(a.last_answer_time) || 0) : 9999999999999;
+      const bTime = b._roundHasAnswered ? (Number(b.last_answer_time) || 0) : 9999999999999;
+      return bTime - aTime;
+    });
+    slowestPlayerId = sorted[0]?.id;
+  }
+
+  session.players.forEach(p => {
+    if (p.is_eliminated || (p.hangman_strikes || 0) >= 6) {
+      p.got_strike_this_round = false;
+      p.last_round_strike_reason = null;
+      return;
     }
 
     let gotStrike = false;
     let strikeReason = null;
 
-    if (!hasAnswered) {
-      // 1. Nicht geantwortet / Zeit abgelaufen
-      gotStrike = true;
-      strikeReason = 'timeout';
-    } else if (p.is_danger) {
-      // 2. Betriebsgefährdende Antwort (BG)
+    if (p.is_danger) {
+      // 1. Betriebsgefährdende Antwort (BG)
       gotStrike = true;
       strikeReason = 'danger';
-    } else if (!p.is_correct) {
-      // 3. Falsche Antwort oder nicht alle richtigen Antworten gegeben!
+    } else if (p._roundHasAnswered && !p.is_correct) {
+      // 2. Falsche Antwort
       gotStrike = true;
       strikeReason = 'wrong';
-    } else if (p.id === slowestPlayerId && answered.length > 1) {
-      // 4. Als Letzter geantwortet (selbst wenn richtig!)
+    } else if (p.id === slowestPlayerId) {
+      // 3. Nur und ausschließlich derjenige der als Letzter geantwortet hat (oder gar nicht)!
       gotStrike = true;
       strikeReason = 'slowest';
     }
+    // Alle anderen aktiven Spieler, die richtig geantwortet haben, erhalten keinen Strich!
 
     if (gotStrike) {
       p.hangman_strikes = Math.min(6, (p.hangman_strikes || 0) + 1);
@@ -3057,6 +3444,11 @@ window.createLiveBattleLobby = async function() {
   const qCount = countSel ? parseInt(countSel.value, 10) : 10;
   battleTimeLimit = timerSel ? parseInt(timerSel.value, 10) : 20;
   const gameMode = modeSel ? modeSel.value : 'classic';
+  const musicSel = document.getElementById('battleMusicSelect');
+  const selectedMusic = musicSel ? musicSel.value : 'tetris';
+  if (window.battleSound) {
+    battleSound.setTrack(selectedMusic);
+  }
 
   // Fragen zusammenstellen (Inklusive Reihenfolge-Aufgaben)
   let pool = allQuestions.filter(q => (selectedCat === 'all' || q.category === selectedCat));
@@ -3160,7 +3552,12 @@ function updateBattleServerStatus(isOnline, ip, port) {
   if (!badge || !txt) return;
   if (isOnline) {
     badge.className = 'flex items-center justify-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-semibold';
-    txt.textContent = 'Server aktiv (' + (ip || '192.168.188.78') + ':' + (port || '3000') + ')';
+    txt.textContent = 'Lokaler Server aktiv (' + (ip || '192.168.188.78') + ':' + (port || '3000') + ')';
+    badge.firstElementChild?.classList.remove('bg-amber-400', 'bg-red-400', 'animate-ping');
+    badge.firstElementChild?.classList.add('bg-emerald-400', 'animate-pulse');
+  } else if (window.location.protocol === 'http:' || window.location.protocol === 'https:') {
+    badge.className = 'flex items-center justify-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-semibold';
+    txt.textContent = 'Cloud-Online-Modus aktiv 🌐';
     badge.firstElementChild?.classList.remove('bg-amber-400', 'bg-red-400', 'animate-ping');
     badge.firstElementChild?.classList.add('bg-emerald-400', 'animate-pulse');
   } else {
@@ -3251,15 +3648,49 @@ window.renderBattleQrCode = function(url) {
   }
 };
 
-// --- BATTLE WEB AUDIO SYNTHESIZER (KAHOOT-STYLE MUSIC & SOUND FX) ---
+// --- BATTLE SOUND ENGINE (ORIGINAL TETRIS & SUPER MARIO AUDIO TRACKS, KAHOOT & SOUND FX) ---
 class BattleSoundEngine {
   constructor() {
     this.ctx = null;
     this.isPlaying = false;
     this.musicEnabled = true;
     this.loopTimer = null;
-    this.tempo = 135;
-    this.step = 0;
+    this.activeAudio = null;
+    this.currentTrack = localStorage.getItem('battle_music_track') || 'tetris';
+    if (this.currentTrack === 'none') {
+      this.musicEnabled = false;
+    }
+  }
+
+  getAudioElement(trackName) {
+    if (trackName === 'tetris') {
+      let el = document.getElementById('battleAudioTetris');
+      if (!el) {
+        el = new Audio('audio/tetris.mp3');
+        el.loop = true;
+      }
+      el.volume = 0.35;
+      return el;
+    }
+    if (trackName === 'marioland') {
+      let el = document.getElementById('battleAudioMarioLand');
+      if (!el) {
+        el = new Audio('audio/marioland.m4a');
+        el.loop = true;
+      }
+      el.volume = 0.35;
+      return el;
+    }
+    if (trackName === 'mario') {
+      let el = document.getElementById('battleAudioMario');
+      if (!el) {
+        el = new Audio('audio/mario.mp3');
+        el.loop = true;
+      }
+      el.volume = 0.32;
+      return el;
+    }
+    return null;
   }
 
   initContext() {
@@ -3272,8 +3703,248 @@ class BattleSoundEngine {
     }
   }
 
+  setTrack(trackName) {
+    if (trackName === 'none') {
+      this.currentTrack = 'none';
+      this.musicEnabled = false;
+      this.stopGroove();
+      this.updateMusicUI();
+      localStorage.setItem('battle_music_track', 'none');
+      return;
+    }
+    const wasPlaying = this.isPlaying;
+    this.stopGroove();
+    this.currentTrack = trackName;
+    this.musicEnabled = true;
+    localStorage.setItem('battle_music_track', trackName);
+    this.updateMusicUI();
+    if (wasPlaying) {
+      this.startGroove();
+    }
+  }
+
+  updateMusicUI() {
+    const btnText = document.getElementById('battleMusicToggleText');
+    const icon = document.getElementById('battleMusicIcon');
+    const liveSel = document.getElementById('battleLiveMusicSelect');
+    const lobbySel = document.getElementById('battleMusicSelect');
+
+    if (btnText) {
+      btnText.textContent = this.musicEnabled ? 'Musik: An' : 'Musik: Aus';
+    }
+    if (icon) {
+      icon.setAttribute('data-lucide', this.musicEnabled ? 'volume-2' : 'volume-x');
+    }
+    if (liveSel && this.currentTrack !== 'none') {
+      liveSel.value = this.currentTrack;
+    }
+    if (lobbySel) {
+      lobbySel.value = this.musicEnabled ? this.currentTrack : 'none';
+    }
+    if (window.lucide) lucide.createIcons();
+  }
+
+  startGroove() {
+    if (!this.musicEnabled || this.currentTrack === 'none') return;
+    this.stopGroove(false);
+    this.isPlaying = true;
+
+    if (this.currentTrack === 'kahoot') {
+      this.startKahootTrack();
+      return;
+    }
+
+    const audio = this.getAudioElement(this.currentTrack);
+    if (audio) {
+      this.activeAudio = audio;
+      audio.currentTime = 0;
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(err => {
+          console.warn('Audio Autoplay blockiert, nutze Chiptune Fallback bis Klick:', err);
+          // Starte authentische Chiptune-Melodie im exakten Originaltempo falls Datei noch blockiert ist
+          this.startChiptune(this.currentTrack);
+          const resumeOnInteraction = () => {
+            if (this.isPlaying && this.musicEnabled && this.activeAudio) {
+              if (this.loopTimer) {
+                clearInterval(this.loopTimer);
+                this.loopTimer = null;
+              }
+              this.activeAudio.play().catch(() => {});
+            }
+            document.removeEventListener('click', resumeOnInteraction);
+            document.removeEventListener('keydown', resumeOnInteraction);
+          };
+          document.addEventListener('click', resumeOnInteraction, { once: true });
+          document.addEventListener('keydown', resumeOnInteraction, { once: true });
+        });
+      }
+    } else {
+      this.startChiptune(this.currentTrack);
+    }
+  }
+
+  stopGroove(fullStop = true) {
+    if (fullStop) this.isPlaying = false;
+
+    if (this.activeAudio) {
+      try {
+        this.activeAudio.pause();
+        this.activeAudio.currentTime = 0;
+      } catch (e) {}
+      this.activeAudio = null;
+    }
+
+    const tetrisEl = document.getElementById('battleAudioTetris');
+    if (tetrisEl) {
+      try { tetrisEl.pause(); tetrisEl.currentTime = 0; } catch (e) {}
+    }
+
+    const marioLandEl = document.getElementById('battleAudioMarioLand');
+    if (marioLandEl) {
+      try { marioLandEl.pause(); marioLandEl.currentTime = 0; } catch (e) {}
+    }
+
+    const marioEl = document.getElementById('battleAudioMario');
+    if (marioEl) {
+      try { marioEl.pause(); marioEl.currentTime = 0; } catch (e) {}
+    }
+
+    if (this.loopTimer) {
+      clearInterval(this.loopTimer);
+      this.loopTimer = null;
+    }
+  }
+
+  startChiptune(track) {
+    this.initContext();
+    if (!this.ctx) return;
+    if (this.loopTimer) clearInterval(this.loopTimer);
+
+    if (track === 'tetris') {
+      // Original Game Boy Korobeiniki (138 BPM, authentisches Chiptune)
+      const tempo = 138;
+      const beat = (60 / tempo) * 1000 / 2;
+      const melody = [
+        659.25, 493.88, 523.25, 587.33, 523.25, 493.88,
+        440.00, 440.00, 523.25, 659.25, 587.33, 523.25,
+        493.88, 493.88, 523.25, 587.33, 659.25, 659.25,
+        523.25, 523.25, 440.00, 440.00, 0,      0,
+        0,      587.33, 698.46, 880.00, 783.99, 698.46,
+        659.25, 659.25, 523.25, 659.25, 587.33, 523.25,
+        493.88, 493.88, 523.25, 587.33, 659.25, 659.25,
+        523.25, 523.25, 440.00, 440.00, 0,      0
+      ];
+      const bass = [
+        164.81, 82.41, 164.81, 82.41,
+        207.65, 103.83, 207.65, 103.83,
+        220.00, 110.00, 220.00, 110.00,
+        174.61, 87.31, 174.61, 87.31,
+        146.83, 73.42, 146.83, 73.42,
+        164.81, 82.41, 164.81, 82.41,
+        207.65, 103.83, 207.65, 103.83,
+        220.00, 110.00, 220.00, 110.00
+      ];
+      let step = 0;
+      this.loopTimer = setInterval(() => {
+        if (!this.isPlaying || !this.musicEnabled) return;
+        this.initContext();
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const mFreq = melody[step % melody.length];
+        if (mFreq > 0) this.playNote(mFreq, 'square', 0.18, 0.13, now);
+        const bFreq = bass[step % bass.length];
+        if (bFreq > 0) this.playNote(bFreq, 'triangle', 0.16, 0.18, now);
+        step++;
+      }, beat);
+    } else if (track === 'marioland') {
+      // Original Super Mario Land Birabuto Theme (120 BPM)
+      const tempo = 120;
+      const beat = (60 / tempo) * 1000 / 2;
+      const melody = [
+        587.33, 587.33, 587.33, 392.00, 493.88, 587.33,
+        659.25, 659.25, 587.33, 587.33, 523.25, 523.25,
+        493.88, 493.88, 440.00, 440.00, 0,      0,
+        523.25, 523.25, 523.25, 349.23, 440.00, 523.25,
+        587.33, 587.33, 523.25, 523.25, 493.88, 493.88,
+        440.00, 440.00, 392.00, 392.00, 0,      0
+      ];
+      const bass = [
+        196.00, 98.00, 196.00, 98.00, 196.00, 98.00,
+        146.83, 73.42, 146.83, 73.42, 146.83, 73.42,
+        174.61, 87.31, 174.61, 87.31, 174.61, 87.31,
+        196.00, 98.00, 196.00, 98.00, 196.00, 98.00
+      ];
+      let step = 0;
+      this.loopTimer = setInterval(() => {
+        if (!this.isPlaying || !this.musicEnabled) return;
+        this.initContext();
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const mFreq = melody[step % melody.length];
+        if (mFreq > 0) this.playNote(mFreq, 'square', 0.18, 0.14, now);
+        const bFreq = bass[step % bass.length];
+        if (bFreq > 0) this.playNote(bFreq, 'triangle', 0.16, 0.18, now);
+        step++;
+      }, beat);
+    } else {
+      // Original NES Super Mario Bros. Theme (100 BPM)
+      const tempo = 100;
+      const beat = (60 / tempo) * 1000 / 2;
+      const melody = [
+        659.25, 659.25, 0, 659.25, 0, 523.25, 659.25, 659.25, 783.99, 783.99, 0, 0, 392.00, 392.00, 0, 0,
+        523.25, 523.25, 0, 0, 392.00, 392.00, 0, 0, 329.63, 329.63, 0, 0, 440.00, 440.00, 493.88, 493.88,
+        466.16, 440.00, 392.00, 659.25, 783.99, 880.00, 0, 698.46, 783.99, 0, 659.25, 0, 523.25, 587.33, 493.88, 0
+      ];
+      const bass = [
+        146.83, 146.83, 0, 146.83, 0, 146.83, 146.83, 146.83, 196.00, 196.00, 0, 0, 98.00, 98.00, 0, 0,
+        130.81, 130.81, 0, 0, 98.00, 98.00, 0, 0, 82.41, 82.41, 0, 0, 110.00, 110.00, 123.47, 123.47,
+        116.54, 110.00, 98.00, 164.81, 196.00, 220.00, 0, 174.61, 196.00, 0, 164.81, 0, 130.81, 146.83, 123.47, 0
+      ];
+      let step = 0;
+      this.loopTimer = setInterval(() => {
+        if (!this.isPlaying || !this.musicEnabled) return;
+        this.initContext();
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const mFreq = melody[step % melody.length];
+        if (mFreq > 0) this.playNote(mFreq, 'square', 0.20, 0.15, now);
+        const bFreq = bass[step % bass.length];
+        if (bFreq > 0) this.playNote(bFreq, 'triangle', 0.18, 0.20, now);
+        step++;
+      }, beat);
+    }
+  }
+
+  startKahootTrack() {
+    this.initContext();
+    const tempo = 135;
+    const bassScale = [130.81, 155.56, 174.61, 196.00, 233.08];
+    const synthNotes = [261.63, 311.13, 349.23, 392.00, 466.16, 523.25];
+    const beatInterval = (60 / tempo) * 1000 / 2;
+    let step = 0;
+
+    this.loopTimer = setInterval(() => {
+      if (!this.isPlaying || !this.musicEnabled) return;
+      this.initContext();
+      if (!this.ctx) return;
+      const now = this.ctx.currentTime;
+      if (step % 2 === 0) {
+        this.playNote(75, 'sine', 0.12, 0.22, now);
+      }
+      const bassFreq = bassScale[step % bassScale.length];
+      this.playNote(bassFreq, 'triangle', 0.18, 0.15, now);
+      if (step % 4 === 1 || step % 4 === 3) {
+        const synthFreq = synthNotes[(step * 2) % synthNotes.length];
+        this.playNote(synthFreq, 'square', 0.1, 0.04, now);
+      }
+      step = (step + 1) % 16;
+    }, beatInterval);
+  }
+
   playNote(freq, type, duration, gainVal = 0.15, startTime = null) {
-    if (!this.ctx || !this.musicEnabled) return;
+    this.initContext();
+    if (!this.ctx || !this.musicEnabled || !freq || freq <= 0) return;
     try {
       const now = startTime !== null ? startTime : this.ctx.currentTime;
       const osc = this.ctx.createOscillator();
@@ -3293,44 +3964,33 @@ class BattleSoundEngine {
     } catch {}
   }
 
-  startGroove() {
+  playNoise(duration, gainVal = 0.04, startTime = null) {
     this.initContext();
-    if (!this.musicEnabled || this.isPlaying) return;
-    this.isPlaying = true;
-    this.step = 0;
-
-    const bassScale = [130.81, 155.56, 174.61, 196.00, 233.08];
-    const synthNotes = [261.63, 311.13, 349.23, 392.00, 466.16, 523.25];
-    const beatInterval = (60 / this.tempo) * 1000 / 2;
-
-    if (this.loopTimer) clearInterval(this.loopTimer);
-    this.loopTimer = setInterval(() => {
-      if (!this.isPlaying || !this.musicEnabled) return;
-      this.initContext();
-      if (!this.ctx) return;
-
-      const now = this.ctx.currentTime;
-      if (this.step % 2 === 0) {
-        this.playNote(75, 'sine', 0.12, 0.22, now);
+    if (!this.ctx || !this.musicEnabled) return;
+    try {
+      const now = startTime !== null ? startTime : this.ctx.currentTime;
+      const bufferSize = Math.floor(this.ctx.sampleRate * duration);
+      if (bufferSize <= 0) return;
+      const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) {
+        data[i] = Math.random() * 2 - 1;
       }
-      const bassFreq = bassScale[this.step % bassScale.length];
-      this.playNote(bassFreq, 'triangle', 0.18, 0.15, now);
+      const noise = this.ctx.createBufferSource();
+      noise.buffer = buffer;
+      const filter = this.ctx.createBiquadFilter();
+      filter.type = 'highpass';
+      filter.frequency.value = 1200;
+      const gain = this.ctx.createGain();
+      gain.gain.setValueAtTime(gainVal, now);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
 
-      if (this.step % 4 === 1 || this.step % 4 === 3) {
-        const synthFreq = synthNotes[(this.step * 2) % synthNotes.length];
-        this.playNote(synthFreq, 'square', 0.1, 0.04, now);
-      }
-
-      this.step = (this.step + 1) % 16;
-    }, beatInterval);
-  }
-
-  stopGroove() {
-    this.isPlaying = false;
-    if (this.loopTimer) {
-      clearInterval(this.loopTimer);
-      this.loopTimer = null;
-    }
+      noise.connect(filter);
+      filter.connect(gain);
+      gain.connect(this.ctx.destination);
+      noise.start(now);
+      noise.stop(now + duration);
+    } catch {}
   }
 
   playTick() {
@@ -3364,23 +4024,23 @@ class BattleSoundEngine {
 
   toggleMusic() {
     this.musicEnabled = !this.musicEnabled;
-    const btnText = document.getElementById('battleMusicToggleText');
-    const icon = document.getElementById('battleMusicIcon');
     if (this.musicEnabled) {
-      if (btnText) btnText.textContent = 'Musik: An';
-      if (icon) icon.setAttribute('data-lucide', 'volume-2');
+      if (this.currentTrack === 'none') {
+        this.currentTrack = 'tetris';
+      }
       this.startGroove();
     } else {
-      if (btnText) btnText.textContent = 'Musik: Aus';
-      if (icon) icon.setAttribute('data-lucide', 'volume-x');
       this.stopGroove();
     }
-    if (window.lucide) lucide.createIcons();
+    this.updateMusicUI();
+    showToast(this.musicEnabled ? 'Hintergrundmusik aktiviert 🎵' : 'Hintergrundmusik stummgeschaltet 🔇');
   }
 }
 
 const battleSound = new BattleSoundEngine();
+window.battleSound = battleSound;
 window.toggleBattleMusic = () => battleSound.toggleMusic();
+window.setBattleMusicTrack = (track) => battleSound.setTrack(track);
 
 window.getBattleApiUrl = function(path) {
   const custom = localStorage.getItem('railtrainer_battle_custom_url');
@@ -3426,6 +4086,62 @@ window.syncBattleSession = async function(sessionObj) {
   }
 };
 
+async function syncRemoteAnswersFromIndividualRecords() {
+  if (!battleSession?.pin) return;
+  try {
+    const res = await fetch(SUPABASE_URL + '/rest/v1/chat_messages?category=eq.__battle_ans_' + encodeURIComponent(battleSession.pin) + '__&select=*', {
+      headers: restHeaders
+    });
+    if (res.ok) {
+      const rows = await res.json();
+      if (Array.isArray(rows) && rows.length > 0) {
+        if (!Array.isArray(battleSession.players)) battleSession.players = [];
+        rows.forEach(row => {
+          try {
+            const data = JSON.parse(row.text);
+            if (!data || !data.playerId || data.qIndex !== battleCurrentQIdx) return;
+            let player = battleSession.players.find(p => p.id === data.playerId);
+            if (!player) {
+              player = {
+                id: data.playerId,
+                name: data.name || 'Spieler',
+                avatar: data.avatar || '👨‍✈️',
+                score: 0,
+                streak: 0,
+                hangman_strikes: 0,
+                is_eliminated: false
+              };
+              battleSession.players.push(player);
+            }
+            if (player.last_answered_q_index !== data.qIndex) {
+              player.last_answer = data.answer;
+              player.last_answered_q_index = data.qIndex;
+              player.last_answer_time = data.answerTime;
+              player.is_correct = data.isCorrect;
+              player.is_danger = data.isDanger;
+              player.last_earned_points = data.earnedPoints;
+              player.score = (player.score || 0) + (data.earnedPoints || 0);
+              if (data.isCorrect) player.streak = (player.streak || 0) + 1;
+              else player.streak = 0;
+            }
+            if (!player.answersHistory) player.answersHistory = {};
+            player.answersHistory[data.qIndex] = {
+              qIndex: data.qIndex,
+              answer: data.answer,
+              answerTime: data.answerTime,
+              isCorrect: data.isCorrect,
+              isDanger: data.isDanger,
+              earnedPoints: data.earnedPoints
+            };
+          } catch (e) {}
+        });
+      }
+    }
+  } catch (e) {
+    console.warn('Error fetching individual answers:', e);
+  }
+}
+
 function startHostPolling() {
   if (battlePollInterval) clearInterval(battlePollInterval);
   battlePollInterval = setInterval(async () => {
@@ -3441,6 +4157,9 @@ function startHostPolling() {
           battleSession.players = remote.players || [];
           if (remote.first_answer_time && !battleSession.first_answer_time) {
             battleSession.first_answer_time = remote.first_answer_time;
+          }
+          if (battleSession.status === 'question') {
+            await syncRemoteAnswersFromIndividualRecords();
           }
           updateHostUIFromState();
           return;
@@ -3461,6 +4180,9 @@ function startHostPolling() {
             battleSession.players = remote.players || [];
             if (remote.first_answer_time && !battleSession.first_answer_time) {
               battleSession.first_answer_time = remote.first_answer_time;
+            }
+            if (battleSession.status === 'question') {
+              await syncRemoteAnswersFromIndividualRecords();
             }
             updateHostUIFromState();
           }
@@ -3485,8 +4207,8 @@ function updateHostUIFromState() {
       listEl.innerHTML = '<div class="text-xs text-gray-500 italic py-8 text-center w-full">Warte auf Teilnehmer... Scanne den QR-Code!</div>';
     } else {
       listEl.innerHTML = players.map(p => 
-        '<div class="flex items-center gap-2.5 bg-gradient-to-r from-gray-950 to-emerald-950/40 border border-emerald-500/30 hover:border-emerald-400/60 px-4 py-2 rounded-2xl shadow-lg shadow-black/40 transition-all hover:scale-105">' +
-          '<span class="text-xl filter drop-shadow">' + (p.avatar || '🚂') + '</span>' +
+        '<div onclick="window.showParticipantAnswersModal(\'' + p.id + '\')" class="cursor-pointer flex items-center gap-2.5 bg-gradient-to-r from-gray-950 to-emerald-950/40 border border-emerald-500/30 hover:border-emerald-400 hover:ring-2 hover:ring-emerald-400/40 px-4 py-2 rounded-2xl shadow-lg shadow-black/40 transition-all hover:scale-105" title="Klicken um Details & Antworten zu sehen">' +
+          '<span class="text-xl filter drop-shadow">' + (p.avatar || '👨‍✈️') + '</span>' +
           '<span class="text-sm font-bold text-white tracking-wide">' + escapeHtml(p.name || 'Spieler') + '</span>' +
           '<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]"></span>' +
         '</div>'
@@ -3570,45 +4292,16 @@ function startBattleTimerCountdown() {
   }, 1000);
 }
 
-window.toggleBattleImageFocus = function() {
-  isBattleImageFocused = !isBattleImageFocused;
-  const imgBox = document.getElementById('battleQuestionImageBox');
-  const imgEl = document.getElementById('battleQuestionImage');
-  const zoomHintText = document.getElementById('battleImageZoomHintText');
-  const optGrid = document.getElementById('battleOptionsGrid');
-  const orderBanner = document.getElementById('battleOrderBanner');
-  const multiBanner = document.getElementById('battleMultipleBanner');
+window.openBattleImageLightbox = function() {
   const q = battleQuestions[battleCurrentQIdx];
-  const qType = extractQuestionType(q);
-
-  if (isBattleImageFocused) {
-    if (optGrid) optGrid.classList.add('hidden');
-    if (orderBanner) { orderBanner.classList.add('hidden'); orderBanner.classList.remove('flex'); }
-    if (multiBanner) { multiBanner.classList.add('hidden'); multiBanner.classList.remove('flex'); }
-    if (imgBox) {
-      imgBox.classList.remove('max-h-64', 'max-w-md');
-      imgBox.classList.add('max-h-[70vh]', 'max-w-5xl', 'w-full', 'ring-4', 'ring-emerald-400/40');
-    }
-    if (imgEl) {
-      imgEl.classList.remove('max-h-60');
-      imgEl.classList.add('max-h-[66vh]', 'w-auto');
-    }
-    if (zoomHintText) zoomHintText.textContent = 'Verkleinern (Antworten wieder anzeigen)';
-  } else {
-    if (optGrid) optGrid.classList.remove('hidden');
-    if (orderBanner && qType === 'order') { orderBanner.classList.remove('hidden'); orderBanner.classList.add('flex'); }
-    if (multiBanner && qType === 'multiple') { multiBanner.classList.remove('hidden'); multiBanner.classList.add('flex'); }
-    if (imgBox) {
-      imgBox.classList.add('max-h-64', 'max-w-md');
-      imgBox.classList.remove('max-h-[70vh]', 'max-w-5xl', 'w-full', 'ring-4', 'ring-emerald-400/40');
-    }
-    if (imgEl) {
-      imgEl.classList.add('max-h-60');
-      imgEl.classList.remove('max-h-[66vh]', 'w-auto');
-    }
-    if (zoomHintText) zoomHintText.textContent = 'Großansicht (Klick)';
+  const src = q ? (q.image_url || q.imageUrl) : null;
+  if (src) {
+    window.openImageLightbox(src);
   }
-  if (window.lucide) lucide.createIcons();
+};
+
+window.toggleBattleImageFocus = function() {
+  window.openBattleImageLightbox();
 };
 
 window.startLiveBattleGame = async function() {
@@ -3736,6 +4429,7 @@ async function presentBattleQuestion(qIdx) {
 
   // Banner für Mehrfachauswahl-Modus
   const multiBanner = document.getElementById('battleMultipleBanner');
+  const multiTopBadge = document.getElementById('battleMultipleTopBadge');
   if (multiBanner) {
     if (isMultiple) {
       multiBanner.classList.remove('hidden');
@@ -3743,6 +4437,15 @@ async function presentBattleQuestion(qIdx) {
     } else {
       multiBanner.classList.add('hidden');
       multiBanner.classList.remove('flex');
+    }
+  }
+  if (multiTopBadge) {
+    if (isMultiple) {
+      multiTopBadge.classList.remove('hidden');
+      multiTopBadge.classList.add('inline-flex');
+    } else {
+      multiTopBadge.classList.add('hidden');
+      multiTopBadge.classList.remove('inline-flex');
     }
   }
 
@@ -3888,6 +4591,10 @@ window.revealBattleRoundResults = async function() {
       }
     }
   } catch {}
+
+  // 750ms Kulanzzeit & vollständiger Abgleich aller Schüler-Antworten (verhindert fälschliche Timeouts / Minuspunkte)
+  await new Promise(r => setTimeout(r, 750));
+  await syncRemoteAnswersFromIndividualRecords();
 
   // Hangman Runden-Auswertung falls Hangman Modus
   if (battleSession.game_mode === 'hangman') {
@@ -4187,15 +4894,16 @@ window.revealBattleRoundResults = async function() {
             ? 'bg-red-950/30 border-2 border-red-500/80 shadow-md shadow-red-950/40' 
             : 'bg-gradient-to-r from-red-950/20 via-gray-950 to-amber-950/20 border border-red-500/40 shadow';
 
-          return '<div class="flex items-center justify-between py-1.5 px-2.5 rounded-xl ' + cardBorder + ' shadow transition">' +
+          return '<div onclick="window.showParticipantAnswersModal(\'' + p.id + '\')" class="cursor-pointer hover:ring-2 hover:ring-red-400/50 hover:scale-[1.01] flex items-center justify-between py-1.5 px-2.5 rounded-xl ' + cardBorder + ' shadow transition" title="Klicken um Teilnehmer-Antworten zu sehen">' +
             '<div class="flex items-center gap-2.5 min-w-0 flex-1">' +
               '<div class="w-9 h-9 flex items-center justify-center shrink-0 bg-gray-900 rounded-lg border border-gray-800 p-0.5 shadow-inner">' +
                 window.renderHangmanSvg(strikes, 32, isDead) +
               '</div>' +
               '<div class="min-w-0 flex-1">' +
                 '<div class="flex items-center gap-1.5">' +
-                  '<span class="text-base leading-none">' + (p.avatar || '🚂') + '</span>' +
+                  '<span class="text-base leading-none">' + (p.avatar || '👨‍✈️') + '</span>' +
                   '<span class="font-bold text-xs text-white truncate max-w-[130px]">' + escapeHtml(p.name || 'Spieler') + '</span>' +
+                  '<i data-lucide="eye" class="w-3 h-3 text-gray-500"></i>' +
                 '</div>' +
                 '<div class="flex items-center gap-1 mt-0.5 flex-wrap">' +
                   statusBadge +
@@ -4225,11 +4933,12 @@ window.revealBattleRoundResults = async function() {
           const gain = p.last_earned_points ? ('+' + p.last_earned_points + ' Pkt') : '';
           const streakBadge = (p.streak && p.streak > 1) ? ('<span class="px-1.5 py-0.5 rounded-full text-[9px] bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30">🔥 ' + p.streak + 'x</span>') : '';
 
-          return '<div class="flex items-center justify-between py-1.5 px-2.5 rounded-xl ' + (idx === 0 ? 'bg-gradient-to-r from-emerald-950/40 to-gray-950 border border-emerald-500/40 shadow-emerald-950/30' : 'bg-gray-950 border border-gray-800') + ' shadow">' +
+          return '<div onclick="window.showParticipantAnswersModal(\'' + p.id + '\')" class="cursor-pointer hover:ring-2 hover:ring-emerald-400/50 hover:scale-[1.01] flex items-center justify-between py-1.5 px-2.5 rounded-xl ' + (idx === 0 ? 'bg-gradient-to-r from-emerald-950/40 to-gray-950 border border-emerald-500/40 shadow-emerald-950/30' : 'bg-gray-950 border border-gray-800') + ' shadow transition" title="Klicken um Teilnehmer-Antworten zu sehen">' +
             '<div class="flex items-center gap-2 min-w-0">' +
               '<span class="font-black text-xs w-5 text-center ' + (idx === 0 ? 'text-emerald-400' : 'text-gray-400') + '">' + medal + '</span>' +
-              '<span class="text-base leading-none">' + (p.avatar || '🚂') + '</span>' +
+              '<span class="text-base leading-none">' + (p.avatar || '👨‍✈️') + '</span>' +
               '<span class="font-bold text-xs text-white truncate max-w-[110px]">' + escapeHtml(p.name || 'Spieler') + '</span>' +
+              '<i data-lucide="eye" class="w-3 h-3 text-gray-500"></i>' +
               streakBadge +
             '</div>' +
             '<div class="text-right shrink-0">' +
@@ -4356,15 +5065,15 @@ window.renderBattlePodium = function() {
   };
 
   document.getElementById('podiumName1').textContent = p1 ? (p1.name || 'Champion') : '-';
-  document.getElementById('podiumAvatar1').textContent = p1 ? (p1.avatar || '🥇') : '🚂';
+  document.getElementById('podiumAvatar1').textContent = p1 ? (p1.avatar || '🥇') : '👨‍✈️';
   document.getElementById('podiumScore1').textContent = formatPodiumScore(p1);
 
   document.getElementById('podiumName2').textContent = p2 ? (p2.name || 'Zweiter') : '-';
-  document.getElementById('podiumAvatar2').textContent = p2 ? (p2.avatar || '🥈') : '🚂';
+  document.getElementById('podiumAvatar2').textContent = p2 ? (p2.avatar || '🥈') : '👨‍✈️';
   document.getElementById('podiumScore2').textContent = formatPodiumScore(p2);
 
   document.getElementById('podiumName3').textContent = p3 ? (p3.name || 'Dritter') : '-';
-  document.getElementById('podiumAvatar3').textContent = p3 ? (p3.avatar || '🥉') : '🚂';
+  document.getElementById('podiumAvatar3').textContent = p3 ? (p3.avatar || '🥉') : '👨‍✈️';
   document.getElementById('podiumScore3').textContent = formatPodiumScore(p3);
 
   const fullList = document.getElementById('battleFinalFullLeaderboard');
@@ -4376,12 +5085,13 @@ window.renderBattlePodium = function() {
         ? (dead ? '<span class="font-bold text-xs text-red-400">☠️ Ausgeschieden (6/6)</span>' : '<span class="font-black text-xs text-emerald-400">👑 Überlebt (' + (p.hangman_strikes || 0) + '/6 Striche)</span>')
         : ('<div class="font-black text-sm ' + (idx === 0 ? 'text-emerald-400' : 'text-emerald-300/80') + '">' + (p.score || 0) + ' Punkte</div>');
 
-      return '<div class="flex items-center justify-between p-3 rounded-2xl ' + (idx === 0 ? 'bg-gradient-to-r from-emerald-950/40 to-gray-950 border border-emerald-500/40 shadow-lg shadow-emerald-950/20' : 'bg-gray-950 border border-gray-800') + ' shadow">' +
+      return '<div onclick="window.showParticipantAnswersModal(\'' + p.id + '\')" class="cursor-pointer hover:ring-2 hover:ring-emerald-400/50 hover:scale-[1.01] flex items-center justify-between p-3 rounded-2xl ' + (idx === 0 ? 'bg-gradient-to-r from-emerald-950/40 to-gray-950 border border-emerald-500/40 shadow-lg shadow-emerald-950/20' : 'bg-gray-950 border border-gray-800') + ' shadow transition" title="Klicken um Teilnehmer-Antworten zu sehen">' +
         '<div class="flex items-center gap-3">' +
           '<span class="font-extrabold text-xs w-20 ' + (idx === 0 ? 'text-emerald-400 font-black' : idx === 1 ? 'text-gray-300' : idx === 2 ? 'text-amber-600' : 'text-gray-500') + '">' + medal + '</span>' +
           (isHangman ? ('<div class="w-8 h-8 flex items-center justify-center shrink-0">' + window.renderHangmanSvg(p.hangman_strikes, 32, dead) + '</div>') : '') +
-          '<span class="text-xl filter drop-shadow">' + (p.avatar || '🚂') + '</span>' +
+          '<span class="text-xl filter drop-shadow">' + (p.avatar || '👨‍✈️') + '</span>' +
           '<span class="font-bold text-sm text-white">' + escapeHtml(p.name || 'Spieler') + '</span>' +
+          '<i data-lucide="eye" class="w-3.5 h-3.5 text-gray-500 ml-1"></i>' +
         '</div>' +
         rightCol +
       '</div>';
@@ -4400,9 +5110,145 @@ window.renderBattlePodium = function() {
   if (window.lucide) lucide.createIcons();
 };
 
+window.showParticipantAnswersModal = function(playerId) {
+  if (!battleSession || !Array.isArray(battleSession.players)) return;
+  const player = battleSession.players.find(p => p.id === playerId);
+  if (!player) return;
+
+  const modal = document.getElementById('participantAnswersModal');
+  const avatarEl = document.getElementById('participantAnswersAvatar');
+  const nameEl = document.getElementById('participantAnswersName');
+  const badgeEl = document.getElementById('participantAnswersBadge');
+  const switcherEl = document.getElementById('participantAnswersSwitcher');
+  const listEl = document.getElementById('participantAnswersList');
+  if (!modal || !listEl) return;
+
+  if (avatarEl) avatarEl.textContent = player.avatar || '👨‍✈️';
+  if (nameEl) nameEl.textContent = player.name || 'Spieler';
+
+  const isHangman = battleSession.game_mode === 'hangman';
+  if (badgeEl) {
+    if (isHangman) {
+      const strikes = player.hangman_strikes || 0;
+      badgeEl.textContent = strikes + ' / 6 Striche' + (player.is_eliminated ? ' (Ausgeschieden)' : '');
+      badgeEl.className = 'px-2 py-0.5 rounded-full text-[10px] font-black ' + (player.is_eliminated ? 'bg-red-500/20 text-red-300 border border-red-500/40' : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30');
+    } else {
+      badgeEl.textContent = (player.score || 0) + ' Punkte';
+      badgeEl.className = 'px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
+    }
+  }
+
+  // Switcher Tabs oben für schnelles Umschalten zwischen allen Teilnehmern
+  if (switcherEl) {
+    switcherEl.innerHTML = battleSession.players.map(p => {
+      const isActive = p.id === playerId;
+      return '<button type="button" onclick="window.showParticipantAnswersModal(\'' + p.id + '\')" class="px-2.5 py-1 rounded-xl text-xs font-bold shrink-0 transition flex items-center gap-1.5 ' + (isActive ? 'bg-emerald-500 text-gray-950 shadow-md font-black' : 'bg-gray-800 text-gray-300 hover:bg-gray-700') + '">' +
+        '<span>' + (p.avatar || '👨‍✈️') + '</span>' +
+        '<span class="truncate max-w-[90px]">' + escapeHtml(p.name || 'Spieler') + '</span>' +
+      '</button>';
+    }).join('');
+  }
+
+  // Bisher gespielte Fragen und Antworten
+  const currentIdx = typeof battleCurrentQIdx === 'number' ? battleCurrentQIdx : 0;
+  let html = '';
+
+  for (let qIdx = currentIdx; qIdx >= 0; qIdx--) {
+    const q = (battleQuestions && battleQuestions[qIdx]) ? battleQuestions[qIdx] : (qIdx === currentIdx ? battleSession.current_question_data : null);
+    if (!q) continue;
+
+    let ansRecord = null;
+    if (player.answersHistory && player.answersHistory[qIdx]) {
+      ansRecord = player.answersHistory[qIdx];
+    } else if (player.last_answered_q_index === qIdx) {
+      ansRecord = {
+        answer: player.last_answer,
+        isCorrect: player.is_correct,
+        isDanger: player.is_danger,
+        earnedPoints: player.last_earned_points,
+        answerTime: player.last_answer_time
+      };
+    }
+
+    const qText = q.text || q.question || ('Frage ' + (qIdx + 1));
+    const qType = extractQuestionType(q);
+    const optLetters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+    const options = Array.isArray(q.options) ? q.options : [];
+
+    let statusBadge = '<span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-gray-800 text-gray-400">Keine Antwort / Ausstehend</span>';
+    let chosenTextHtml = '<span class="text-gray-500 italic text-xs">Noch keine Antwort abgegeben</span>';
+
+    if (ansRecord && ansRecord.answer !== null && ansRecord.answer !== undefined) {
+      if (ansRecord.isDanger) {
+        statusBadge = '<span class="px-2 py-0.5 rounded-md text-[10px] font-black bg-red-500/20 text-red-400 border border-red-500/40">⚠️ Betriebsgefahr (-1)</span>';
+      } else if (ansRecord.isCorrect) {
+        statusBadge = '<span class="px-2 py-0.5 rounded-md text-[10px] font-black bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">✅ Richtig (+' + (ansRecord.earnedPoints || 0) + ' Pkt)</span>';
+      } else {
+        statusBadge = '<span class="px-2 py-0.5 rounded-md text-[10px] font-black bg-red-500/20 text-red-400 border border-red-500/40">❌ Falsch</span>';
+      }
+
+      if (qType === 'order') {
+        const orderArr = Array.isArray(ansRecord.answer) ? ansRecord.answer : [];
+        chosenTextHtml = '<div class="space-y-1 mt-1.5">' + orderArr.map((optIdx, step) => {
+          const stepText = options[optIdx] || ('Schritt ' + (optIdx + 1));
+          return '<div class="flex items-center gap-2 text-xs text-gray-200"><span class="w-5 h-5 rounded bg-cyan-600/40 text-cyan-300 font-bold text-[10px] flex items-center justify-center shrink-0">' + (step + 1) + '</span><span class="break-words">' + escapeHtml(stepText) + '</span></div>';
+        }).join('') + '</div>';
+      } else if (qType === 'multiple') {
+        const mulArr = Array.isArray(ansRecord.answer) ? ansRecord.answer : [ansRecord.answer];
+        chosenTextHtml = '<div class="space-y-1 mt-1.5">' + mulArr.map(idx => {
+          const optText = options[idx] || ('Option ' + (optLetters[idx] || (idx + 1)));
+          return '<div class="flex items-center gap-2 text-xs text-gray-200"><span class="px-1.5 py-0.5 rounded bg-purple-600/40 text-purple-300 font-bold text-[10px] shrink-0">' + (optLetters[idx] || (idx + 1)) + '</span><span class="break-words">' + escapeHtml(optText) + '</span></div>';
+        }).join('') + '</div>';
+      } else {
+        const chosenIdx = Number(ansRecord.answer);
+        const optText = options[chosenIdx] || ('Option ' + (optLetters[chosenIdx] || (chosenIdx + 1)));
+        chosenTextHtml = '<div class="flex items-start gap-2 text-xs text-gray-200 mt-1.5"><span class="px-2 py-0.5 rounded bg-gray-800 text-emerald-400 font-bold text-[11px] shrink-0">' + (optLetters[chosenIdx] || (chosenIdx + 1)) + '</span><span class="break-words font-medium">' + escapeHtml(optText) + '</span></div>';
+      }
+    }
+
+    html += '<div class="p-3.5 rounded-2xl bg-gray-950/80 border border-gray-800/80 space-y-2">' +
+      '<div class="flex items-center justify-between gap-2">' +
+        '<span class="text-[11px] font-extrabold text-emerald-400">Frage ' + (qIdx + 1) + (qIdx === currentIdx ? ' (Aktuelle Runde)' : '') + '</span>' +
+        statusBadge +
+      '</div>' +
+      '<div class="text-xs font-bold text-gray-200 leading-snug">' + escapeHtml(qText) + '</div>' +
+      '<div class="pt-1.5 border-t border-gray-800/50">' +
+        '<div class="text-[10px] uppercase font-bold text-gray-400">Gewählte Antwort:</div>' +
+        chosenTextHtml +
+      '</div>' +
+    '</div>';
+  }
+
+  if (!html) {
+    html = '<div class="text-center py-8 text-gray-500 text-xs">Noch keine Fragen gespielt.</div>';
+  }
+
+  listEl.innerHTML = html;
+  modal.classList.remove('hidden');
+  modal.classList.add('flex');
+  if (window.lucide) lucide.createIcons();
+};
+
+window.closeParticipantAnswersModal = function() {
+  const modal = document.getElementById('participantAnswersModal');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+  }
+};
+
+window.openParticipantsOverviewModal = function() {
+  if (battleSession?.players && battleSession.players.length > 0) {
+    window.showParticipantAnswersModal(battleSession.players[0].id);
+  } else {
+    alert('Noch keine Teilnehmer in dieser Session.');
+  }
+};
+
 window.resetLiveBattleToSetup = function() {
   if (battlePollInterval) clearInterval(battlePollInterval);
   if (battleTimerInterval) clearInterval(battleTimerInterval);
+  if (window.battleSound) battleSound.stopGroove();
 
   if (battleSession?.pin) {
     try {
@@ -5322,6 +6168,10 @@ window.isQuestionVerified = function(id) {
 
 window.toggleQuestionVerification = async function(id, e) {
   if (e) e.stopPropagation();
+  if (typeof window.hasPermission === 'function' && !window.hasPermission('can_verify_content')) {
+    showToast('Zugriff verweigert: Keine Berechtigung zum Freigeben von Prüfungsfragen.', true);
+    return;
+  }
   const q = allQuestions.find(item => item.id === id);
   const currentVerified = q ? (q.is_verified === true || verifiedQuestionIds.has(id)) : verifiedQuestionIds.has(id);
   const newStatus = !currentVerified;
@@ -5570,6 +6420,10 @@ window.isFlashcardVerified = function(id) {
 
 window.toggleFlashcardVerification = async function(id, e) {
   if (e) e.stopPropagation();
+  if (typeof window.hasPermission === 'function' && !window.hasPermission('can_verify_content')) {
+    showToast('Zugriff verweigert: Keine Berechtigung zum Freigeben von Lernkarten.', true);
+    return;
+  }
   const fc = allFlashcards.find(item => item.id === id);
   const currentVerified = fc ? (fc.is_verified === true || verifiedFlashcardIds.has(id)) : verifiedFlashcardIds.has(id);
   const newStatus = !currentVerified;
@@ -6665,6 +7519,12 @@ window.loadAllData = async function() {
     if (!Array.isArray(allAttempts)) allAttempts = [];
     renderStats();
 
+    // Rollenberechtigungen und Tickets laden
+    if (typeof window.loadRolePermissions === 'function') await window.loadRolePermissions();
+    if (typeof window.loadTickets === 'function') await window.loadTickets();
+    if (typeof window.applyRolePermissionsToUI === 'function') window.applyRolePermissionsToUI();
+    if (typeof window.renderRolePermissionsOverview === 'function') window.renderRolePermissionsOverview();
+
     // Falls Unterrichts-Modus aktiv, Daten aktualisieren
     if (typeof window.updateClassroomCategoryList === 'function') window.updateClassroomCategoryList();
     if (typeof window.prepareClassroomData === 'function') window.prepareClassroomData();
@@ -6677,6 +7537,20 @@ window.loadAllData = async function() {
 };
 
 window.switchTab = function(tabId) {
+  // Rollenberechtigungen absichern
+  if (tabId === 'users' && typeof window.hasPermission === 'function' && !window.hasPermission('can_manage_users')) {
+    showToast('Zugriff verweigert: Der Benutzer-Bereich ist für deine Rolle nicht freigeschaltet.', true);
+    return;
+  }
+  if (tabId === 'tickets' && typeof window.hasPermission === 'function' && !window.hasPermission('can_manage_tickets')) {
+    showToast('Zugriff verweigert: Der Tickets-Bereich ist für deine Rolle nicht freigeschaltet.', true);
+    return;
+  }
+  if (tabId === 'categories' && typeof window.hasPermission === 'function' && !window.hasPermission('can_manage_categories')) {
+    showToast('Zugriff verweigert: Der Kategorien-Bereich ist für deine Rolle nicht freigeschaltet.', true);
+    return;
+  }
+
   document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
   document.querySelectorAll('.nav-tab').forEach(el => {
     el.classList.remove('bg-brand-600', 'text-white', 'shadow', 'shadow-brand-600/20');
@@ -6696,6 +7570,12 @@ window.switchTab = function(tabId) {
   }
   if (tabId === 'duplicates') {
     renderDuplicatesTab();
+  }
+  if (tabId === 'tickets' && typeof window.renderTickets === 'function') {
+    window.renderTickets();
+  }
+  if (tabId === 'users' && typeof window.renderRolePermissionsOverview === 'function') {
+    window.renderRolePermissionsOverview();
   }
 
   if (window.lucide) lucide.createIcons();
@@ -7146,7 +8026,12 @@ window.openQuestionModal = function() {
   if (form) form.reset();
   document.getElementById('q_id').value = '';
   const qVer = document.getElementById('q_verified');
-  if (qVer) qVer.checked = true;
+  const canVerify = typeof window.hasPermission === 'function' ? window.hasPermission('can_verify_content') : true;
+  if (qVer) {
+    qVer.checked = canVerify;
+    qVer.disabled = !canVerify;
+    qVer.title = canVerify ? '' : 'Nur mit Freigabe-Berechtigung veränderbar';
+  }
 
   window.setQuestionMode('classic');
   window.orderSteps = ['', '', '', ''];
@@ -7193,7 +8078,12 @@ window.editQuestion = function(id) {
     window.clearImage('q');
   }
   const qVer = document.getElementById('q_verified');
-  if (qVer) qVer.checked = (q.is_verified === true || verifiedQuestionIds.has(q.id));
+  const canVerify = typeof window.hasPermission === 'function' ? window.hasPermission('can_verify_content') : true;
+  if (qVer) {
+    qVer.checked = (q.is_verified === true || verifiedQuestionIds.has(q.id));
+    qVer.disabled = !canVerify;
+    qVer.title = canVerify ? '' : 'Nur mit Freigabe-Berechtigung veränderbar';
+  }
 
   const isOrder = q.questionType === 'order' || q.question_type === 'order' || ((q.explanation || '').includes('"qt":"order"'));
   if (isOrder) {
@@ -7273,7 +8163,11 @@ window.handleSaveQuestion = async function(e, andNext = false) {
   const text = document.getElementById('q_text').value.trim();
   const explanation = document.getElementById('q_explanation').value.trim();
   const imageUrl = document.getElementById('q_image')?.value.trim() || null;
-  const isVerified = document.getElementById('q_verified')?.checked || false;
+  let isVerified = document.getElementById('q_verified')?.checked || false;
+  if (typeof window.hasPermission === 'function' && !window.hasPermission('can_verify_content')) {
+    const existingQ = id ? allQuestions.find(x => x.id === id) : null;
+    isVerified = existingQ ? (existingQ.is_verified === true) : false;
+  }
 
   const isOrder = (window.currentQuestionMode === 'order');
   let options = [];
@@ -7611,7 +8505,12 @@ window.openFlashcardModal = function() {
   if (form) form.reset();
   document.getElementById('fc_id').value = '';
   const fcVer = document.getElementById('fc_verified');
-  if (fcVer) fcVer.checked = true;
+  const canVerify = typeof window.hasPermission === 'function' ? window.hasPermission('can_verify_content') : true;
+  if (fcVer) {
+    fcVer.checked = canVerify;
+    fcVer.disabled = !canVerify;
+    fcVer.title = canVerify ? '' : 'Nur mit Freigabe-Berechtigung veränderbar';
+  }
   window.clearImage('fc');
   window.switchImageTab('fc', 'file');
 
@@ -7648,7 +8547,12 @@ window.editFlashcard = function(id) {
     window.clearImage('fc');
   }
   const fcVer = document.getElementById('fc_verified');
-  if (fcVer) fcVer.checked = verifiedFlashcardIds.has(fc.id);
+  const canVerify = typeof window.hasPermission === 'function' ? window.hasPermission('can_verify_content') : true;
+  if (fcVer) {
+    fcVer.checked = verifiedFlashcardIds.has(fc.id);
+    fcVer.disabled = !canVerify;
+    fcVer.title = canVerify ? '' : 'Nur mit Freigabe-Berechtigung veränderbar';
+  }
 
   const metaEl = document.getElementById('flashcardModalMetaInfo');
   if (metaEl) {
@@ -7701,7 +8605,11 @@ window.handleSaveFlashcard = async function(e, andNext = false) {
   const content = document.getElementById('fc_content').value.trim();
   const reference = document.getElementById('fc_reference').value.trim();
   const imageUrl = document.getElementById('fc_image')?.value.trim() || null;
-  const isVerified = document.getElementById('fc_verified')?.checked || false;
+  let isVerified = document.getElementById('fc_verified')?.checked || false;
+  if (typeof window.hasPermission === 'function' && !window.hasPermission('can_verify_content')) {
+    const existingFc = isNew ? null : allFlashcards.find(item => item.id === id);
+    isVerified = existingFc ? (existingFc.is_verified === true) : false;
+  }
 
   if (!category || !title || !content) {
     alert('Bitte Kategorie, Titel und Erklärung ausfüllen.');
@@ -7978,6 +8886,10 @@ window.toggleAllFlashcardCategories = function(selectAll) {
 };
 
 window.openCategoryModal = function() {
+  if (typeof window.hasPermission === 'function' && !window.hasPermission('can_manage_categories')) {
+    showToast('Zugriff verweigert: Keine Berechtigung zum Erstellen von Kategorien.', true);
+    return;
+  }
   const form = document.getElementById('categoryForm');
   if (form) form.reset();
   const modal = document.getElementById('categoryModal');
@@ -7997,6 +8909,10 @@ window.closeCategoryModal = function() {
 
 window.handleSaveCategory = async function(e) {
   if (e) e.preventDefault();
+  if (typeof window.hasPermission === 'function' && !window.hasPermission('can_manage_categories')) {
+    showToast('Zugriff verweigert: Keine Berechtigung zum Verwalten von Kategorien.', true);
+    return;
+  }
   const name = document.getElementById('cat_name').value.trim();
   const description = document.getElementById('cat_desc').value.trim();
   const color = document.getElementById('cat_color').value;
@@ -8016,6 +8932,10 @@ window.handleSaveCategory = async function(e) {
 };
 
 window.deleteCategory = async function(name) {
+  if (typeof window.hasPermission === 'function' && !window.hasPermission('can_manage_categories')) {
+    showToast('Zugriff verweigert: Keine Berechtigung zum Löschen von Kategorien.', true);
+    return;
+  }
   if (!confirm('Kategorie "' + name + '" löschen?')) return;
   try {
     await fetch(SUPABASE_URL + '/rest/v1/categories?name=eq.' + encodeURIComponent(name), { method: 'DELETE', headers: restHeaders });
@@ -8117,7 +9037,10 @@ window.parseCsvFile = function(file) {
 
 window.commitCsvImport = async function() {
   if (parsedCsvRows.length === 0) return;
-  const isVerified = document.getElementById('csvImportAsVerified')?.checked ?? true;
+  let isVerified = document.getElementById('csvImportAsVerified')?.checked ?? true;
+  if (typeof window.hasPermission === 'function' && !window.hasPermission('can_verify_content')) {
+    isVerified = false;
+  }
 
   let updatedCount = 0;
   let newCount = 0;
@@ -8325,6 +9248,8 @@ function updateHeaderUserUI() {
     role.textContent = roleText;
     role.className = r === 'admin' ? 'text-red-400 font-semibold' : (r === 'moderator' || r === 'mod') ? 'text-amber-400 font-semibold' : 'text-emerald-400 font-semibold';
   }
+  if (typeof window.applyRolePermissionsToUI === 'function') window.applyRolePermissionsToUI();
+  if (typeof window.renderRolePermissionsOverview === 'function') window.renderRolePermissionsOverview();
   if (window.lucide) lucide.createIcons();
 }
 
@@ -8512,6 +9437,7 @@ window.handlePortalLogout = function() {
   if (name) name.textContent = 'Nicht eingeloggt';
   const role = document.getElementById('headerUserRole');
   if (role) role.textContent = '-';
+  if (typeof window.applyRolePermissionsToUI === 'function') window.applyRolePermissionsToUI();
 };
 
 window.renderUsers = function() {
@@ -8698,6 +9624,938 @@ window.updateUserTitle = async function(userId, newTitle) {
   } catch (err) {
     alert('Fehler beim Speichern des Titels: ' + err.message);
   }
+};
+
+// ==========================================
+// ROLLEN & BERECHTIGUNGEN MANAGEMENT
+// ==========================================
+
+const DEFAULT_ROLE_PERMISSIONS = {
+  admin: {
+    can_verify_content: true,
+    can_manage_users: true,
+    can_manage_tickets: true,
+    can_manage_categories: true
+  },
+  moderator: {
+    can_verify_content: true,
+    can_manage_users: false,
+    can_manage_tickets: true,
+    can_manage_categories: true
+  },
+  user: {
+    can_verify_content: false,
+    can_manage_users: false,
+    can_manage_tickets: false,
+    can_manage_categories: false
+  }
+};
+
+const PERMISSION_DEFINITIONS = [
+  {
+    key: 'can_verify_content',
+    label: 'Fragen und Lernkarten freigeben',
+    description: 'Erlaubt das Prüfen, Freigeben und Verifizieren von Prüfungsfragen und Lernkarten.',
+    icon: 'check-circle'
+  },
+  {
+    key: 'can_manage_users',
+    label: 'Benutzer Bereich freischalten',
+    description: 'Ermöglicht den Zugriff auf die Benutzerliste und Schülerverwaltung im Webportal.',
+    icon: 'users'
+  },
+  {
+    key: 'can_manage_tickets',
+    label: 'Tickets Bereich freigeben',
+    description: 'Ermöglicht die Einsicht in Schüler-Fehlermeldungen und das Beantworten von Support-Tickets.',
+    icon: 'message-square'
+  },
+  {
+    key: 'can_manage_categories',
+    label: 'Kategorien Bereich freigeben',
+    description: 'Erlaubt das Ansehen, Anlegen und Verwalten von Fachbereichen und Kategorien.',
+    icon: 'folder'
+  }
+];
+
+let rolePermissions = JSON.parse(JSON.stringify(DEFAULT_ROLE_PERMISSIONS));
+let modalPermDraft = JSON.parse(JSON.stringify(DEFAULT_ROLE_PERMISSIONS));
+let activePermModalRole = 'moderator';
+
+window.hasPermission = function(permKey) {
+  if (!currentPortalUser) return false;
+  const role = (currentPortalUser.role || '').toLowerCase();
+  if (role === 'admin') return true; // Administrator besitzt als Hauptausbilder alle Master-Rechte
+  const targetRole = (role === 'mod' || role === 'moderator') ? 'moderator' : (rolePermissions[role] ? role : 'user');
+  const rolePerms = rolePermissions[targetRole] || DEFAULT_ROLE_PERMISSIONS[targetRole] || {};
+  return Boolean(rolePerms[permKey]);
+};
+
+window.loadRolePermissions = async function() {
+  try {
+    const local = localStorage.getItem('railtrainer_role_permissions');
+    if (local) {
+      try {
+        const parsed = JSON.parse(local);
+        if (parsed && typeof parsed === 'object') {
+          rolePermissions = { ...DEFAULT_ROLE_PERMISSIONS, ...parsed };
+        }
+      } catch (e) {}
+    }
+
+    const res = await fetch(SUPABASE_URL + '/rest/v1/chat_messages?id=eq.config_role_permissions&select=*', {
+      headers: restHeaders
+    });
+    if (res.ok) {
+      const rows = await res.json();
+      if (Array.isArray(rows) && rows.length > 0 && rows[0].text) {
+        const cloudPerms = JSON.parse(rows[0].text);
+        if (cloudPerms && typeof cloudPerms === 'object') {
+          rolePermissions = { ...DEFAULT_ROLE_PERMISSIONS, ...cloudPerms };
+          rolePermissions.admin = { ...DEFAULT_ROLE_PERMISSIONS.admin };
+          localStorage.setItem('railtrainer_role_permissions', JSON.stringify(rolePermissions));
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('Fehler beim Laden der Rollenberechtigungen:', err);
+  }
+  window.applyRolePermissionsToUI();
+  window.renderRolePermissionsOverview();
+};
+
+window.openRolePermissionsModal = function(roleName = 'moderator') {
+  if (currentPortalUser?.role !== 'admin') {
+    showToast('Zugriff verweigert: Nur Administratoren dürfen Rollenberechtigungen anpassen.', true);
+    return;
+  }
+  modalPermDraft = JSON.parse(JSON.stringify(rolePermissions));
+  window.switchRolePermModalTab(roleName);
+  const modal = document.getElementById('rolePermissionsModal');
+  if (modal) {
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+  }
+  if (window.lucide) lucide.createIcons();
+};
+
+window.closeRolePermissionsModal = function() {
+  const modal = document.getElementById('rolePermissionsModal');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+  }
+};
+
+window.switchRolePermModalTab = function(roleName) {
+  activePermModalRole = roleName;
+  ['moderator', 'user', 'admin'].forEach(r => {
+    const btn = document.getElementById('btn-perm-role-' + r);
+    if (!btn) return;
+    if (r === roleName) {
+      btn.className = 'py-2.5 px-3 rounded-xl text-xs font-extrabold flex items-center justify-center gap-2 transition bg-brand-600 text-white shadow';
+    } else {
+      btn.className = 'py-2.5 px-3 rounded-xl text-xs font-extrabold flex items-center justify-center gap-2 transition text-gray-400 hover:text-white hover:bg-gray-800';
+    }
+  });
+  window.renderRolePermModalToggles();
+};
+
+window.renderRolePermModalToggles = function() {
+  const container = document.getElementById('rolePermTogglesContainer');
+  if (!container) return;
+
+  if (activePermModalRole === 'admin') {
+    container.innerHTML = `
+      <div class="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300 flex items-start gap-3 mb-2">
+        <i data-lucide="shield-alert" class="w-5 h-5 text-amber-400 shrink-0 mt-0.5"></i>
+        <div>
+          <div class="font-bold text-sm text-amber-200 mb-1">Master-Administrator (Vollzugriff)</div>
+          <p class="text-gray-300 text-xs leading-relaxed">
+            Als Hauptausbilder besitzen Administratoren stets alle 4 Berechtigungsbereiche dauerhaft. Dies verhindert unbeabsichtigte Systemblockaden.
+          </p>
+        </div>
+      </div>
+      <div class="space-y-2.5">
+        ${PERMISSION_DEFINITIONS.map(p => `
+          <div class="p-4 rounded-2xl border border-gray-800 bg-gray-950/60 opacity-80 flex items-center justify-between gap-4">
+            <div class="flex items-start gap-3.5">
+              <div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
+                <i data-lucide="${p.icon}" class="w-5 h-5"></i>
+              </div>
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="text-sm font-bold text-white">${p.label}</span>
+                  <span class="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">Dauerhaft aktiv</span>
+                </div>
+                <p class="text-xs text-gray-400 mt-0.5">${p.description}</p>
+              </div>
+            </div>
+            <span class="text-emerald-400 font-bold text-xs">✓ Aktiv</span>
+          </div>
+        `).join('')}
+      </div>
+    `;
+    if (window.lucide) lucide.createIcons();
+    return;
+  }
+
+  const roleObj = modalPermDraft[activePermModalRole] || {};
+  container.innerHTML = `
+    <div class="space-y-2.5">
+      ${PERMISSION_DEFINITIONS.map(p => {
+        const isEnabled = Boolean(roleObj[p.key]);
+        return `
+          <div onclick="window.toggleRolePerm('${p.key}')" class="p-4 rounded-2xl border transition cursor-pointer select-none flex items-center justify-between gap-4 ${isEnabled ? 'bg-brand-950/30 border-brand-500/40 hover:border-brand-500/60' : 'bg-gray-950/60 border-gray-800 hover:border-gray-700'}">
+            <div class="flex items-start gap-3.5">
+              <div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border ${isEnabled ? 'bg-brand-500/20 text-brand-400 border-brand-500/30' : 'bg-gray-800/80 text-gray-500 border-gray-700/60'}">
+                <i data-lucide="${p.icon}" class="w-5 h-5"></i>
+              </div>
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="text-sm font-bold text-white">${p.label}</span>
+                  ${isEnabled 
+                    ? '<span class="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">Freigeschaltet ✓</span>' 
+                    : '<span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-gray-800 text-gray-400 border border-gray-700">Gesperrt ✕</span>'}
+                </div>
+                <p class="text-xs text-gray-400 mt-0.5 leading-relaxed">${p.description}</p>
+              </div>
+            </div>
+            <div class="relative shrink-0">
+              <div class="w-12 h-6 rounded-full transition-colors flex items-center p-1 ${isEnabled ? 'bg-brand-600' : 'bg-gray-700'}">
+                <div class="w-4 h-4 rounded-full bg-white transition-transform ${isEnabled ? 'translate-x-6' : 'translate-x-0'}"></div>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+  if (window.lucide) lucide.createIcons();
+};
+
+window.toggleRolePerm = function(permKey) {
+  if (activePermModalRole === 'admin') return;
+  if (!modalPermDraft[activePermModalRole]) modalPermDraft[activePermModalRole] = {};
+  modalPermDraft[activePermModalRole][permKey] = !modalPermDraft[activePermModalRole][permKey];
+  window.renderRolePermModalToggles();
+};
+
+window.resetRolePermissionsToDefault = function() {
+  if (!confirm('Möchtest du die Rollenberechtigungen auf die Standardwerte zurücksetzen?')) return;
+  modalPermDraft = JSON.parse(JSON.stringify(DEFAULT_ROLE_PERMISSIONS));
+  window.renderRolePermModalToggles();
+  showToast('Standard-Berechtigungen wiederhergestellt.');
+};
+
+window.saveRolePermissionsModal = async function() {
+  if (currentPortalUser?.role !== 'admin') {
+    alert('Zugriff verweigert: Nur Administratoren dürfen Rollenberechtigungen speichern.');
+    return;
+  }
+  const saveBtn = document.getElementById('btnSaveRolePermissions');
+  if (saveBtn) {
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<span>Wird gespeichert...</span>';
+  }
+
+  try {
+    rolePermissions = JSON.parse(JSON.stringify(modalPermDraft));
+    rolePermissions.admin = { ...DEFAULT_ROLE_PERMISSIONS.admin };
+    localStorage.setItem('railtrainer_role_permissions', JSON.stringify(rolePermissions));
+
+    // Cloud-Sync über chat_messages
+    await fetch(SUPABASE_URL + '/rest/v1/chat_messages', {
+      method: 'POST',
+      headers: { ...restHeaders, 'Prefer': 'resolution=merge-duplicates' },
+      body: JSON.stringify([{
+        id: 'config_role_permissions',
+        category: '__system_config__',
+        sender_id: currentPortalUser?.id || 'admin-default-id',
+        sender_name: currentPortalUser?.name || 'Administrator',
+        sender_role: 'admin',
+        text: JSON.stringify(rolePermissions),
+        timestamp: Date.now()
+      }])
+    });
+
+    window.applyRolePermissionsToUI();
+    window.renderRolePermissionsOverview();
+    window.closeRolePermissionsModal();
+    showToast('Rollen-Berechtigungen erfolgreich in der Cloud gespeichert! 🛡️');
+  } catch (err) {
+    console.error('Fehler beim Speichern der Berechtigungen:', err);
+    alert('Fehler beim Speichern der Berechtigungen: ' + err.message);
+  } finally {
+    if (saveBtn) {
+      saveBtn.disabled = false;
+      saveBtn.innerHTML = '<i data-lucide="check" class="w-4 h-4"></i><span>Berechtigungen speichern</span>';
+      if (window.lucide) lucide.createIcons();
+    }
+  }
+};
+
+window.renderRolePermissionsOverview = function() {
+  const container = document.getElementById('rolePermissionsGridSummary');
+  if (!container) return;
+
+  const isAdmin = currentPortalUser?.role === 'admin';
+
+  container.innerHTML = `
+    <!-- MODERATOREN KARTE -->
+    <div class="bg-gray-950/70 border border-gray-800 rounded-2xl p-4 flex flex-col justify-between">
+      <div>
+        <div class="flex items-center justify-between mb-3 pb-2 border-b border-gray-800/60">
+          <div class="flex items-center gap-2">
+            <span class="px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1.5">
+              <span>🛡️ Moderatoren & Dozenten</span>
+            </span>
+          </div>
+          ${isAdmin ? `<button onclick="window.openRolePermissionsModal('moderator')" class="text-xs text-indigo-400 hover:text-indigo-300 font-bold transition flex items-center gap-1"><i data-lucide="edit-2" class="w-3 h-3"></i><span>Bearbeiten</span></button>` : ''}
+        </div>
+        <div class="space-y-2 text-xs">
+          ${PERMISSION_DEFINITIONS.map(p => {
+            const active = rolePermissions.moderator?.[p.key] ?? DEFAULT_ROLE_PERMISSIONS.moderator[p.key];
+            return `
+              <div class="flex items-center justify-between py-1 border-b border-gray-900 last:border-0">
+                <span class="text-gray-300 flex items-center gap-2">
+                  <i data-lucide="${p.icon}" class="w-3.5 h-3.5 ${active ? 'text-brand-400' : 'text-gray-600'}"></i>
+                  <span>${p.label}</span>
+                </span>
+                <span class="px-2 py-0.5 rounded text-[10px] font-bold ${active ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-gray-800 text-gray-500 border border-gray-700'}">
+                  ${active ? 'Freigegeben ✓' : 'Gesperrt ✕'}
+                </span>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    </div>
+
+    <!-- SCHÜLER KARTE -->
+    <div class="bg-gray-950/70 border border-gray-800 rounded-2xl p-4 flex flex-col justify-between">
+      <div>
+        <div class="flex items-center justify-between mb-3 pb-2 border-b border-gray-800/60">
+          <div class="flex items-center gap-2">
+            <span class="px-2.5 py-1 rounded-lg text-xs font-bold bg-blue-500/20 text-blue-300 border border-blue-500/30 flex items-center gap-1.5">
+              <span>🎓 Schüler & Teilnehmer</span>
+            </span>
+          </div>
+          ${isAdmin ? `<button onclick="window.openRolePermissionsModal('user')" class="text-xs text-indigo-400 hover:text-indigo-300 font-bold transition flex items-center gap-1"><i data-lucide="edit-2" class="w-3 h-3"></i><span>Bearbeiten</span></button>` : ''}
+        </div>
+        <div class="space-y-2 text-xs">
+          ${PERMISSION_DEFINITIONS.map(p => {
+            const active = rolePermissions.user?.[p.key] ?? DEFAULT_ROLE_PERMISSIONS.user[p.key];
+            return `
+              <div class="flex items-center justify-between py-1 border-b border-gray-900 last:border-0">
+                <span class="text-gray-300 flex items-center gap-2">
+                  <i data-lucide="${p.icon}" class="w-3.5 h-3.5 ${active ? 'text-brand-400' : 'text-gray-600'}"></i>
+                  <span>${p.label}</span>
+                </span>
+                <span class="px-2 py-0.5 rounded text-[10px] font-bold ${active ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-gray-800 text-gray-500 border border-gray-700'}">
+                  ${active ? 'Freigegeben ✓' : 'Gesperrt ✕'}
+                </span>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    </div>
+  `;
+
+  if (window.lucide) lucide.createIcons();
+};
+
+window.applyRolePermissionsToUI = function() {
+  const canVerify = window.hasPermission('can_verify_content');
+  const canUsers = window.hasPermission('can_manage_users');
+  const canTickets = window.hasPermission('can_manage_tickets');
+  const canCategories = window.hasPermission('can_manage_categories');
+  const isAdmin = currentPortalUser?.role === 'admin';
+
+  // 1. Sidebar Buttons Feedback
+  const btnUsers = document.getElementById('tab-btn-users');
+  if (btnUsers) {
+    if (!canUsers) {
+      btnUsers.classList.add('opacity-40');
+      btnUsers.title = 'Benutzer-Bereich (gesperrt für deine Rolle)';
+    } else {
+      btnUsers.classList.remove('opacity-40');
+      btnUsers.removeAttribute('title');
+    }
+  }
+
+  const btnTickets = document.getElementById('tab-btn-tickets');
+  if (btnTickets) {
+    if (!canTickets) {
+      btnTickets.classList.add('opacity-40');
+      btnTickets.title = 'Tickets-Bereich (gesperrt für deine Rolle)';
+    } else {
+      btnTickets.classList.remove('opacity-40');
+      btnTickets.removeAttribute('title');
+    }
+  }
+
+  const btnCategories = document.getElementById('tab-btn-categories');
+  if (btnCategories) {
+    if (!canCategories) {
+      btnCategories.classList.add('opacity-40');
+      btnCategories.title = 'Kategorien-Bereich (gesperrt für deine Rolle)';
+    } else {
+      btnCategories.classList.remove('opacity-40');
+      btnCategories.removeAttribute('title');
+    }
+  }
+
+  // 2. Modals Checkboxes
+  const qVer = document.getElementById('q_verified');
+  if (qVer) {
+    qVer.disabled = !canVerify;
+    qVer.title = canVerify ? '' : 'Nur mit Freigabe-Berechtigung veränderbar';
+  }
+
+  const fcVer = document.getElementById('fc_verified');
+  if (fcVer) {
+    fcVer.disabled = !canVerify;
+    fcVer.title = canVerify ? '' : 'Nur mit Freigabe-Berechtigung veränderbar';
+  }
+
+  const csvVer = document.getElementById('csvImportAsVerified');
+  if (csvVer) {
+    csvVer.disabled = !canVerify;
+    csvVer.title = canVerify ? '' : 'Nur mit Freigabe-Berechtigung veränderbar';
+  }
+
+  // 3. Category Buttons
+  const openCatBtn = document.getElementById('openCategoryModal');
+  if (openCatBtn) {
+    if (!canCategories) {
+      openCatBtn.classList.add('opacity-40', 'cursor-not-allowed');
+      openCatBtn.title = 'Keine Berechtigung zum Erstellen von Kategorien';
+    } else {
+      openCatBtn.classList.remove('opacity-40', 'cursor-not-allowed');
+      openCatBtn.removeAttribute('title');
+    }
+  }
+
+  // 4. Role Permissions Button in Users Tab
+  const btnOpenPerms = document.getElementById('btnOpenRolePermissions');
+  if (btnOpenPerms) {
+    btnOpenPerms.style.display = isAdmin ? 'inline-flex' : 'none';
+  }
+};
+
+window.unlockUserManagement = function() {
+  if (currentPortalUser?.role !== 'admin') {
+    showToast('Nur Hauptausbilder besitzen Administrator-Rechte.', true);
+  } else {
+    showToast('Admin-Rechte sind bereits aktiv! 🛡️');
+  }
+};
+
+// ==========================================
+// TICKETS & SUPPORT-ANFRAGEN MANAGEMENT
+// ==========================================
+
+let allTickets = [];
+let ticketStatusFilter = 'all'; // 'all' | 'open' | 'in_progress' | 'resolved'
+
+const TICKET_TYPE_MAP = {
+  question_error: { label: 'Fehler in Prüfungsfrage', icon: 'alert-triangle', color: 'text-amber-400 bg-amber-500/10 border-amber-500/20' },
+  app_bug: { label: 'App-Fehler / Bug', icon: 'bug', color: 'text-red-400 bg-red-500/10 border-red-500/20' },
+  password_reset: { label: 'Passwort-Zurücksetzung', icon: 'key', color: 'text-purple-400 bg-purple-500/10 border-purple-500/20' },
+  question_help: { label: 'Fachfrage / Verständnis', icon: 'help-circle', color: 'text-blue-400 bg-blue-500/10 border-blue-500/20' },
+  general_feedback: { label: 'Feedback & Vorschlag', icon: 'lightbulb', color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' },
+  other: { label: 'Sonstiges', icon: 'bookmark', color: 'text-gray-400 bg-gray-500/10 border-gray-500/20' }
+};
+
+const TICKET_PRIORITY_MAP = {
+  urgent: { label: 'Dringend', color: 'bg-red-500/20 text-red-300 border-red-500/30' },
+  high: { label: 'Hoch', color: 'bg-orange-500/20 text-orange-300 border-orange-500/30' },
+  medium: { label: 'Normal', color: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30' },
+  low: { label: 'Niedrig', color: 'bg-gray-500/20 text-gray-300 border-gray-500/30' }
+};
+
+const DEFAULT_SAMPLE_TICKETS = [
+  {
+    id: 'ticket_1001',
+    title: 'Prüfungsfrage Zs 1 - Höchstgeschwindigkeit unklar',
+    description: 'In Prüfungsfrage "Signal Zs 1 - Ersatzsignal" ist die Erläuterung zur zulässigen Geschwindigkeit im Weichenbereich missverständlich formuliert.',
+    type: 'question_error',
+    priority: 'high',
+    status: 'open',
+    created_by: 'u_qfrjq0cvh',
+    created_by_name: 'Max Mustermann',
+    created_by_email: 'max.mustermann@bahn-ausbildung.de',
+    created_at: new Date(Date.now() - 3600000 * 5).toISOString(),
+    responses: []
+  },
+  {
+    id: 'ticket_1002',
+    title: 'Quizbattle Punkte-Gutschrift nach Verbindungsunterbrechung',
+    description: 'Während der vorletzten Fragerunde im Multiplayer-Modus hat die Eingabe gehangen und es wurden Minuspunkte wegen Zeitablauf gezählt.',
+    type: 'app_bug',
+    priority: 'medium',
+    status: 'in_progress',
+    created_by: 'u_d01h9ik5x',
+    created_by_name: 'Hafsahanya',
+    created_by_email: 'hafsah@bahn.de',
+    created_at: new Date(Date.now() - 3600000 * 24).toISOString(),
+    responses: [
+      {
+        id: 'resp_1002_1',
+        responder_name: 'Dennis Köster',
+        responder_role: 'admin',
+        text: 'Vielen Dank für die Meldung! Wir haben den Submit-Button verbessert und eine Vorab-Auswahl eingebaut, damit Klicks zuverlässig gezählt werden.',
+        timestamp: Date.now() - 3600000 * 12
+      }
+    ]
+  },
+  {
+    id: 'ticket_1003',
+    title: 'Vorschlag: Neue Signallernkarten für Ks-Signale',
+    description: 'Könnten noch zusätzliche Lernkarten für Signal Ks 1 mit Zusatzlicht (Fahrt mit 40 km/h) ergänzt werden?',
+    type: 'general_feedback',
+    priority: 'low',
+    status: 'resolved',
+    created_by: 'u_6ybk5gom7',
+    created_by_name: 'Yahya Khan',
+    created_by_email: 'yahya@bahn.de',
+    created_at: new Date(Date.now() - 3600000 * 72).toISOString(),
+    responses: [
+      {
+        id: 'resp_1003_1',
+        responder_name: 'Sven R.',
+        responder_role: 'moderator',
+        text: 'Wurde im Fachbereich "Signale" ergänzt und freigegeben. Danke für deinen Vorschlag!',
+        timestamp: Date.now() - 3600000 * 48
+      }
+    ]
+  }
+];
+
+window.loadTickets = async function() {
+  try {
+    let localTickets = [];
+    const local = localStorage.getItem('railtrainer_tickets');
+    if (local) {
+      try {
+        localTickets = JSON.parse(local);
+        if (!Array.isArray(localTickets)) localTickets = [];
+      } catch (e) {}
+    }
+
+    const res = await fetch(SUPABASE_URL + '/rest/v1/chat_messages?category=eq.__ticket_record__&select=*&order=timestamp.desc', {
+      headers: restHeaders
+    });
+
+    if (res.ok) {
+      const rows = await res.json();
+      if (Array.isArray(rows) && rows.length > 0) {
+        const cloudTickets = [];
+        rows.forEach(r => {
+          try {
+            const t = JSON.parse(r.text);
+            if (t && t.id) cloudTickets.push(t);
+          } catch (e) {}
+        });
+        allTickets = cloudTickets;
+      } else if (localTickets.length > 0) {
+        allTickets = localTickets;
+      } else {
+        allTickets = DEFAULT_SAMPLE_TICKETS;
+        localStorage.setItem('railtrainer_tickets', JSON.stringify(allTickets));
+        for (const t of allTickets) {
+          await window.saveTicketToStorage(t, false);
+        }
+      }
+    } else if (localTickets.length > 0) {
+      allTickets = localTickets;
+    } else {
+      allTickets = DEFAULT_SAMPLE_TICKETS;
+    }
+  } catch (err) {
+    console.warn('Ladefehler bei Tickets:', err);
+    allTickets = DEFAULT_SAMPLE_TICKETS;
+  }
+
+  localStorage.setItem('railtrainer_tickets', JSON.stringify(allTickets));
+  window.updateTicketBadges();
+  window.renderTickets();
+};
+
+window.updateTicketBadges = function() {
+  const total = allTickets.length;
+  const openCount = allTickets.filter(t => t.status === 'open').length;
+  const inProgressCount = allTickets.filter(t => t.status === 'in_progress').length;
+  const resolvedCount = allTickets.filter(t => t.status === 'resolved').length;
+
+  const bTickets = document.getElementById('badge-tickets-count');
+  if (bTickets) bTickets.textContent = total;
+
+  const statText = document.getElementById('ticketsOpenStatText');
+  if (statText) statText.textContent = openCount + ' offen';
+
+  const cAll = document.getElementById('ticket-count-all');
+  if (cAll) cAll.textContent = total;
+  const cOpen = document.getElementById('ticket-count-open');
+  if (cOpen) cOpen.textContent = openCount;
+  const cProg = document.getElementById('ticket-count-in_progress');
+  if (cProg) cProg.textContent = inProgressCount;
+  const cRes = document.getElementById('ticket-count-resolved');
+  if (cRes) cRes.textContent = resolvedCount;
+};
+
+window.saveTicketToStorage = async function(ticket, updateLocalArray = true) {
+  if (updateLocalArray) {
+    const idx = allTickets.findIndex(t => t.id === ticket.id);
+    if (idx >= 0) allTickets[idx] = ticket;
+    else allTickets.unshift(ticket);
+    localStorage.setItem('railtrainer_tickets', JSON.stringify(allTickets));
+    window.updateTicketBadges();
+  }
+
+  try {
+    await fetch(SUPABASE_URL + '/rest/v1/chat_messages', {
+      method: 'POST',
+      headers: { ...restHeaders, 'Prefer': 'resolution=merge-duplicates' },
+      body: JSON.stringify([{
+        id: ticket.id,
+        category: '__ticket_record__',
+        sender_id: currentPortalUser?.id || 'admin-default-id',
+        sender_name: ticket.created_by_name || 'Schüler',
+        sender_role: 'user',
+        text: JSON.stringify(ticket),
+        timestamp: Date.now()
+      }])
+    });
+  } catch (err) {
+    console.warn('Fehler beim Synchronisieren des Tickets:', err);
+  }
+};
+
+window.setTicketStatusFilter = function(status) {
+  ticketStatusFilter = status;
+  const tabs = ['all', 'open', 'in_progress', 'resolved'];
+  tabs.forEach(st => {
+    const btn = document.getElementById('btn-ticket-filter-' + st);
+    if (!btn) return;
+    if (st === status) {
+      btn.className = 'px-3 py-1.5 rounded-xl text-xs font-bold transition border bg-brand-600 text-white border-brand-500';
+    } else {
+      btn.className = 'px-3 py-1.5 rounded-xl text-xs font-semibold transition border bg-gray-950 text-gray-400 border-gray-800 hover:text-white';
+    }
+  });
+  window.renderTickets();
+};
+
+window.filterTickets = function() {
+  window.renderTickets();
+};
+
+window.renderTickets = function() {
+  const container = document.getElementById('ticketsContainer');
+  if (!container) return;
+
+  const query = (document.getElementById('searchTicketsInput')?.value || '').trim().toLowerCase();
+  const selectedType = document.getElementById('filterTicketType')?.value || 'all';
+  const selectedPriority = document.getElementById('filterTicketPriority')?.value || 'all';
+
+  const filtered = allTickets.filter(t => {
+    if (ticketStatusFilter !== 'all' && t.status !== ticketStatusFilter) return false;
+    if (selectedType !== 'all' && t.type !== selectedType) return false;
+    if (selectedPriority !== 'all' && t.priority !== selectedPriority) return false;
+
+    if (query) {
+      const matchTitle = (t.title || '').toLowerCase().includes(query);
+      const matchDesc = (t.description || '').toLowerCase().includes(query);
+      const matchUser = (t.created_by_name || '').toLowerCase().includes(query);
+      const matchEmail = (t.created_by_email || '').toLowerCase().includes(query);
+      if (!matchTitle && !matchDesc && !matchUser && !matchEmail) return false;
+    }
+    return true;
+  });
+
+  if (filtered.length === 0) {
+    container.innerHTML = `
+      <div class="bg-gray-900 border border-gray-800 rounded-2xl p-12 text-center text-gray-500 space-y-2">
+        <i data-lucide="inbox" class="w-10 h-10 text-gray-600 mx-auto"></i>
+        <p class="font-bold text-gray-300">Keine Tickets für diese Filterkriterien gefunden</p>
+        <p class="text-xs text-gray-500">Passe deinen Status-Filter oder Suchbegriff an.</p>
+      </div>
+    `;
+    if (window.lucide) lucide.createIcons();
+    return;
+  }
+
+  container.innerHTML = filtered.map(t => {
+    const typeInfo = TICKET_TYPE_MAP[t.type] || TICKET_TYPE_MAP.other;
+    const priorityInfo = TICKET_PRIORITY_MAP[t.priority] || TICKET_PRIORITY_MAP.medium;
+
+    const dateFormatted = t.created_at 
+      ? new Date(t.created_at).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) 
+      : '-';
+
+    const statusBadgeClass = t.status === 'resolved' 
+      ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' 
+      : t.status === 'in_progress' 
+      ? 'bg-blue-500/20 text-blue-300 border-blue-500/40' 
+      : 'bg-amber-500/20 text-amber-300 border-amber-500/40';
+
+    const hasResponses = Array.isArray(t.responses) && t.responses.length > 0;
+
+    return `
+      <div class="bg-gray-900 border border-gray-800 hover:border-gray-700 rounded-2xl p-5 shadow-lg transition space-y-4">
+        <!-- HEADER ROW -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-gray-800">
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold border ${typeInfo.color}">
+              <i data-lucide="${typeInfo.icon}" class="w-3.5 h-3.5"></i>
+              <span>${typeInfo.label}</span>
+            </span>
+            <span class="inline-flex items-center px-2 py-0.5 rounded-lg text-[11px] font-bold border ${priorityInfo.color}">
+              <span>${priorityInfo.label}</span>
+            </span>
+            <span class="text-xs text-gray-500 flex items-center gap-1">
+              <i data-lucide="clock" class="w-3 h-3"></i>
+              <span>${dateFormatted}</span>
+            </span>
+          </div>
+
+          <!-- STATUS SELECTOR -->
+          <div class="flex items-center gap-2">
+            <span class="text-xs text-gray-400 font-semibold">Status:</span>
+            <select onchange="window.updateTicketStatus('${t.id}', this.value)" class="px-2.5 py-1 rounded-lg text-xs font-bold bg-gray-950 border ${statusBadgeClass} focus:outline-none cursor-pointer">
+              <option value="open" ${t.status === 'open' ? 'selected' : ''}>⏳ Offen</option>
+              <option value="in_progress" ${t.status === 'in_progress' ? 'selected' : ''}>🔄 In Bearbeitung</option>
+              <option value="resolved" ${t.status === 'resolved' ? 'selected' : ''}>✓ Gelöst</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- TITLE & DESCRIPTION -->
+        <div>
+          <h3 class="text-base font-bold text-white mb-1.5">${escapeHtml(t.title || 'Support-Ticket')}</h3>
+          <p class="text-xs text-gray-300 leading-relaxed whitespace-pre-line">${escapeHtml(t.description || '')}</p>
+        </div>
+
+        <!-- CREATOR META -->
+        <div class="flex items-center gap-2 text-xs text-gray-400 pt-1">
+          <div class="w-5 h-5 rounded-full bg-brand-600/30 text-brand-300 flex items-center justify-center font-bold text-[10px]">
+            ${escapeHtml((t.created_by_name || 'U').slice(0, 1).toUpperCase())}
+          </div>
+          <span class="font-semibold text-gray-300">${escapeHtml(t.created_by_name || 'Schüler')}</span>
+          ${t.created_by_email ? `<span class="text-gray-500">&lt;${escapeHtml(t.created_by_email)}&gt;</span>` : ''}
+        </div>
+
+        <!-- RESPONSES THREAD -->
+        ${hasResponses ? `
+          <div class="bg-gray-950/70 border border-gray-800/80 rounded-xl p-3.5 space-y-2.5">
+            <div class="text-[11px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
+              <i data-lucide="corner-down-right" class="w-3.5 h-3.5 text-brand-400"></i>
+              <span>Rückmeldungen & Antworten (${t.responses.length})</span>
+            </div>
+            ${t.responses.map(r => `
+              <div class="p-2.5 rounded-lg bg-gray-900 border border-gray-800 text-xs space-y-1">
+                <div class="flex items-center justify-between">
+                  <span class="font-bold text-brand-300 flex items-center gap-1.5">
+                    <span>${r.responder_role === 'admin' ? '👑' : '🛡️'}</span>
+                    <span>${escapeHtml(r.responder_name || 'Ausbilder')}</span>
+                    <span class="text-[10px] text-gray-500">(${r.responder_role === 'admin' ? 'Ausbilder' : 'Dozent'})</span>
+                  </span>
+                  <span class="text-[10px] text-gray-500">${new Date(r.timestamp).toLocaleString('de-DE')}</span>
+                </div>
+                <p class="text-gray-200 leading-relaxed whitespace-pre-line">${escapeHtml(r.text)}</p>
+              </div>
+            `).join('')}
+          </div>
+        ` : ''}
+
+        <!-- ACTIONS ROW -->
+        <div class="flex items-center justify-between pt-2 border-t border-gray-800/60">
+          <button onclick="window.openTicketResponseModal('${t.id}')" class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs shadow-sm transition">
+            <i data-lucide="message-square" class="w-3.5 h-3.5"></i>
+            <span>Antworten</span>
+          </button>
+          <button onclick="window.deleteTicket('${t.id}')" class="p-1.5 text-gray-500 hover:text-red-400 hover:bg-gray-800 rounded-lg transition" title="Ticket löschen">
+            <i data-lucide="trash-2" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  if (window.lucide) lucide.createIcons();
+};
+
+window.openTicketResponseModal = function(ticketId) {
+  const ticket = allTickets.find(t => t.id === ticketId);
+  if (!ticket) return;
+
+  const idInput = document.getElementById('ticketResponseId');
+  if (idInput) idInput.value = ticket.id;
+
+  const titleEl = document.getElementById('ticketResponseHeaderTitle');
+  if (titleEl) titleEl.textContent = ticket.title;
+
+  const descEl = document.getElementById('ticketResponseHeaderDesc');
+  if (descEl) descEl.textContent = ticket.description;
+
+  const typeEl = document.getElementById('ticketResponseHeaderType');
+  if (typeEl) {
+    const tInfo = TICKET_TYPE_MAP[ticket.type] || TICKET_TYPE_MAP.other;
+    typeEl.textContent = tInfo.label;
+  }
+
+  const authorEl = document.getElementById('ticketResponseHeaderAuthor');
+  if (authorEl) authorEl.textContent = (ticket.created_by_name || 'Schüler') + (ticket.created_by_email ? ' (' + ticket.created_by_email + ')' : '');
+
+  const textInput = document.getElementById('ticketResponseText');
+  if (textInput) {
+    textInput.value = '';
+  }
+
+  const resolveCheck = document.getElementById('ticketResponseMarkResolved');
+  if (resolveCheck) resolveCheck.checked = true;
+
+  const modal = document.getElementById('ticketResponseModal');
+  if (modal) {
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+  }
+  if (textInput) setTimeout(() => textInput.focus(), 50);
+  if (window.lucide) lucide.createIcons();
+};
+
+window.closeTicketResponseModal = function() {
+  const modal = document.getElementById('ticketResponseModal');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+  }
+};
+
+window.handleSaveTicketResponse = async function(e) {
+  if (e) e.preventDefault();
+  const ticketId = document.getElementById('ticketResponseId')?.value;
+  const ticket = allTickets.find(t => t.id === ticketId);
+  if (!ticket) return;
+
+  const responseText = (document.getElementById('ticketResponseText')?.value || '').trim();
+  if (!responseText) {
+    alert('Bitte gib eine Antwort ein.');
+    return;
+  }
+
+  const markResolved = document.getElementById('ticketResponseMarkResolved')?.checked;
+
+  if (!Array.isArray(ticket.responses)) ticket.responses = [];
+  ticket.responses.push({
+    id: 'resp_' + Date.now(),
+    responder_name: currentPortalUser?.name || 'Ausbilder',
+    responder_role: currentPortalUser?.role || 'admin',
+    text: responseText,
+    timestamp: Date.now()
+  });
+
+  if (markResolved) {
+    ticket.status = 'resolved';
+  }
+
+  await window.saveTicketToStorage(ticket);
+  window.closeTicketResponseModal();
+  window.renderTickets();
+  showToast('Antwort erfolgreich gespeichert und übermittelt! 💬');
+};
+
+window.openCreateTicketModal = function() {
+  const form = document.getElementById('ticketCreateForm');
+  if (form) form.reset();
+
+  const nameInput = document.getElementById('new_ticket_username');
+  if (nameInput && currentPortalUser) nameInput.value = currentPortalUser.name || '';
+
+  const emailInput = document.getElementById('new_ticket_useremail');
+  if (emailInput && currentPortalUser) emailInput.value = currentPortalUser.email || '';
+
+  const modal = document.getElementById('ticketCreateModal');
+  if (modal) {
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+  }
+  if (window.lucide) lucide.createIcons();
+};
+
+window.closeCreateTicketModal = function() {
+  const modal = document.getElementById('ticketCreateModal');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+  }
+};
+
+window.handleSaveNewTicket = async function(e) {
+  if (e) e.preventDefault();
+  const title = (document.getElementById('new_ticket_title')?.value || '').trim();
+  const type = document.getElementById('new_ticket_type')?.value || 'other';
+  const priority = document.getElementById('new_ticket_priority')?.value || 'medium';
+  const userName = (document.getElementById('new_ticket_username')?.value || '').trim() || (currentPortalUser?.name || 'Ausbilder');
+  const userEmail = (document.getElementById('new_ticket_useremail')?.value || '').trim() || (currentPortalUser?.email || '');
+  const description = (document.getElementById('new_ticket_desc')?.value || '').trim();
+
+  if (!title || !description) {
+    alert('Bitte Betreff und Beschreibung ausfüllen.');
+    return;
+  }
+
+  const newTicket = {
+    id: 'ticket_' + Date.now(),
+    title,
+    type,
+    priority,
+    status: 'open',
+    created_by: currentPortalUser?.id || 'admin-default-id',
+    created_by_name: userName,
+    created_by_email: userEmail,
+    created_at: new Date().toISOString(),
+    description,
+    responses: []
+  };
+
+  await window.saveTicketToStorage(newTicket);
+  window.closeCreateTicketModal();
+  window.renderTickets();
+  showToast('Ticket erfolgreich erstellt! 📝');
+};
+
+window.updateTicketStatus = async function(ticketId, newStatus) {
+  const ticket = allTickets.find(t => t.id === ticketId);
+  if (!ticket) return;
+
+  ticket.status = newStatus;
+  await window.saveTicketToStorage(ticket);
+  window.renderTickets();
+  const statusLabel = newStatus === 'resolved' ? 'Gelöst ✓' : newStatus === 'in_progress' ? 'In Bearbeitung 🔄' : 'Offen ⏳';
+  showToast('Ticket-Status aktualisiert: ' + statusLabel);
+};
+
+window.deleteTicket = async function(ticketId) {
+  if (!confirm('Möchtest du dieses Ticket wirklich dauerhaft löschen?')) return;
+  allTickets = allTickets.filter(t => t.id !== ticketId);
+  localStorage.setItem('railtrainer_tickets', JSON.stringify(allTickets));
+  window.updateTicketBadges();
+  window.renderTickets();
+
+  try {
+    await fetch(SUPABASE_URL + '/rest/v1/chat_messages?id=eq.' + encodeURIComponent(ticketId), {
+      method: 'DELETE',
+      headers: restHeaders
+    });
+  } catch (err) {
+    console.warn('Fehler beim Löschen des Tickets in Supabase:', err);
+  }
+
+  showToast('Ticket gelöscht! 🗑️');
 };
 
 window.renderStats = function() {

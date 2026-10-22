@@ -1107,14 +1107,87 @@ function MainAppLayout() {
 
   const unreadCount = newsList.filter(n => !readNewsIds.includes(n.id)).length;
 
+  // iOS Safari Zoom-Verhinderung im Web (Meta-Tag, Gesten & 16px Inputs)
+  useEffect(() => {
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      try {
+        let meta = document.querySelector('meta[name="viewport"]');
+        if (!meta) {
+          meta = document.createElement('meta');
+          meta.setAttribute('name', 'viewport');
+          document.head.appendChild(meta);
+        }
+        meta.setAttribute(
+          'content',
+          'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=no, viewport-fit=cover'
+        );
+
+        const preventGesture = (e: Event) => {
+          e.preventDefault();
+        };
+        document.addEventListener('gesturestart', preventGesture, { passive: false });
+        document.addEventListener('gesturechange', preventGesture, { passive: false });
+        document.addEventListener('gestureend', preventGesture, { passive: false });
+
+        let lastTouchEnd = 0;
+        const preventDoubleTap = (e: TouchEvent) => {
+          const now = Date.now();
+          if (now - lastTouchEnd <= 300) {
+            e.preventDefault();
+          }
+          lastTouchEnd = now;
+        };
+        document.addEventListener('touchend', preventDoubleTap, { passive: false });
+
+        const styleId = 'tf-trainer-ios-zoom-guard';
+        if (!document.getElementById(styleId)) {
+          const style = document.createElement('style');
+          style.id = styleId;
+          style.innerHTML = `
+            input, textarea, select {
+              font-size: 16px !important;
+            }
+            html, body {
+              touch-action: pan-x pan-y;
+              -webkit-text-size-adjust: 100%;
+              text-size-adjust: 100%;
+              overscroll-behavior-y: none;
+            }
+          `;
+          document.head.appendChild(style);
+        }
+
+        return () => {
+          document.removeEventListener('gesturestart', preventGesture);
+          document.removeEventListener('gesturechange', preventGesture);
+          document.removeEventListener('gestureend', preventGesture);
+          document.removeEventListener('touchend', preventDoubleTap);
+        };
+      } catch (e) {
+        console.warn('Error applying web zoom guard:', e);
+      }
+    }
+  }, []);
+
   // Auth-Status & Rollen & News regelmäßig checken + Lautloser Instant-OTA-Check
   useEffect(() => {
     let hasCheckedStartup = false;
     let registeredPushUserId: string | null = null;
 
     const checkData = async () => {
-      const user = await mockDb.getCurrentUser();
-      setCurrentUser(prev => (prev?.id === user?.id && prev?.role === user?.role ? prev : user));
+      let user = await mockDb.getCurrentUser();
+      if (user && typeof user === 'object' && Platform.OS === 'web') {
+        // Authoritative Server-Validierung gegen Supabase (Backend Paywall & Rolle abgleichen)
+        const validated = await mockDb.validateWebAccessAuthoritative(user);
+        if (validated && typeof validated === 'object') {
+          user = validated;
+        }
+      }
+      if (user && typeof user === 'object') {
+        setCurrentUser(prev => (prev?.id === user?.id && prev?.role === user?.role && prev?.title === user?.title && prev?.isWebUnlocked === user?.isWebUnlocked ? prev : user));
+      } else {
+        setCurrentUser(null);
+      }
       if (user?.id && registeredPushUserId !== user.id) {
         registeredPushUserId = user.id;
         registerForPushNotificationsAsync(user.id).catch(() => {});
@@ -1162,7 +1235,20 @@ function MainAppLayout() {
 
   // Falls nicht eingeloggt, Login/Registrierung vorschalten
   if (!currentUser) {
-    return <AuthScreen onLoginSuccess={(user) => setCurrentUser(user)} />;
+    return (
+      <AuthScreen 
+        onLoginSuccess={async (loggedInUser) => {
+          if (loggedInUser && typeof loggedInUser === 'object') {
+            if (Platform.OS === 'web') {
+              const validated = await mockDb.validateWebAccessAuthoritative(loggedInUser);
+              setCurrentUser(validated || loggedInUser);
+            } else {
+              setCurrentUser(loggedInUser);
+            }
+          }
+        }} 
+      />
+    );
   }
 
   // WEB-GATE: Prüfung der Web-Freischaltung (4,99 € PayPal / Key oder Dozenten)
@@ -1174,7 +1260,7 @@ function MainAppLayout() {
         <WebPaywallScreen
           currentUser={currentUser}
           onUnlocked={(updatedUser) => {
-            setCurrentUser({ ...updatedUser });
+            setCurrentUser({ ...updatedUser, isWebUnlocked: true });
           }}
           onLogout={async () => {
             await mockDb.logoutUser();
@@ -1262,7 +1348,7 @@ function MainAppLayout() {
           name="index"
           options={{
             title: 'Lernen',
-            headerTitle: Platform.OS === 'web' ? 'Tf-Trainer - Lernen' : 'RailTrainer - Lernen',
+            headerTitle: 'Tf-Trainer - Lernen',
             tabBarLabel: 'Lernen',
             tabBarIcon: ({ color, size }) => (
               <BookOpen color={color} size={size} />

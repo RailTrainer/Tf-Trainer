@@ -26,6 +26,11 @@ const MIME_TYPES = {
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
   '.svg': 'image/svg+xml',
+  '.mp3': 'audio/mpeg',
+  '.wav': 'audio/wav',
+  '.ogg': 'audio/ogg',
+  '.m4a': 'audio/mp4',
+  '.aac': 'audio/aac',
 };
 
 // In-Memory Battle Sessions Store
@@ -89,6 +94,58 @@ const server = http.createServer((req, res) => {
       });
       return;
     }
+
+    if (pathname === '/api/battle/answer' && req.method === 'POST') {
+      let body = '';
+      req.on('data', chunk => body += chunk);
+      req.on('end', () => {
+        try {
+          const data = JSON.parse(body);
+          const pin = data.pin;
+          if (pin && battleSessions[pin]) {
+            const sess = battleSessions[pin];
+            if (!Array.isArray(sess.players)) sess.players = [];
+            let p = sess.players.find(x => x.id === data.playerId);
+            if (!p) {
+              p = {
+                id: data.playerId,
+                name: data.name || 'Spieler',
+                avatar: data.avatar || '🚂',
+                score: 0,
+                streak: 0,
+                hangman_strikes: 0,
+                is_eliminated: false
+              };
+              sess.players.push(p);
+            }
+            if (!sess.first_answer_time) {
+              sess.first_answer_time = data.answerTime || Date.now();
+              sess.timer_active = true;
+            }
+            if (p.last_answered_q_index !== data.qIndex) {
+              p.last_answer = data.answer;
+              p.last_answered_q_index = data.qIndex;
+              p.last_answer_time = data.answerTime;
+              p.is_correct = data.isCorrect;
+              p.is_danger = data.isDanger;
+              p.last_earned_points = data.earnedPoints;
+              p.score = (p.score || 0) + (data.earnedPoints || 0);
+              if (data.isCorrect) p.streak = (p.streak || 0) + 1;
+              else p.streak = 0;
+            }
+            res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+            res.end(JSON.stringify({ success: true, player: p }));
+          } else {
+            res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' });
+            res.end(JSON.stringify({ error: 'Session not found' }));
+          }
+        } catch (e) {
+          res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ error: 'Invalid JSON' }));
+        }
+      });
+      return;
+    }
   }
 
   // --- STATIC FILES ---
@@ -118,7 +175,7 @@ const server = http.createServer((req, res) => {
       }
     } else {
       res.writeHead(200, { 'Content-Type': contentType });
-      res.end(content, 'utf-8');
+      res.end(content);
     }
   });
 });

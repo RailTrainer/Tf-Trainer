@@ -38,6 +38,8 @@ export interface User {
   title?: string; // Neu: z.B. "Ausbilder", "Prüfer"
   avatarUrl?: string; // Neu: Profilfoto (Preset Emoji oder URL)
   isWebUnlocked?: boolean; // Freigabe für die 4,99 € Web-Version
+  web_unlock_requested?: boolean; // Wartet auf Freischaltung durch den Admin
+  web_unlock_requested_at?: string; // Zeitstempel der Zahlungs-/Freischaltanfrage
 }
 
 export interface Category {
@@ -2027,7 +2029,7 @@ const INITIAL_TICKETS: Ticket[] = [];
 const INITIAL_NEWS: NewsItem[] = [
   {
     id: 'news_1',
-    title: 'Willkommen bei RailTrainer',
+    title: 'Willkommen bei Tf-Trainer',
     content: 'Willkommen auf der offiziellen Lern- und Wissensplattform für den Eisenbahnbetriebsdienst. Nutze die interaktiven Lernkarten und die Prüfungssimulation zur gezielten Vorbereitung.',
     category: 'announcement',
     authorId: 'u_admin',
@@ -2705,7 +2707,19 @@ export const mockDb = {
 
   // --- WEB-ZUGANG & LIZENZ-VERWALTUNG (4,99 €) ---
   isUserWebUnlocked(user: User | null | undefined, roles: RoleDefinition[] = []): boolean {
-    if (!user) return false;
+    if (!user || typeof user !== 'object') return false;
+
+    // 0. Haupt-Account & Admins immer uneingeschränkt freischalten
+    const email = (user.email || '').toLowerCase().trim();
+    if (
+      email === 'dennis.koester@aixrail.de' || 
+      email === 'admin@railtrainer.de' || 
+      email === 'admin@tf-trainer.de' ||
+      email === 'admin@bahn.de'
+    ) {
+      return true;
+    }
+
     // 1. Admins & Moderatoren
     if (user.role === 'admin' || user.role === 'moderator') return true;
     const userRoleDef = roles.find(r => r.id === user.role);
@@ -2743,7 +2757,10 @@ export const mockDb = {
     let currentTitle = (index !== -1 ? users[index].title : currentUserObj?.title) || '';
 
     // Falls noch kein Tag vorhanden, Tag anhängen
-    let newTitle = currentTitle;
+    let newTitle = currentTitle
+      .replace(/\[Web-Wartend\]/gi, '')
+      .replace(/\[Wartet auf Web-Freischaltung\]/gi, '')
+      .trim();
     if (!newTitle.toLowerCase().includes('web-freigabe') && !newTitle.toLowerCase().includes('[web]')) {
       newTitle = newTitle ? `${newTitle} [Web-Freigabe]` : '[Web-Freigabe]';
     }
@@ -2761,6 +2778,7 @@ export const mockDb = {
     if (index !== -1) {
       users[index].title = newTitle;
       users[index].isWebUnlocked = true;
+      users[index].web_unlock_requested = false;
       await AsyncStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
     }
 
@@ -2768,6 +2786,7 @@ export const mockDb = {
     if (currentUserObj && currentUserObj.id === userId) {
       currentUserObj.title = newTitle;
       currentUserObj.isWebUnlocked = true;
+      currentUserObj.web_unlock_requested = false;
       invalidateMemoryCache('current_user');
       await AsyncStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(currentUserObj));
     }
@@ -2788,8 +2807,104 @@ export const mockDb = {
       await AsyncStorage.setItem(STORAGE_KEYS.WEB_LICENSES, JSON.stringify(licenses));
     } catch {}
 
-    const resultUser = (currentUserObj && currentUserObj.id === userId) ? currentUserObj : (users[index] || { id: userId, email: '', name: '', role: 'user', title: newTitle, isWebUnlocked: true });
+    const resultUser = (currentUserObj && currentUserObj.id === userId) ? currentUserObj : (users[index] || { id: userId, email: '', name: '', role: 'user', title: newTitle, isWebUnlocked: true, web_unlock_requested: false });
     return resultUser;
+  },
+
+  async requestWebUnlock(userId: string): Promise<boolean> {
+    try {
+      const users = await this.getUsers();
+      const index = users.findIndex(u => u.id === userId);
+      const nowIso = new Date().toISOString();
+      if (index !== -1) {
+        users[index].web_unlock_requested = true;
+        users[index].web_unlock_requested_at = nowIso;
+        await AsyncStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+      }
+      let currentUserObj = await this.getCurrentUser();
+      if (currentUserObj && currentUserObj.id === userId) {
+        currentUserObj.web_unlock_requested = true;
+        currentUserObj.web_unlock_requested_at = nowIso;
+        invalidateMemoryCache('current_user');
+        await AsyncStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(currentUserObj));
+      }
+
+      if (isSupabaseConfigured() && supabase) {
+        try {
+          const currentT = currentUserObj?.title || (index !== -1 ? users[index]?.title : '') || '';
+          if (!currentT.includes('[Web-Wartend]')) {
+            const newT = currentT ? `${currentT} [Web-Wartend]` : '[Web-Wartend]';
+            await supabase.from('users').update({ title: newT }).eq('id', userId);
+          }
+
+          // Support-Ticket anlegen, damit Admins es sofort im Ticket-System sehen
+          const requesterName = currentUserObj?.name || (index !== -1 ? users[index]?.name : '') || 'Benutzer';
+          const requesterEmail = currentUserObj?.email || (index !== -1 ? users[index]?.email : '') || '';
+          await supabase.from('tickets').insert([{
+            id: 'tick_web_' + Date.now(),
+            user_id: userId,
+            user_name: requesterName,
+            user_email: requesterEmail,
+            title: `🖥️ Web-Freischaltung angefordert: ${requesterName}`,
+            description: `Der Benutzer ${requesterName} (${requesterEmail}) hat bezahlt bzw. die Web-Freischaltung angefordert. Bitte im Admin-Bereich freischalten.`,
+            type: 'other',
+            status: 'open',
+            created_at: nowIso,
+          }]);
+        } catch {}
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  },
+
+  isUserWaitingForWebUnlock(user: User | null | undefined): boolean {
+    if (!user || typeof user !== 'object') return false;
+    if (this.isUserWebUnlocked(user)) return false;
+    return Boolean(user.web_unlock_requested || (user.title || '').toLowerCase().includes('web-wartend'));
+  },
+
+  async validateWebAccessAuthoritative(user: User | null | undefined): Promise<User | null> {
+    if (!user || typeof user !== 'object') return null;
+
+    // 0. Dennis Köster ist immer Admin und uneingeschränkt freigeschaltet
+    const email = (user.email || '').toLowerCase().trim();
+    if (
+      email === 'dennis.koester@aixrail.de' || 
+      email === 'admin@railtrainer.de' || 
+      email === 'admin@tf-trainer.de' ||
+      email === 'admin@bahn.de'
+    ) {
+      user.role = 'admin';
+      user.isWebUnlocked = true;
+      return user;
+    }
+
+    // Backend-Validierung der Paywall gegen die Live-Datenbank (Supabase)
+    if (isSupabaseConfigured() && supabase) {
+      try {
+        const { data: dbUser, error } = await supabase
+          .from('users')
+          .select('id, role, title, email, name')
+          .eq('id', user.id)
+          .single();
+
+        if (!error && dbUser) {
+          user.role = dbUser.role || user.role;
+          user.title = dbUser.title || user.title;
+          user.name = dbUser.name || user.name;
+          user.email = dbUser.email || user.email;
+          user.isWebUnlocked = this.isUserWebUnlocked(user);
+          return user;
+        }
+      } catch (e) {
+        console.warn('Backend validation check warning:', e);
+      }
+    }
+
+    user.isWebUnlocked = this.isUserWebUnlocked(user);
+    return user;
   },
 
   async revokeWebAccess(userId: string): Promise<void> {
@@ -2801,6 +2916,7 @@ export const mockDb = {
     let cleanTitle = currentTitle
       .replace(/\[Web-Freigabe\]/gi, '')
       .replace(/\[Web-Zugang\]/gi, '')
+      .replace(/\[Web-Wartend\]/gi, '')
       .replace(/\[Web\]/gi, '')
       .trim();
 
@@ -2813,12 +2929,14 @@ export const mockDb = {
     if (index !== -1) {
       users[index].title = cleanTitle;
       users[index].isWebUnlocked = false;
+      users[index].web_unlock_requested = false;
       await AsyncStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
     }
 
     if (currentUserObj && currentUserObj.id === userId) {
       currentUserObj.title = cleanTitle;
       currentUserObj.isWebUnlocked = false;
+      currentUserObj.web_unlock_requested = false;
       invalidateMemoryCache('current_user');
       await AsyncStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(currentUserObj));
     }

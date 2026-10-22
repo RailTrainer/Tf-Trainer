@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "RailTrainer",
+    "name": "Tf-Trainer",
     "slug": "lernapp",
-    "version": "1.1.5",
+    "version": "2.0.0",
     "orientation": "default",
     "icon": "./assets/images/icon.png",
     "scheme": "railtrainer",
@@ -55,7 +55,6 @@
     },
     "runtimeVersion": "1.0.11",
     "experiments": {
-      "baseUrl": "/Tf-Trainer",
       "typedRoutes": true,
       "reactCompiler": true
     },

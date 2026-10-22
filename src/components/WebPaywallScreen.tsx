@@ -13,6 +13,7 @@ import {
   Linking
 } from 'react-native';
 import { mockDb, User } from '../database/mockDb';
+import { sendAdminWebUnlockRequestNotification } from '../services/notificationService';
 import { useAppTheme } from '../context/ThemeContext';
 import { useDeviceLayout } from '../hooks/useDeviceLayout';
 import { 
@@ -29,7 +30,9 @@ import {
   HelpCircle,
   ExternalLink,
   ChevronRight,
-  Info
+  Info,
+  Bell,
+  FileText
 } from 'lucide-react-native';
 
 interface WebPaywallScreenProps {
@@ -46,7 +49,11 @@ export default function WebPaywallScreen({ currentUser, onUnlocked, onLogout }: 
   const [loadingPaypal, setLoadingPaypal] = useState(false);
   const [loadingKey, setLoadingKey] = useState(false);
   const [checkingStatus, setCheckingStatus] = useState(false);
+  const [requestingUnlock, setRequestingUnlock] = useState(false);
+  const [isWaitingUnlock, setIsWaitingUnlock] = useState(mockDb.isUserWaitingForWebUnlock(currentUser));
   const [showCodeInput, setShowCodeInput] = useState(false);
+  const [showImpressum, setShowImpressum] = useState(false);
+  const [showDatenschutz, setShowDatenschutz] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const colors = {
@@ -60,15 +67,23 @@ export default function WebPaywallScreen({ currentUser, onUnlocked, onLogout }: 
   const checkUnlockStatus = async (silent: boolean = false) => {
     if (!silent) setCheckingStatus(true);
     try {
+      let me = currentUser;
       const users = await mockDb.getUsers();
-      const me = users.find(u => u.id === currentUser.id || u.email.toLowerCase() === currentUser.email.toLowerCase());
-      if (me && mockDb.isUserWebUnlocked(me)) {
-        setSuccessMessage('Dein Web-Zugang wurde erfolgreich freigeschaltet! 🎉');
-        setTimeout(() => {
-          onUnlocked(me);
-        }, 1200);
-        return true;
-      } else if (!silent) {
+      const found = users.find(u => (currentUser && u.id === currentUser.id) || (currentUser && u.email && u.email.toLowerCase() === currentUser.email.toLowerCase()));
+      if (found) me = found;
+      if (me) {
+        const validatedMe = await mockDb.validateWebAccessAuthoritative(me);
+        const effectiveMe = validatedMe || me;
+        setIsWaitingUnlock(mockDb.isUserWaitingForWebUnlock(effectiveMe));
+        if (mockDb.isUserWebUnlocked(effectiveMe)) {
+          setSuccessMessage('Dein Web-Zugang wurde erfolgreich freigeschaltet! 🎉');
+          setTimeout(() => {
+            onUnlocked(effectiveMe);
+          }, 1000);
+          return true;
+        }
+      }
+      if (!silent) {
         Alert.alert(
           'Noch nicht freigeschaltet ⏳',
           'Dein Account wartet noch auf die Freigabe durch den Admin oder die Eingabe eines Codes. Sobald deine Zahlung bestätigt wurde, wirst du freigegeben.'
@@ -82,8 +97,53 @@ export default function WebPaywallScreen({ currentUser, onUnlocked, onLogout }: 
     return false;
   };
 
+  // Freischaltung anfordern und Admin benachrichtigen
+  const handleRequestUnlock = async (isAutoFromPayment = false) => {
+    setRequestingUnlock(true);
+    try {
+      if (currentUser && currentUser.id) {
+        await mockDb.requestWebUnlock(currentUser.id);
+      }
+      setIsWaitingUnlock(true);
+      await sendAdminWebUnlockRequestNotification(currentUser);
+      if (isAutoFromPayment) {
+        setSuccessMessage('Vielen Dank für deine Zahlung! Deine Freischaltung wurde automatisch angefordert. Der Admin wurde per Push-Benachrichtigung benachrichtigt. Dein Browser prüft die Freigabe.');
+      } else {
+        Alert.alert(
+          'Freischaltung angefordert ⏳',
+          'Wir haben deine Anfrage an den Administrator gesendet. Die Admins erhalten eine Push-Benachrichtigung auf ihr Handy und schalten dich in Kürze frei!'
+        );
+      }
+      await checkUnlockStatus(true);
+    } catch (e: any) {
+      if (!isAutoFromPayment) {
+        Alert.alert('Hinweis', 'Konnte Anfrage nicht senden. Bitte versuche es in wenigen Momenten erneut.');
+      }
+    } finally {
+      setRequestingUnlock(false);
+    }
+  };
+
   useEffect(() => {
-    // Automatisch alle 8 Sekunden prüfen, falls der Admin den Nutzer in der App freischaltet
+    // Sofort beim Öffnen des Screens prüfen, ob Nutzer eigentlich schon freigeschaltet ist (z.B. Admin/Dennis)
+    checkUnlockStatus(true);
+
+    // 1. Automatisch prüfen, ob der Nutzer von PayPal mit payment_status=completed zurückgeleitet wurde
+    if (typeof window !== 'undefined' && window.location.search) {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const status = params.get('payment_status');
+        if (status === 'completed') {
+          // URL-Parameter säubern ohne Reload
+          window.history.replaceState({}, document.title, window.location.pathname);
+          handleRequestUnlock(true);
+        }
+      } catch (e) {
+        console.warn('Could not parse URLSearchParams:', e);
+      }
+    }
+
+    // 2. Automatisch alle 8 Sekunden prüfen, falls der Admin den Nutzer in der App freischaltet
     const interval = setInterval(() => {
       checkUnlockStatus(true);
     }, 8000);
@@ -94,13 +154,28 @@ export default function WebPaywallScreen({ currentUser, onUnlocked, onLogout }: 
   const handlePaypalCheckout = async () => {
     setLoadingPaypal(true);
     try {
+      const origin = typeof window !== 'undefined' && window.location.origin ? window.location.origin : '';
+      const pathname = typeof window !== 'undefined' && window.location.pathname ? window.location.pathname : '';
+      const returnUrl = `${origin}${pathname}?payment_status=completed`;
+      const cancelUrl = `${origin}${pathname}?payment_status=cancelled`;
+
       const itemName = `Tf-Trainer Web-Zugang - ${currentUser.name} (${currentUser.email})`;
-      const paypalUrl = `https://www.paypal.com/cgi-bin/webscr?cmd=_xclick&business=dschmitz112%40web.de&item_name=${encodeURIComponent(itemName)}&amount=4.99&currency_code=EUR`;
+      const paypalUrl = `https://www.paypal.com/cgi-bin/webscr?cmd=_xclick` +
+        `&business=dschmitz112%40web.de` +
+        `&item_name=${encodeURIComponent(itemName)}` +
+        `&amount=4.99` +
+        `&currency_code=EUR` +
+        `&return=${encodeURIComponent(returnUrl)}` +
+        `&cancel_return=${encodeURIComponent(cancelUrl)}` +
+        `&rm=1` +
+        `&no_shipping=1` +
+        `&no_note=0`;
+
       await Linking.openURL(paypalUrl);
       setShowCodeInput(true);
       Alert.alert(
         'PayPal geöffnet 💳',
-        `Die PayPal-Zahlungsseite wurde geöffnet.\n\n⚠️ WICHTIGER HINWEIS:\nBitte achte darauf, dass im PayPal-Hinweis/Verwendungszweck deine Registrierungs-E-Mail angegeben ist:\n\n${currentUser.email}\n\nNur so kann die Zahlung sofort deinem Account zugeordnet und freigeschaltet werden!`
+        `Die PayPal-Zahlungsseite wurde geöffnet.\n\n⚠️ WICHTIGER HINWEIS:\nBitte achte darauf, dass im PayPal-Hinweis/Verwendungszweck deine Registrierungs-E-Mail angegeben ist:\n\n${currentUser.email}\n\nNach der Zahlung wirst du automatisch hierher zurückgeleitet und die Admins erhalten eine Benachrichtigung!`
       );
     } catch (e: any) {
       Alert.alert('Fehler', 'Konnte den PayPal-Link nicht öffnen.');
@@ -168,6 +243,23 @@ export default function WebPaywallScreen({ currentUser, onUnlocked, onLogout }: 
             <View style={styles.successBanner}>
               <CheckCircle2 size={24} color="#10b981" />
               <Text style={styles.successText}>{successMessage}</Text>
+            </View>
+          )}
+
+          {/* WARTET AUF FREISCHALTUNG STATUS-BANNER */}
+          {isWaitingUnlock && (
+            <View style={[styles.waitingBanner, { backgroundColor: isDark ? '#451a0335' : '#fffbeb', borderColor: isDark ? '#d97706' : '#f59e0b' }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <ActivityIndicator size="small" color="#d97706" />
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.waitingTitle, { color: isDark ? '#fbbf24' : '#b45309' }]}>
+                    ⏳ Web-Freischaltung angefordert!
+                  </Text>
+                  <Text style={[styles.waitingSubtitle, { color: colors.text }]}>
+                    Deine Anfrage ist beim Administrator eingegangen. Admins wurden per Push-Benachrichtigung benachrichtigt. Sobald die Freischaltung erfolgt, öffnet sich die Web-App automatisch (automatische Live-Prüfung).
+                  </Text>
+                </View>
+              </View>
             </View>
           )}
 
@@ -257,7 +349,7 @@ export default function WebPaywallScreen({ currentUser, onUnlocked, onLogout }: 
                 </Text>
               </View>
               <Text style={{ fontSize: 12, color: colors.text, lineHeight: 18 }}>
-                Bitte gib bei PayPal im Hinweis-/Mitteilungsfeld unbedingt deine Registrierungs-E-Mail an, damit der Admin deine Zahlung sofort freischalten kann:
+                Bitte gib bei PayPal im Hinweis-/Mitteilungsfeld deine Registrierungs-E-Mail an:
               </Text>
               <View style={{
                 backgroundColor: isDark ? '#1e293b' : '#ffffff',
@@ -275,6 +367,38 @@ export default function WebPaywallScreen({ currentUser, onUnlocked, onLogout }: 
               </View>
             </View>
 
+            {/* BUTTON: FREISCHALTUNG ANFORDERN / ADMIN PER PUSH INFORMIEREN */}
+            <TouchableOpacity
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                paddingVertical: 12,
+                paddingHorizontal: 16,
+                borderRadius: 10,
+                backgroundColor: isWaitingUnlock ? (isDark ? '#064e3b35' : '#ecfdf5') : (isDark ? '#451a0345' : '#fef3c7'),
+                borderWidth: 1.5,
+                borderColor: isWaitingUnlock ? '#10b981' : '#f59e0b',
+                marginTop: 12,
+                width: '100%',
+                gap: 8,
+              }}
+              onPress={() => handleRequestUnlock(false)}
+              disabled={requestingUnlock || Boolean(successMessage)}
+              activeOpacity={0.8}
+            >
+              {requestingUnlock ? (
+                <ActivityIndicator size="small" color="#f59e0b" />
+              ) : (
+                <>
+                  <Bell size={16} color={isWaitingUnlock ? '#10b981' : '#d97706'} />
+                  <Text style={{ fontSize: 13, color: isWaitingUnlock ? '#10b981' : (isDark ? '#fbbf24' : '#b45309'), fontWeight: '700' }}>
+                    {isWaitingUnlock ? '🔔 Admin erneut benachrichtigen' : '🙋 Bereits bezahlt? Jetzt Freischaltung anfordern & Admin per Push benachrichtigen'}
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
+
             {/* FREISCHALTUNG PRÜFEN BUTTON */}
             <TouchableOpacity
               style={{
@@ -288,6 +412,7 @@ export default function WebPaywallScreen({ currentUser, onUnlocked, onLogout }: 
                 borderWidth: 1,
                 borderColor: colors.border,
                 marginTop: 10,
+                width: '100%',
                 gap: 8,
               }}
               onPress={() => checkUnlockStatus(false)}
@@ -300,7 +425,7 @@ export default function WebPaywallScreen({ currentUser, onUnlocked, onLogout }: 
                 <>
                   <RefreshCw size={14} color={colors.primary} />
                   <Text style={{ fontSize: 12, color: colors.text, fontWeight: '600' }}>
-                    🔄 Freischaltung prüfen (nach Zahlung / durch Admin)
+                    🔄 Freischaltungsstatus jetzt prüfen
                   </Text>
                 </>
               )}
@@ -392,6 +517,49 @@ export default function WebPaywallScreen({ currentUser, onUnlocked, onLogout }: 
               <LogOut size={15} color="#ef4444" />
               <Text style={styles.logoutButtonText}>Abmelden / Anderes Konto</Text>
             </TouchableOpacity>
+          </View>
+
+          {/* RECHTLICHE HINWEISE / IMPRESSUM & DATENSCHUTZ */}
+          <View style={{ marginTop: 24, paddingTop: 16, borderTopWidth: 1, borderTopColor: colors.border, alignItems: 'center' }}>
+            <View style={{ flexDirection: 'row', gap: 16, marginBottom: 12 }}>
+              <TouchableOpacity onPress={() => setShowImpressum(!showImpressum)} activeOpacity={0.7}>
+                <Text style={{ fontSize: 12, color: colors.primary, textDecorationLine: 'underline' }}>
+                  {showImpressum ? 'Impressum ausblenden' : 'Impressum anzeigen'}
+                </Text>
+              </TouchableOpacity>
+              <Text style={{ fontSize: 12, color: colors.textMuted }}>•</Text>
+              <TouchableOpacity onPress={() => setShowDatenschutz(!showDatenschutz)} activeOpacity={0.7}>
+                <Text style={{ fontSize: 12, color: colors.primary, textDecorationLine: 'underline' }}>
+                  {showDatenschutz ? 'Datenschutz ausblenden' : 'Datenschutz anzeigen'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {showImpressum && (
+              <View style={{ width: '100%', padding: 14, borderRadius: 10, backgroundColor: isDark ? '#1e293b' : '#f1f5f9', borderWidth: 1, borderColor: colors.border, marginBottom: 12 }}>
+                <Text style={{ fontSize: 13, fontWeight: 'bold', color: colors.text, marginBottom: 4 }}>Impressum – Tf-Trainer</Text>
+                <Text style={{ fontSize: 12, color: colors.textMuted, lineHeight: 18 }}>
+                  Herausgeber & Entwicklung: Dennis Köster{'\n'}
+                  Interaktive Lernplattform für Triebfahrzeugführer, Wagenprüfer & Bahnbetriebspersonal.{'\n'}
+                  E-Mail: support@tf-trainer.de{'\n'}
+                  © Dennis Köster. Alle Rechte vorbehalten.
+                </Text>
+              </View>
+            )}
+
+            {showDatenschutz && (
+              <View style={{ width: '100%', padding: 14, borderRadius: 10, backgroundColor: isDark ? '#1e293b' : '#f1f5f9', borderWidth: 1, borderColor: colors.border, marginBottom: 12 }}>
+                <Text style={{ fontSize: 13, fontWeight: 'bold', color: colors.text, marginBottom: 4 }}>Datenschutzerklärung – Tf-Trainer</Text>
+                <Text style={{ fontSize: 12, color: colors.textMuted, lineHeight: 18 }}>
+                  Der Schutz Ihrer persönlichen Daten hat für uns höchste Priorität. Tf-Trainer verarbeitet Daten ausschließlich zweckgebunden für den Lernbetrieb. Keine Weitergabe an Werbenetzwerke oder Dritte.{'\n'}
+                  Kontakt: datenschutz@tf-trainer.de
+                </Text>
+              </View>
+            )}
+
+            <Text style={{ fontSize: 11, color: colors.textMuted }}>
+              Tf-Trainer Web • Version 2.0.0 • support@tf-trainer.de
+            </Text>
           </View>
 
         </View>
@@ -491,6 +659,22 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
     flex: 1,
+  },
+  waitingBanner: {
+    borderWidth: 1.5,
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 20,
+    width: '100%',
+  },
+  waitingTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  waitingSubtitle: {
+    fontSize: 12,
+    lineHeight: 18,
   },
   pricingBox: {
     borderRadius: 18,
