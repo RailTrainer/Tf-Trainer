@@ -7,6 +7,7 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 ### Hinzugefügt
 - Pre-Push-Tooling: Agenten `struktur-pflege`, `doku-pflege`, `security-audit`, Befehl `/pre-push`, Claude-Code-Hook und Gitleaks-Git-Hook (`.githooks/pre-push`).
 - Projektspezifische Dokumentation (README, CLAUDE.md, SECURITY.md, CHANGELOG.md).
+- Deploy-Workflow kopiert `admin-portal/` nach `dist/admin-portal/` und `play.html` nach `dist/play.html`.
 
 ### Geändert
 - Passwort-Reset nur noch über Supabase-Auth-OTP; ohne Supabase-Verbindung ist kein Reset möglich.
@@ -17,6 +18,22 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 ### Sicherheit
 - Lokaler OTP-Fallback und fester Master-Code für den Passwort-Reset entfernt.
 - Seed-Admins aus dem Client entfernt (kein automatisches Nachseeden); Seed-Admin und Test-Schüler aus `supabase/supabase_schema.sql` entfernt.
+
+## [2.0.0]
+
+Stand laut `package.json`/`app.json`; abgeleitet aus der Commit-Historie.
+
+### Hinzugefügt
+- Admin-Push bei Web-Freischaltungsanfragen (`sendAdminWebUnlockRequestNotification` in `src/services/notificationService.ts`).
+- Web-Paywall: Freischaltstatus wird beim Öffnen des Screens sofort und über `validateWebAccessAuthoritative` geprüft.
+
+### Geändert
+- Webportal: Quizbattle- und Hangman-Korrekturen, Web-Paywall-Redirect, iOS-Zoom-Guard (laut Release-Commit).
+- Web-Export ohne `experiments.baseUrl`; Deploy-Workflow schreibt `dist/CNAME`.
+- App-Name in `app.json`: Tf-Trainer.
+
+### Behoben
+- Login-Sperre: robustere Prüfung des Nutzerobjekts in `src/app/_layout.tsx` und `src/database/mockDb.ts`.
 
 ## [1.1.5]
 

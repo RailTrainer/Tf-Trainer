@@ -1,6 +1,6 @@
 # RailTrainer
 
-Interaktive Bahn-Lern- und Wissensplattform (Web-Titel: **Tf-Trainer**). Expo/React-Native-App (Expo Router) mit Supabase-Backend, Web-Export auf GitHub Pages und einem separaten Admin-Portal.
+Interaktive Bahn-Lern- und Wissensplattform (App-Name laut `app.json`: **Tf-Trainer**, Version 2.0.0). Expo/React-Native-App (Expo Router) mit Supabase-Backend, Web-Export auf GitHub Pages und einem separaten Admin-Portal.
 
 ## Features
 
@@ -89,7 +89,7 @@ docs/store/     Store-Grafiken und Screenshots
 
 - **Native Builds:** EAS-Profile in `eas.json` (`development`, `preview` als APK, `production` als App Bundle). Android-Paket `com.railtrainer`.
 - **OTA-Updates:** `npm run ota` bzw. `npm run ota:preview` (Kanäle `production`/`preview`; `runtimeVersion` steht in `app.json`).
-- **Web:** `.github/workflows/deploy.yml` baut bei Push auf `main` (oder manuell) mit `npx expo export --platform web` und veröffentlicht `dist/` auf GitHub Pages. Basis-Pfad: `/Tf-Trainer` (`experiments.baseUrl` in `app.json`).
+- **Web:** `.github/workflows/deploy.yml` baut bei Push auf `main` (oder manuell) mit `npx expo export --platform web` und veröffentlicht `dist/` auf GitHub Pages. Der Workflow schreibt `dist/CNAME` (Custom Domain), kopiert `admin-portal/` nach `dist/admin-portal/` und `admin-portal/play.html` nach `dist/play.html`. `app.json` setzt kein `experiments.baseUrl`; `vercel.json` enthält eine SPA-Rewrite-Regel.
 
 ## Pre-Push-Prüfung
 
