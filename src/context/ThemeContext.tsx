@@ -35,6 +35,8 @@ export interface ThemeColors {
   buttonDestructiveBg: string;
   buttonDestructivePressedBg: string;
   buttonDestructiveText: string;
+  /** Ruhige Fläche auf dem Screen-Hintergrund, z. B. Chat-Blasen anderer; Text darauf: `text` bzw. `textMuted` (≥ 4,5:1) */
+  surfaceSubtle: string;
 }
 
 export const themePalette: { light: ThemeColors; dark: ThemeColors } = {
@@ -65,6 +67,7 @@ export const themePalette: { light: ThemeColors; dark: ThemeColors } = {
     buttonDestructiveBg: '#b91c1c',
     buttonDestructivePressedBg: '#991b1b',
     buttonDestructiveText: '#ffffff',
+    surfaceSubtle: '#f1f5f9',
   },
   dark: {
     background: '#111827',
@@ -93,6 +96,7 @@ export const themePalette: { light: ThemeColors; dark: ThemeColors } = {
     buttonDestructiveBg: '#dc2626',
     buttonDestructivePressedBg: '#b91c1c',
     buttonDestructiveText: '#ffffff',
+    surfaceSubtle: '#1f2937',
   },
 };
 

@@ -1,3 +1,4 @@
+import type { Ref } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -43,6 +44,8 @@ export interface ButtonProps {
   accessibilityHint?: string;
   style?: StyleProp<ViewStyle>;
   testID?: string;
+  /** Zugriff auf die Druckfläche, z. B. um den Fokus nach einem Ansichtswechsel zu setzen */
+  ref?: Ref<View>;
 }
 
 /** Hover gibt es nur in React Native Web, daher nicht im nativen Typ. */
@@ -65,6 +68,7 @@ export function Button({
   accessibilityHint,
   style,
   testID,
+  ref,
 }: ButtonProps) {
   const { colors } = useAppTheme();
   const isDisabled = disabled || loading;
@@ -87,6 +91,7 @@ export function Button({
   if (variant === 'text') {
     return (
       <Pressable
+        ref={ref}
         {...a11yProps}
         testID={testID}
         onPress={onPress}
@@ -140,6 +145,7 @@ export function Button({
 
   return (
     <Pressable
+      ref={ref}
       {...a11yProps}
       testID={testID}
       onPress={onPress}

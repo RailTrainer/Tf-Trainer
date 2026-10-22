@@ -28,6 +28,8 @@ export interface ListRowProps {
   switchValue?: boolean;
   /** Aufklapp-Zeile: aktueller Zustand (Rolle „button“ mit aria-expanded) */
   expanded?: boolean;
+  /** Destruktive Aktion: Titel und Icon in `errorText` (ohne farbige Fläche) */
+  danger?: boolean;
   /** Standard „button“; „link“ für Zeilen, die eine Webseite/E-Mail öffnen */
   role?: 'button' | 'link';
   /** Ladezustand: Zeile gesperrt, Spinner rechts, Screenreader erhält „busy“ */
@@ -58,6 +60,7 @@ export function ListRow({
   switchValue,
   expanded,
   role = 'button',
+  danger = false,
   loading = false,
   disabled = false,
   accessibilityLabel,
@@ -75,11 +78,11 @@ export function ListRow({
     <>
       {Icon ? (
         <View aria-hidden style={description ? styles.iconTop : undefined}>
-          <Icon size={22} color={colors.textMuted} />
+          <Icon size={22} color={danger ? colors.errorText : colors.textMuted} />
         </View>
       ) : null}
       <View style={styles.texts}>
-        <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
+        <Text style={[styles.title, { color: danger ? colors.errorText : colors.text }]}>{title}</Text>
         {description ? (
           <Text style={[styles.description, { color: colors.textMuted }]}>{description}</Text>
         ) : null}

@@ -1,13 +1,15 @@
 import { useEffect } from 'react';
 import { AccessibilityInfo, Platform, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
-import { AlertCircle, CheckCircle2, Info } from 'lucide-react-native';
+import { AlertCircle, AlertTriangle, CheckCircle2, Info, type LucideIcon } from 'lucide-react-native';
 import { useAppTheme } from '../../context/ThemeContext';
 
-export type StatusTone = 'success' | 'error' | 'info';
+export type StatusTone = 'success' | 'error' | 'info' | 'warning';
 
 export interface Status {
   tone: StatusTone;
   message: string;
+  /** Eigenes Icon statt des Standard-Icons der Tonart (z. B. Uhr bei einer Zeitsperre) */
+  icon?: LucideIcon;
 }
 
 export interface StatusMessageProps {
@@ -33,8 +35,22 @@ export function StatusMessage({ status, style }: StatusMessageProps) {
   }, [message]);
 
   const color =
-    status?.tone === 'error' ? colors.errorText : status?.tone === 'success' ? colors.successText : colors.text;
-  const Icon = status?.tone === 'error' ? AlertCircle : status?.tone === 'success' ? CheckCircle2 : Info;
+    status?.tone === 'error'
+      ? colors.errorText
+      : status?.tone === 'success'
+        ? colors.successText
+        : status?.tone === 'warning'
+          ? colors.warningText
+          : colors.text;
+  const Icon =
+    status?.icon ??
+    (status?.tone === 'error'
+      ? AlertCircle
+      : status?.tone === 'success'
+        ? CheckCircle2
+        : status?.tone === 'warning'
+          ? AlertTriangle
+          : Info);
 
   return (
     // Der Container bleibt immer gerendert, damit neue Meldungen als Änderung angesagt werden.
