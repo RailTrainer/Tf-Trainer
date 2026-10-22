@@ -154,7 +154,7 @@ const REGELWERKE = [
   'Ril 408 (Fahrdienstvorschrift) / FV-NE',
 ];
 
-type ProfileErrors = { name?: string; email?: string };
+type ProfileErrors = { name?: string };
 type TicketErrors = { title?: string; description?: string };
 
 /** iOS liest Live-Regionen nicht vor – dort explizit ansagen. Android und Web nutzen Live-Region bzw. aria-live. */
@@ -201,7 +201,6 @@ export default function ProfileScreen() {
 
   // Edit States
   const [editName, setEditName] = useState('');
-  const [editEmail, setEditEmail] = useState('');
   const [editPassword, setEditPassword] = useState('');
   const [editAvatarUrl, setEditAvatarUrl] = useState('');
   const [editTitle, setEditTitle] = useState('');
@@ -247,7 +246,6 @@ export default function ProfileScreen() {
   const [legalStatus, setLegalStatus] = useState<Status | null>(null);
 
   const nameRef = useRef<TextInput>(null);
-  const emailRef = useRef<TextInput>(null);
   const passwordRef = useRef<TextInput>(null);
   const ticketTitleRef = useRef<TextInput>(null);
   const ticketDescriptionRef = useRef<TextInput>(null);
@@ -314,7 +312,6 @@ export default function ProfileScreen() {
       if (user && !hasInitializedUserRef.current) {
         hasInitializedUserRef.current = true;
         setEditName(user.name);
-        setEditEmail(user.email);
         setEditAvatarUrl(user.avatarUrl || '');
         setEditTitle(user.title || '');
       }
@@ -344,7 +341,6 @@ export default function ProfileScreen() {
   const handleStartEditing = () => {
     if (currentUser) {
       setEditName(currentUser.name);
-      setEditEmail(currentUser.email);
       setEditAvatarUrl(currentUser.avatarUrl || '');
       setEditTitle(currentUser.title || '');
     }
@@ -360,7 +356,6 @@ export default function ProfileScreen() {
   const handleCancelEditing = () => {
     if (currentUser) {
       setEditName(currentUser.name);
-      setEditEmail(currentUser.email);
       setEditAvatarUrl(currentUser.avatarUrl || '');
       setEditTitle(currentUser.title || '');
     }
@@ -438,14 +433,11 @@ export default function ProfileScreen() {
     if (!currentUser) return;
     const errors: ProfileErrors = {};
     if (!editName.trim()) errors.name = 'Gib deinen Namen ein.';
-    if (!editEmail.trim()) errors.email = 'Gib deine E-Mail-Adresse ein.';
     setProfileErrors(errors);
     setProfileFormError(null);
-    const firstError = errors.name ?? errors.email;
-    if (firstError) {
-      announce(firstError);
-      const firstRef = errors.name ? nameRef : emailRef;
-      setTimeout(() => firstRef.current?.focus(), 0);
+    if (errors.name) {
+      announce(errors.name);
+      setTimeout(() => nameRef.current?.focus(), 0);
       return;
     }
 
@@ -454,14 +446,12 @@ export default function ProfileScreen() {
       const updated = await mockDb.updateUserProfile(
         currentUser.id,
         editName.trim(),
-        editEmail.trim(),
         editPassword.trim() || undefined,
         editAvatarUrl,
         editTitle.trim()
       );
       setCurrentUser(updated);
       setEditName(updated.name);
-      setEditEmail(updated.email);
       setEditAvatarUrl(updated.avatarUrl || '');
       setEditTitle(updated.title || '');
       setIsEditing(false);
@@ -619,7 +609,6 @@ export default function ProfileScreen() {
           const updated = await mockDb.updateUserProfile(
             currentUser.id,
             currentUser.name,
-            currentUser.email,
             undefined,
             optimizedUri
           );
@@ -889,28 +878,8 @@ export default function ProfileScreen() {
                   textContentType="name"
                   returnKeyType="next"
                   submitBehavior="submit"
-                  onSubmitEditing={() => emailRef.current?.focus()}
-                  containerStyle={styles.firstField}
-                />
-                <TextField
-                  ref={emailRef}
-                  label="E-Mail-Adresse"
-                  placeholder="name@beispiel.de"
-                  icon={Mail}
-                  value={editEmail}
-                  onChangeText={(value) => {
-                    setEditEmail(value);
-                    clearProfileError('email');
-                  }}
-                  error={profileErrors.email}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  autoComplete="email"
-                  textContentType="emailAddress"
-                  returnKeyType="next"
-                  submitBehavior="submit"
                   onSubmitEditing={() => passwordRef.current?.focus()}
+                  containerStyle={styles.firstField}
                 />
                 <TextField
                   ref={passwordRef}

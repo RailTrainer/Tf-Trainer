@@ -2501,13 +2501,13 @@ export const mockDb = {
     return true;
   },
 
-  async updateUserProfile(userId: string, name: string, email: string, password?: string, avatarUrl?: string, title?: string): Promise<User> {
-    const cleanEmail = email.trim().toLowerCase();
+  // E-Mail-Adresse ist bewusst nicht änderbar (Login-Identität in Supabase Auth).
+  async updateUserProfile(userId: string, name: string, password?: string, avatarUrl?: string, title?: string): Promise<User> {
     const hashedPassword = password && password.trim() !== '' ? hashPassword(password) : undefined;
 
     if (isSupabaseConfigured() && supabase) {
       try {
-        const updatePayload: any = { name: name.trim(), email: cleanEmail };
+        const updatePayload: any = { name: name.trim() };
         if (hashedPassword) updatePayload.password = hashedPassword;
         if (avatarUrl !== undefined) updatePayload.avatar_url = avatarUrl;
         if (title !== undefined) updatePayload.title = title.trim();
@@ -2525,7 +2525,6 @@ export const mockDb = {
 
     if (index !== -1) {
       users[index].name = name.trim();
-      users[index].email = cleanEmail;
       if (hashedPassword) {
         users[index].password = hashedPassword;
       }
@@ -2544,7 +2543,6 @@ export const mockDb = {
       const updated = {
         ...curUser,
         name: name.trim(),
-        email: cleanEmail,
         password: hashedPassword || curUser.password,
         avatarUrl: avatarUrl !== undefined ? avatarUrl : curUser.avatarUrl,
         title: title !== undefined ? title.trim() : curUser.title
@@ -2552,7 +2550,7 @@ export const mockDb = {
       await AsyncStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(updated));
       return updated;
     }
-    return index !== -1 ? users[index] : (curUser || { id: userId, name, email: cleanEmail, role: 'user', title: title || '' });
+    return index !== -1 ? users[index] : (curUser || { id: userId, name, email: '', role: 'user', title: title || '' });
   },
 
   async updateUserName(userId: string, newName: string): Promise<boolean> {

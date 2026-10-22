@@ -4,6 +4,9 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
 ## [Unreleased]
 
+### Entfernt
+- Profil-Screen: Die eigene E-Mail-Adresse lässt sich nicht mehr ändern; `updateUserProfile` (`mockDb`) schreibt keine E-Mail mehr.
+
 ## [2.1.0] – 2026-10-22
 
 ### Hinzugefügt
