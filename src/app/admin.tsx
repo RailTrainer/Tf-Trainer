@@ -16,7 +16,8 @@ import {
   useWindowDimensions,
   LayoutAnimation,
   UIManager,
-  RefreshControl
+  RefreshControl,
+  type ScrollViewInstance,
 } from 'react-native';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -374,13 +375,13 @@ export default function AdminScreen() {
   const isScanningDuplicatesRef = useRef<boolean>(false);
 
   // ScrollView Refs für dynamisches Scrollen zum aktiven Eingabefeld
-  const questionScrollRef = useRef<ScrollView>(null);
-  const factScrollRef = useRef<ScrollView>(null);
-  const catScrollRef = useRef<ScrollView>(null);
-  const userScrollRef = useRef<ScrollView>(null);
-  const ticketScrollRef = useRef<ScrollView>(null);
-  const reportScrollRef = useRef<ScrollView>(null);
-  const duplicateScrollRef = useRef<ScrollView>(null);
+  const questionScrollRef = useRef<ScrollViewInstance>(null);
+  const factScrollRef = useRef<ScrollViewInstance>(null);
+  const catScrollRef = useRef<ScrollViewInstance>(null);
+  const userScrollRef = useRef<ScrollViewInstance>(null);
+  const ticketScrollRef = useRef<ScrollViewInstance>(null);
+  const reportScrollRef = useRef<ScrollViewInstance>(null);
+  const duplicateScrollRef = useRef<ScrollViewInstance>(null);
 
   // Bildschirmabmessungen und ScrollView-Viewport für dynamische Tastaturanpassung
   const { height: windowHeight } = useWindowDimensions();

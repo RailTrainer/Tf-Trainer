@@ -8,6 +8,7 @@ import {
   View,
   type PressableProps,
   type PressableStateCallbackType,
+  type ViewInstance,
 } from 'react-native';
 import { Trash2 } from 'lucide-react-native';
 import { useAppTheme } from '../../context/ThemeContext';
@@ -27,9 +28,9 @@ export interface ThreadListProps {
   /** Zeigt den Papierkorb je Zeile (nur Ausbilder/Admins) */
   canDelete: boolean;
   onOpen: (thread: SupportThread) => void;
-  onDelete: (thread: SupportThread, trigger: View | null) => void;
+  onDelete: (thread: SupportThread, trigger: ViewInstance | null) => void;
   /** Merkt sich die Zeilen, damit der Fokus nach „Zurück“ dorthin zurückkehren kann */
-  registerRow?: (studentId: string, row: View | null) => void;
+  registerRow?: (studentId: string, row: ViewInstance | null) => void;
   /** Kopf über der Liste (z. B. Überschrift); scrollt mit */
   header?: ReactNode;
   /** Text, wenn keine Anfragen vorhanden sind */
@@ -58,7 +59,7 @@ export function ThreadList({
   empty,
 }: ThreadListProps) {
   const { colors } = useAppTheme();
-  const deleteRefs = useRef<Record<string, View | null>>({});
+  const deleteRefs = useRef<Record<string, ViewInstance | null>>({});
 
   return (
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">

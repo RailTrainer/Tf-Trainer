@@ -6,10 +6,10 @@ import {
   View,
   ScrollView,
   Pressable,
-  TextInput,
   Image,
   Modal,
   Platform,
+  type TextInputInstance,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
@@ -245,10 +245,10 @@ export default function ProfileScreen() {
   const [openLegalEntry, setOpenLegalEntry] = useState<LegalEntryId | null>(null);
   const [legalStatus, setLegalStatus] = useState<Status | null>(null);
 
-  const nameRef = useRef<TextInput>(null);
-  const passwordRef = useRef<TextInput>(null);
-  const ticketTitleRef = useRef<TextInput>(null);
-  const ticketDescriptionRef = useRef<TextInput>(null);
+  const nameRef = useRef<TextInputInstance>(null);
+  const passwordRef = useRef<TextInputInstance>(null);
+  const ticketTitleRef = useRef<TextInputInstance>(null);
+  const ticketDescriptionRef = useRef<TextInputInstance>(null);
 
   // Automatisch Ticket-Modal öffnen, falls per Banner (/profile?openTicket=true) aufgerufen
   useEffect(() => {

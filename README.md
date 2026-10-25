@@ -15,7 +15,7 @@ Die Screens liegen in `src/app/` und sind als Tabs in `src/app/_layout.tsx` eing
 
 ## Tech-Stack
 
-- Expo SDK 57, React Native 0.86, React 19, Expo Router (typed routes, React Compiler)
+- Expo SDK 58, React Native 0.88, React 19, Expo Router (typed routes, React Compiler)
 - Supabase (`@supabase/supabase-js`), AsyncStorage
 - EAS Build und EAS Update (OTA), `expo-updates`
 - TypeScript, react-native-web für den Web-Export
@@ -23,7 +23,7 @@ Die Screens liegen in `src/app/` und sind als Tabs in `src/app/_layout.tsx` eing
 
 ## Voraussetzungen
 
-- Node.js 20 (wie im CI-Workflow)
+- Node.js 24 (wie im CI-Workflow; SDK 58 verlangt mindestens 22.13)
 - npm
 - Für Builds/OTA: Expo-/EAS-Account (`npx eas-cli`)
 - Optional für den Push-Schutz: [gitleaks](https://github.com/gitleaks/gitleaks) (`brew install gitleaks`)

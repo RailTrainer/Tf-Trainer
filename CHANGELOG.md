@@ -4,7 +4,15 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
 ## [Unreleased]
 
+### Geändert
+- Upgrade auf Expo SDK 58 (React Native 0.88, React 19.3); `runtimeVersion` 1.0.12 – erfordert neue Store-Builds.
+- Ref-Typen auf die öffentlichen Instanztypen der React-Native-Strict-API umgestellt (`ViewInstance`, `TextInputInstance`, `ScrollViewInstance`, `HostInstance`).
+- Eigene Tab-Leiste (`_layout.tsx`) nutzt die neue expo-router-API (`emitter`, `navigateToTab`).
+- CI-Workflow nutzt Node.js 24.
+- `react-native-svg` als direkte Abhängigkeit (natives Peer-Paket von `lucide-react-native`, von `expo-doctor` gefordert).
+
 ### Entfernt
+- Veraltetes Top-Level-Feld `notification` in `app.json` (Icon/Farbe kommen aus dem `expo-notifications`-Plugin).
 - Profil-Screen: Die eigene E-Mail-Adresse lässt sich nicht mehr ändern; `updateUserProfile` (`mockDb`) schreibt keine E-Mail mehr.
 
 ## [2.1.0] – 2026-10-22

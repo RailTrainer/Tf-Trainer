@@ -5,9 +5,9 @@ import {
   Text,
   TextInput,
   View,
-  type NativeSyntheticEvent,
-  type TextInputKeyPressEventData,
+  type TextInputKeyPressEvent,
   type TextStyle,
+  type TextInputInstance,
 } from 'react-native';
 import { Camera, Send } from 'lucide-react-native';
 import { useAppTheme } from '../../context/ThemeContext';
@@ -30,7 +30,7 @@ export interface ChatComposerProps {
   /** Zeigt den Foto-Button (nur Ausbilderchat für Ausbilder/Mods) */
   onAttach?: () => void;
   attaching?: boolean;
-  inputRef?: Ref<TextInput>;
+  inputRef?: Ref<TextInputInstance>;
 }
 
 /**
@@ -53,7 +53,7 @@ export function ChatComposer({
   const showCounter = value.length >= COUNTER_FROM;
   const counterText = `${value.length} von ${maxLength} Zeichen`;
 
-  const handleKeyPress = (event: NativeSyntheticEvent<TextInputKeyPressEventData>) => {
+  const handleKeyPress = (event: TextInputKeyPressEvent) => {
     if (Platform.OS !== 'web') return;
     // RN Web liefert das DOM-Ereignis mit shiftKey, isComposing und preventDefault
     const e = event as unknown as {

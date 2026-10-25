@@ -1,7 +1,7 @@
-import { AccessibilityInfo, Platform, type View } from 'react-native';
+import { AccessibilityInfo, Platform, type HostInstance } from 'react-native';
 
 /** Element, das Fokus aufnehmen kann: im Web das DOM-Element, nativ die Host-Komponente. */
-type FocusTarget = View | { focus?: () => void } | null | undefined;
+type FocusTarget = HostInstance | { focus?: () => void } | null | undefined;
 
 /**
  * Setzt Tastatur- (Web) bzw. Screenreader-Fokus (nativ) auf ein Element, z. B. nach dem Schließen
@@ -15,7 +15,7 @@ export function moveFocusTo(target: FocusTarget, delayMs = 0) {
       return;
     }
     try {
-      AccessibilityInfo.sendAccessibilityEvent(target as View, 'focus');
+      AccessibilityInfo.sendAccessibilityEvent(target as HostInstance, 'focus');
     } catch {
       // Element ist nicht mehr eingehängt – Fokus bleibt, wo er ist.
     }

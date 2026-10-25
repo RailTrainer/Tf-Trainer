@@ -10,6 +10,7 @@ import {
   type TextInputProps,
   type TextStyle,
   type ViewStyle,
+  type TextInputInstance,
 } from 'react-native';
 import { Eye, EyeOff, type LucideIcon } from 'lucide-react-native';
 import { useAppTheme } from '../../context/ThemeContext';
@@ -28,7 +29,7 @@ export interface TextFieldProps
   /** Passwortfeld mit Auge-Button zum Ein-/Ausblenden */
   password?: boolean;
   containerStyle?: StyleProp<ViewStyle>;
-  ref?: Ref<TextInput>;
+  ref?: Ref<TextInputInstance>;
 }
 
 // Browser-Fokusrahmen am <input> unterdrücken – der Feldrahmen zeigt den Fokus (2 px).

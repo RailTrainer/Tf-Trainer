@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement, type ReactNode } from 'react';
-import { ActivityIndicator, Platform, StyleSheet, Text, View, type TextInput } from 'react-native';
+import { ActivityIndicator, Platform, StyleSheet, Text, View, type TextInputInstance, type ViewInstance } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
@@ -204,10 +204,10 @@ export default function ChatScreen() {
   const [status, setStatus] = useState<Status | null>(null);
   const [announcement, setAnnouncement] = useState<{ message: string; id: number } | null>(null);
 
-  const composerRef = useRef<TextInput>(null);
-  const triggerRef = useRef<View | null>(null);
-  const backButtonRef = useRef<View>(null);
-  const threadRowRefs = useRef<Record<string, View | null>>({});
+  const composerRef = useRef<TextInputInstance>(null);
+  const triggerRef = useRef<ViewInstance | null>(null);
+  const backButtonRef = useRef<ViewInstance>(null);
+  const threadRowRefs = useRef<Record<string, ViewInstance | null>>({});
   const pendingFocusRef = useRef<{ kind: 'back' } | { kind: 'row'; id: string } | null>(null);
   const prevLastMsgIdRef = useRef<string | null>(null);
   const prevLastSupportMsgIdRef = useRef<string | null>(null);
@@ -745,7 +745,7 @@ export default function ChatScreen() {
   const canOpenSupportActions = useCallback(() => isAdmin, [isAdmin]);
 
   const handleOpenGroupActions = useCallback(
-    (message: ChatListMessage, trigger: View | null) => {
+    (message: ChatListMessage, trigger: ViewInstance | null) => {
       const original = messages.find((m) => m.id === message.id);
       if (!original) return;
       triggerRef.current = trigger;
@@ -755,7 +755,7 @@ export default function ChatScreen() {
   );
 
   const handleOpenSupportActions = useCallback(
-    (message: ChatListMessage, trigger: View | null) => {
+    (message: ChatListMessage, trigger: ViewInstance | null) => {
       const original = supportMessages.find((m) => m.id === message.id);
       if (!original) return;
       triggerRef.current = trigger;
@@ -855,7 +855,7 @@ export default function ChatScreen() {
     return actions;
   };
 
-  const requestDeleteThread = (studentId: string, studentName: string, trigger: View | null) => {
+  const requestDeleteThread = (studentId: string, studentName: string, trigger: ViewInstance | null) => {
     if (!isAdmin) return;
     triggerRef.current = trigger;
     openConfirm({ kind: 'deleteThread', studentId, studentName });

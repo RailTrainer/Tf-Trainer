@@ -1,5 +1,5 @@
 import { useRef, useState, type ReactNode } from 'react';
-import { KeyboardAvoidingView, Platform, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { KeyboardAvoidingView, Platform, StyleSheet, View, type StyleProp, type ViewStyle, type ViewInstance } from 'react-native';
 
 export interface ChatKeyboardPaneProps {
   children: ReactNode;
@@ -15,7 +15,7 @@ export interface ChatKeyboardPaneProps {
  * Web: normales View.
  */
 export function ChatKeyboardPane({ children, style }: ChatKeyboardPaneProps) {
-  const wrapperRef = useRef<View>(null);
+  const wrapperRef = useRef<ViewInstance>(null);
   const [offset, setOffset] = useState(0);
 
   return (
