@@ -13,7 +13,7 @@
     },
     "android": {
       "package": "com.railtrainer",
-      "versionCode": 24,
+      "versionCode": 25,
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#0b1a13",
