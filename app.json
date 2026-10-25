@@ -49,7 +49,7 @@
     "updates": {
       "url": "https://u.expo.dev/a2b87163-fd25-4e06-a94b-0b3e9ac0f803"
     },
-    "runtimeVersion": "1.0.12",
+    "runtimeVersion": "1.0.14",
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
