@@ -9,6 +9,7 @@ import {
   type PressableStateCallbackType,
   type StyleProp,
   type ViewStyle,
+  type ViewInstance,
 } from 'react-native';
 import type { LucideIcon } from 'lucide-react-native';
 import { useAppTheme } from '../../context/ThemeContext';
@@ -45,7 +46,7 @@ export interface ButtonProps {
   style?: StyleProp<ViewStyle>;
   testID?: string;
   /** Zugriff auf die Druckfläche, z. B. um den Fokus nach einem Ansichtswechsel zu setzen */
-  ref?: Ref<View>;
+  ref?: Ref<ViewInstance>;
 }
 
 /** Hover gibt es nur in React Native Web, daher nicht im nativen Typ. */

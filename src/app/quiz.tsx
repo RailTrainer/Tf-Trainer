@@ -14,7 +14,8 @@ import {
   Animated,
   LayoutAnimation,
   Platform,
-  UIManager
+  UIManager,
+  type ScrollViewInstance,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { mockDb, Question, QuizAttempt, Category, User, getQuestionCorrectIndices, isQuestionAnswerCorrect, generateAntiIdentityShuffle, shuffleQuestionOptions } from '../database/mockDb';
@@ -296,7 +297,7 @@ export default function QuizScreen() {
   const [hoverSlot, setHoverSlot] = useState<number | null>(null);
 
   const timerRef = useRef<any>(null);
-  const quizScrollRef = useRef<ScrollView>(null);
+  const quizScrollRef = useRef<ScrollViewInstance>(null);
 
   // Color theme
   const colors = {

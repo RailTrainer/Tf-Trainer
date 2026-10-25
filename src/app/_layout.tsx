@@ -63,7 +63,8 @@ LogBox.ignoreAllLogs(true);
 interface CustomTabBarProps {
   state: any;
   descriptors: any;
-  navigation: any;
+  emitter: any;
+  navigateToTab: (routeKey: string) => void;
   currentUser: User | null;
   roles: RoleDefinition[];
   activeColor: string;
@@ -76,7 +77,8 @@ interface CustomTabBarProps {
 function CustomTabBar({
   state,
   descriptors,
-  navigation,
+  emitter,
+  navigateToTab,
   currentUser,
   roles,
   activeColor,
@@ -174,14 +176,14 @@ function CustomTabBar({
           const showAdminBadge = route.name === 'admin' && canAccessAdmin && adminNotificationCount > 0;
 
           const onPress = () => {
-            const event = navigation.emit({
+            const event = emitter.emit({
               type: 'tabPress',
               target: route.key,
               canPreventDefault: true,
             });
 
             if (!isFocused && !event.defaultPrevented) {
-              navigation.navigate(route.name, route.params);
+              navigateToTab(route.key);
             }
           };
 

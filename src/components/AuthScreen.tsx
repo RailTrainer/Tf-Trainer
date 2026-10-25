@@ -6,8 +6,8 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
+  type TextInputInstance,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
@@ -74,10 +74,10 @@ export default function AuthScreen({ onLoginSuccess }: AuthScreenProps) {
   const [viewportHeight, setViewportHeight] = useState(0);
   const [contentHeight, setContentHeight] = useState(0);
 
-  const nameRef = useRef<TextInput>(null);
-  const emailRef = useRef<TextInput>(null);
-  const passwordRef = useRef<TextInput>(null);
-  const codeRef = useRef<TextInput>(null);
+  const nameRef = useRef<TextInputInstance>(null);
+  const emailRef = useRef<TextInputInstance>(null);
+  const passwordRef = useRef<TextInputInstance>(null);
+  const codeRef = useRef<TextInputInstance>(null);
 
   const isForgot = mode === 'forgot';
   const isOtpStep = isForgot && forgotStep === 'otp';
@@ -86,7 +86,7 @@ export default function AuthScreen({ onLoginSuccess }: AuthScreenProps) {
   const trimmedEmail = email.trim();
   const canScroll = viewportHeight > 0 && contentHeight > viewportHeight + 1;
 
-  const fieldRefs: Record<FieldName, RefObject<TextInput | null>> = {
+  const fieldRefs: Record<FieldName, RefObject<TextInputInstance | null>> = {
     name: nameRef,
     email: emailRef,
     password: passwordRef,

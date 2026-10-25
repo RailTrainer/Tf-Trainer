@@ -3,7 +3,7 @@
 # Hinweise für KI-Agenten
 
 ## Architektur
-- Expo SDK 57 / React Native, Expo Router (Dateirouting in `src/app/`), TypeScript.
+- Expo SDK 58 / React Native, Expo Router (Dateirouting in `src/app/`), TypeScript.
 - Backend: Supabase; Client in `src/services/supabaseClient.ts`. SQL-Schemata in `supabase/`.
 - Web-Export (`output: static`, kein `baseUrl`) wird per `.github/workflows/deploy.yml` auf GitHub Pages veröffentlicht (Custom Domain über `dist/CNAME`; `admin-portal/` wird nach `dist/admin-portal/` kopiert, `play.html` zusätzlich nach `dist/play.html`).
 - Admin-Portal: statisch in `admin-portal/` (inkl. `play.html`, `audio/`), lokal via `npm run admin`.

@@ -13,7 +13,8 @@ import {
   Alert,
   Modal,
   Dimensions,
-  Platform
+  Platform,
+  type ScrollViewInstance,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { mockDb, Question, Category, User, Fact } from '../database/mockDb';
@@ -235,7 +236,7 @@ export default function LernenScreen() {
   const categoryFavCount = categoryFavorites.length;
   const displayedListFacts = favoritesOnly ? categoryFavorites : categoryFacts;
 
-  const pagingScrollRef = useRef<ScrollView>(null);
+  const pagingScrollRef = useRef<ScrollViewInstance>(null);
 
   const handleToggleFact = useCallback((id: string) => {
     setExpandedFactIds(prev => ({

@@ -8,6 +8,7 @@ import {
   type ListRenderItem,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
+  type ViewInstance,
 } from 'react-native';
 import { ArrowDown } from 'lucide-react-native';
 import { useAppTheme } from '../../context/ThemeContext';
@@ -31,7 +32,7 @@ export interface MessageListProps {
   unreadSince?: number | null;
   getSender: (message: ChatListMessage) => SenderInfo;
   canOpenActions: (message: ChatListMessage) => boolean;
-  onOpenActions?: (message: ChatListMessage, trigger: View | null) => void;
+  onOpenActions?: (message: ChatListMessage, trigger: ViewInstance | null) => void;
   onOpenProfile?: (message: ChatListMessage) => void;
   onRetry?: (message: ChatListMessage) => void;
   onDiscard?: (message: ChatListMessage) => void;
@@ -202,8 +203,8 @@ export function MessageList({
         data={items}
         keyExtractor={(item) => item.key}
         renderItem={renderItem}
-        ListHeaderComponent={header}
-        ListEmptyComponent={empty}
+        ListHeaderComponent={header ?? undefined}
+        ListEmptyComponent={empty ?? undefined}
         contentContainerStyle={styles.content}
         onScroll={handleScroll}
         scrollEventThrottle={100}

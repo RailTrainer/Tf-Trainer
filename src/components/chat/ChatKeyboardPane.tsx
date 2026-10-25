@@ -1,5 +1,5 @@
 import { useRef, useState, type ReactNode } from 'react';
-import { KeyboardAvoidingView, Platform, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { KeyboardAvoidingView, Platform, StyleSheet, View, type StyleProp, type ViewStyle, type ViewInstance } from 'react-native';
 
 export interface ChatKeyboardPaneProps {
   children: ReactNode;
@@ -8,30 +8,39 @@ export interface ChatKeyboardPaneProps {
 
 /**
  * Hält Verlauf und Eingabeleiste über der Tastatur.
- * iOS: eingebautes `KeyboardAvoidingView` mit `padding` (Expo-Doku „Keyboard handling“). Der Versatz ist die
- * tatsächliche Fensterposition des Bereichs (Header usw.), gemessen statt geschätzt.
- * Android: kein zusätzliches Verschieben – `softwareKeyboardLayoutMode: "resize"` (app.json) verkleinert das
- * Fenster bereits; doppeltes Verschieben würde eine Lücke über der Tastatur erzeugen.
+ * iOS und Android: eingebautes `KeyboardAvoidingView` mit `padding`. Der Versatz ist die tatsächliche
+ * Fensterposition des Bereichs (Header usw.), gemessen statt geschätzt.
+ * Android läuft edge-to-edge (`edgeToEdgeEnabled`); dabei verkleinert `adjustResize` das Fenster nicht mehr,
+ * die Tastatur liegt also über dem Inhalt. Das `KeyboardAvoidingView` rechnet nur die tatsächliche Überdeckung
+ * ein – falls ein Gerät das Fenster doch verkleinert, ist sie 0 und es entsteht keine Lücke.
+ * Android misst mit `measure` (pageY) statt `measureInWindow`: Die Tastaturposition kommt in
+ * Bildschirmkoordinaten, `measureInWindow` zieht aber je nach Android-Version die Statusleiste ab –
+ * die Eingabeleiste läge dann um deren Höhe zu tief.
  * Web: normales View.
  */
 export function ChatKeyboardPane({ children, style }: ChatKeyboardPaneProps) {
-  const wrapperRef = useRef<View>(null);
+  const wrapperRef = useRef<ViewInstance>(null);
   const [offset, setOffset] = useState(0);
+  const isNative = Platform.OS === 'ios' || Platform.OS === 'android';
 
   return (
     <View
       ref={wrapperRef}
       style={[styles.flex, style]}
       onLayout={() => {
-        if (Platform.OS !== 'ios') return;
-        wrapperRef.current?.measureInWindow((_x, y) => {
-          setOffset((prev) => (prev === y ? prev : y));
-        });
+        const node = wrapperRef.current;
+        if (!node) return;
+        const apply = (y: number) => setOffset((prev) => (prev === y ? prev : y));
+        if (Platform.OS === 'ios') {
+          node.measureInWindow((_x, y) => apply(y));
+        } else if (Platform.OS === 'android') {
+          node.measure((_x, _y, _width, _height, _pageX, pageY) => apply(pageY));
+        }
       }}
     >
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={isNative ? 'padding' : undefined}
         keyboardVerticalOffset={offset}
       >
         {children}

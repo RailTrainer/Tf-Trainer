@@ -1,5 +1,5 @@
 import { memo, useRef } from 'react';
-import { Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Platform, Pressable, StyleSheet, Text, View, type ViewInstance } from 'react-native';
 import { AlertCircle, MoreHorizontal } from 'lucide-react-native';
 import { useAppTheme } from '../../context/ThemeContext';
 import { Avatar } from '../ui/Avatar';
@@ -28,7 +28,7 @@ export interface MessageBubbleProps {
   avatarUrl?: string;
   /** Zeigt den „Mehr“-Button (⋯) mit Aktionsmenü */
   hasActions: boolean;
-  onOpenActions?: (message: ChatListMessage, trigger: View | null) => void;
+  onOpenActions?: (message: ChatListMessage, trigger: ViewInstance | null) => void;
   onOpenProfile?: (message: ChatListMessage) => void;
   onRetry?: (message: ChatListMessage) => void;
   onDiscard?: (message: ChatListMessage) => void;
@@ -50,7 +50,7 @@ function MessageBubbleBase({
   onDiscard,
 }: MessageBubbleProps) {
   const { colors } = useAppTheme();
-  const actionsRef = useRef<View>(null);
+  const actionsRef = useRef<ViewInstance>(null);
 
   const time = formatTime(message.timestamp);
   const speaker = isOwn ? 'Du' : senderName;
