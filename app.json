@@ -13,7 +13,7 @@
     },
     "android": {
       "package": "com.railtrainer",
-      "versionCode": 23,
+      "versionCode": 24,
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#0b1a13",
@@ -49,7 +49,7 @@
     "updates": {
       "url": "https://u.expo.dev/a2b87163-fd25-4e06-a94b-0b3e9ac0f803"
     },
-    "runtimeVersion": "1.0.11",
+    "runtimeVersion": "1.0.12",
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
