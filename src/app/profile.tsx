@@ -1027,6 +1027,7 @@ export default function ProfileScreen() {
                 </>
               )}
               <StatusMessage status={titleStatus} />
+              <View style={[styles.divider, { backgroundColor: colors.border, marginTop: 24 }]} />
 
               <Heading level={3} style={styles.subHeading}>
                 Quiz-Statistik
@@ -1044,7 +1045,12 @@ export default function ProfileScreen() {
             </Section>
 
             {/* WISSEN BEITRAGEN */}
-            <Section title="Wissen beitragen" description="Lernkarten und Quizfragen zur Freigabe einreichen.">
+            <View style={[styles.divider, { backgroundColor: colors.border, marginTop: 32 }]} />
+            <Section 
+              title="Wissen beitragen" 
+              description="Lernkarten und Quizfragen zur Freigabe einreichen."
+              style={{ marginTop: 24 }}
+            >
               <ListRow
                 icon={BookOpen}
                 title="Lernkarte einreichen"

@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { X, Camera, Trash2, CheckCircle2, ShieldCheck, Sparkles } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { mockDb, Category, User } from '../database/mockDb';
+import { mockDb, Category, User, SignalSubcategory } from '../database/mockDb';
 import { useAppTheme } from '../context/ThemeContext';
 import { uploadAndOptimizeImage } from '../utils/imageOptimizer';
 
@@ -41,6 +41,8 @@ export const CreateFactModal: React.FC<CreateFactModalProps> = ({
   const [category, setCategory] = useState<string>(
     defaultCategory || categories[0]?.name || 'Allgemein'
   );
+  const [signalSubcategories, setSignalSubcategories] = useState<SignalSubcategory[]>([]);
+  const [subcategory, setSubcategory] = useState<string>('');
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [reference, setReference] = useState('');
@@ -50,6 +52,7 @@ export const CreateFactModal: React.FC<CreateFactModalProps> = ({
   // Synchronisiere defaultCategory bei Öffnung
   React.useEffect(() => {
     if (visible) {
+      mockDb.getSignalSubcategories().then(subs => setSignalSubcategories(subs));
       if (defaultCategory) {
         setCategory(defaultCategory);
       } else if (categories.length > 0 && !categories.some(c => c.name === category)) {
@@ -90,6 +93,7 @@ export const CreateFactModal: React.FC<CreateFactModalProps> = ({
 
   const handleReset = () => {
     setTitle('');
+    setSubcategory('');
     setContent('');
     setReference('');
     setImageUrl('');
@@ -123,6 +127,7 @@ export const CreateFactModal: React.FC<CreateFactModalProps> = ({
       // Lernkarten von Schülern sind IMMER isVerified = false
       await mockDb.saveFact({
         category: category || (categories[0]?.name ?? 'Allgemein'),
+        subcategory: category === 'Signale' ? (subcategory.trim() || undefined) : undefined,
         title: title.trim(),
         content: content.trim(),
         reference: reference.trim(),
@@ -250,6 +255,40 @@ export const CreateFactModal: React.FC<CreateFactModalProps> = ({
               })}
             </ScrollView>
           </View>
+
+          {/* SIGNAL-UNTERKATEGORIE */}
+          {category === 'Signale' && signalSubcategories.length > 0 && (
+            <View style={styles.section}>
+              <Text style={[styles.label, { color: colors.text }]}>Signal-Unterkategorie (optional)</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
+                {signalSubcategories.map((s) => {
+                  const isSelected = subcategory === s.name;
+                  return (
+                    <TouchableOpacity
+                      key={s.id}
+                      style={[
+                        styles.categoryChip,
+                        {
+                          backgroundColor: isSelected ? colors.primary : colors.cardBg,
+                          borderColor: isSelected ? colors.primary : colors.border,
+                        },
+                      ]}
+                      onPress={() => setSubcategory(isSelected ? '' : s.name)}
+                    >
+                      <Text
+                        style={[
+                          styles.categoryChipText,
+                          { color: isSelected ? '#ffffff' : colors.text },
+                        ]}
+                      >
+                        {s.name}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          )}
 
           {/* TITEL / BEGRIFF */}
           <View style={styles.section}>

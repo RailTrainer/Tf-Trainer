@@ -25,7 +25,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 }
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { mockDb, Question, Category, User as DbUser, Fact, RoleDefinition, Ticket, ChatMessageReport, getQuestionCorrectIndices, CustomIconItem, ChatBanRecord } from '../database/mockDb';
+import { mockDb, Question, Category, User as DbUser, Fact, RoleDefinition, Ticket, ChatMessageReport, getQuestionCorrectIndices, CustomIconItem, ChatBanRecord, SignalSubcategory, getFactSignalSubcategory } from '../database/mockDb';
 import CategoryIcon, { RAILWAY_ICONS_DEF, POPULAR_LUCIDE_ICONS_DEF } from '../components/CategoryIcon';
 import { useAppTheme } from '../context/ThemeContext';
 import { useDeviceLayout } from '../hooks/useDeviceLayout';
@@ -347,7 +347,10 @@ export default function AdminScreen() {
   // Unterbereiche
   const [activeSubTab, setActiveSubTab] = useState<'list' | 'form'>('list');
   const [factSubTab, setFactSubTab] = useState<'list' | 'form'>('list');
-  const [catSubTab, setCatSubTab] = useState<'list' | 'form'>('list');
+  const [catSubTab, setCatSubTab] = useState<'list' | 'form' | 'signal_subcategories'>('list');
+  const [signalSubcategories, setSignalSubcategories] = useState<SignalSubcategory[]>([]);
+  const [newSigSubName, setNewSigSubName] = useState('');
+  const [newSigSubDesc, setNewSigSubDesc] = useState('');
   const [userSubTab, setUserSubTab] = useState<'users' | 'roles' | 'webkeys'>('users');
   const [webKeysList, setWebKeysList] = useState<{ key: string; isRedeemed: boolean; redeemedBy?: string; createdAt: number }[]>([]);
 
@@ -560,6 +563,7 @@ export default function AdminScreen() {
   // FORMULAR-STATES: LERNKARTEN
   const [editingFactId, setEditingFactId] = useState<string | null>(null);
   const [formFCategory, setFormFCategory] = useState<string>('');
+  const [formFSubcategory, setFormFSubcategory] = useState<string>('');
   const [formFIsVerified, setFormFIsVerified] = useState<boolean>(true);
   const [formFTitle, setFormFTitle] = useState('');
   const [formFContent, setFormFContent] = useState('');
@@ -619,6 +623,8 @@ export default function AdminScreen() {
         setFacts(allFacts);
         const allCategories = await mockDb.getCategories();
         setCategories(allCategories);
+        const allSigSubs = await mockDb.getSignalSubcategories();
+        setSignalSubcategories(allSigSubs);
         const allTickets = await mockDb.getTickets();
         setTickets(allTickets);
         const allReports = await mockDb.getChatReports();
@@ -974,6 +980,7 @@ export default function AdminScreen() {
     setActiveTab('facts');
     setEditingFactId(f.id);
     setFormFCategory(f.category);
+    setFormFSubcategory(f.subcategory || (f.category === 'Signale' ? getFactSignalSubcategory(f) : ''));
     setFormFTitle(f.title);
     setFormFContent(f.content);
     setFormFReference(f.reference || '');
@@ -1015,6 +1022,7 @@ export default function AdminScreen() {
   const handleFResetForm = () => {
     setEditingFactId(null);
     setFormFTitle('');
+    setFormFSubcategory('');
     setFormFContent('');
     setFormFReference('');
     setFormFImageUrl('');
@@ -1053,6 +1061,7 @@ export default function AdminScreen() {
       await mockDb.saveFact({
         id: editingFactId || undefined,
         category: formFCategory || (categories[0]?.name ?? 'Allgemein'),
+        subcategory: formFCategory === 'Signale' ? (formFSubcategory.trim() || undefined) : undefined,
         title: formFTitle.trim(),
         content: formFContent.trim(),
         reference: formFReference.trim(),
@@ -1584,6 +1593,62 @@ export default function AdminScreen() {
     } catch {
       Alert.alert('Fehler', 'Konnte die Kategorie nicht speichern.');
     }
+  };
+
+  const handleAddSignalSubcategory = async () => {
+    if (!newSigSubName.trim()) {
+      Alert.alert('Fehler', 'Bitte gib einen Namen für die Signal-Unterkategorie ein.');
+      return;
+    }
+    try {
+      const saved = await mockDb.saveSignalSubcategory({
+        name: newSigSubName.trim(),
+        desc: newSigSubDesc.trim(),
+        color: '#ef4444',
+        icon: 'Bookmark',
+      });
+      setSignalSubcategories(prev => {
+        const idx = prev.findIndex(s => s.id === saved.id || s.name.toLowerCase() === saved.name.toLowerCase());
+        if (idx !== -1) {
+          const next = [...prev];
+          next[idx] = saved;
+          return next;
+        }
+        return [...prev, saved];
+      });
+      setNewSigSubName('');
+      setNewSigSubDesc('');
+      Alert.alert('Erfolg ✓', `Signal-Unterkategorie "${saved.name}" wurde erstellt.`);
+    } catch (e: any) {
+      Alert.alert('Fehler', 'Konnte Signal-Unterkategorie nicht speichern: ' + (e?.message || e));
+    }
+  };
+
+  const handleDeleteSignalSubcategory = (sub: SignalSubcategory) => {
+    Alert.alert(
+      'Unterkategorie löschen?',
+      `Möchtest du die Signal-Unterkategorie "${sub.name}" wirklich löschen? Zugeordnete Signalkarten werden nicht gelöscht, sondern standardmäßig unter "Sonstige Signale" einsortiert.`,
+      [
+        { text: 'Abbrechen', style: 'cancel' },
+        {
+          text: 'Löschen',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const success = await mockDb.deleteSignalSubcategory(sub.id);
+              if (success) {
+                setSignalSubcategories(prev => prev.filter(s => s.id !== sub.id));
+                Alert.alert('Gelöscht ✓', `Signal-Unterkategorie "${sub.name}" wurde gelöscht.`);
+              } else {
+                Alert.alert('Fehler', 'Konnte Unterkategorie nicht löschen.');
+              }
+            } catch (e: any) {
+              Alert.alert('Fehler', 'Löschen fehlgeschlagen: ' + (e?.message || e));
+            }
+          }
+        }
+      ]
+    );
   };
 
   // --- TICKET LOGIK ---
@@ -3340,6 +3405,32 @@ export default function AdminScreen() {
                 ))}
               </View>
 
+              {/* Signal-Unterkategorie (nur wenn Kategorie "Signale" ist) */}
+              {formFCategory === 'Signale' && (
+                <View style={{ marginTop: 14 }}>
+                  <Text style={[styles.formLabel, { color: colors.text }]}>Signal-Unterkategorie</Text>
+                  <View style={styles.chipGrid}>
+                    {signalSubcategories.map((s) => (
+                      <TouchableOpacity
+                        key={s.id}
+                        style={[
+                          styles.pickerChip,
+                          {
+                            backgroundColor: formFSubcategory === s.name ? colors.primary : colors.cardBg,
+                            borderColor: colors.border
+                          }
+                        ]}
+                        onPress={() => setFormFSubcategory(s.name)}
+                      >
+                        <Text style={{ color: formFSubcategory === s.name ? '#ffffff' : colors.text, fontSize: 12 }}>
+                          {s.name}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              )}
+
               {/* Titel */}
               <View onLayout={(e) => handleFFieldLayout('title', e.nativeEvent.layout)}>
                 <Text style={[styles.formLabel, { color: colors.text, marginTop: 16 }]}>Titel / Stichwort</Text>
@@ -3462,9 +3553,17 @@ export default function AdminScreen() {
                 {editingCatName ? 'Kategorie bearbeiten' : 'Neue Kategorie'}
               </Text>
             </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.subTabBtn, catSubTab === 'signal_subcategories' && { borderBottomColor: colors.primary }]}
+              onPress={() => setCatSubTab('signal_subcategories')}
+            >
+              <Text style={[styles.subTabText, { color: catSubTab === 'signal_subcategories' ? colors.primary : colors.textMuted }]}>
+                Signal-Unterkategorien
+              </Text>
+            </TouchableOpacity>
           </View>
 
-          {catSubTab === 'list' ? (
+          {catSubTab === 'list' && (
             <ScrollView 
               keyboardDismissMode="on-drag"
               contentContainerStyle={styles.scrollContent} 
@@ -3508,7 +3607,9 @@ export default function AdminScreen() {
                 </View>
               ))}
             </ScrollView>
-          ) : (
+          )}
+
+          {catSubTab === 'form' && (
             // KATEGORIEN FORMULAR
             <ScrollView 
               ref={catScrollRef}
@@ -3699,6 +3800,113 @@ export default function AdminScreen() {
                   <Text style={{ color: '#ffffff', fontWeight: 'bold' }}>Speichern</Text>
                 </TouchableOpacity>
               </View>
+            </ScrollView>
+          )}
+
+          {catSubTab === 'signal_subcategories' && (
+            <ScrollView 
+              keyboardDismissMode="on-drag"
+              contentContainerStyle={styles.scrollContent} 
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
+              <Text style={[styles.secTitle, { color: colors.text }]}>
+                Signal-Unterkategorien verwalten
+              </Text>
+              <Text style={{ fontSize: 13, color: colors.textMuted, marginBottom: 16, lineHeight: 18 }}>
+                Lege hier Unterkategorien für Signale fest (z.B. Hauptsignale, Zusatzsignale, Rangiersignale). In der Lern-Ansicht wählen Schüler zuerst einen dieser Bereiche aus, um die zugehörigen Signale gezielt durchzublättern.
+              </Text>
+
+              {/* NEUE UNTERKATEGORIE ERSTELLEN */}
+              <View style={[styles.itemCard, { backgroundColor: colors.cardBg, borderColor: colors.border, marginBottom: 20 }]}>
+                <Text style={[styles.formLabel, { color: colors.text, marginTop: 0 }]}>
+                  Neue Signal-Unterkategorie hinzufügen
+                </Text>
+
+                <TextInput
+                  style={[styles.input, { backgroundColor: colors.cardBg, color: colors.text, borderColor: colors.border, marginTop: 8 }]}
+                  placeholder="Name (z.B. Hauptsignale, Rangiersignale, ETCS)"
+                  placeholderTextColor={colors.textMuted}
+                  value={newSigSubName}
+                  onChangeText={setNewSigSubName}
+                />
+
+                <TextInput
+                  style={[styles.input, { backgroundColor: colors.cardBg, color: colors.text, borderColor: colors.border, marginTop: 8 }]}
+                  placeholder="Beschreibung (optional, z.B. Signale für Rangierfahrten)"
+                  placeholderTextColor={colors.textMuted}
+                  value={newSigSubDesc}
+                  onChangeText={setNewSigSubDesc}
+                />
+
+                <TouchableOpacity
+                  style={[styles.formBtn, styles.saveBtn, { backgroundColor: colors.primary, marginTop: 12 }]}
+                  onPress={handleAddSignalSubcategory}
+                >
+                  <Plus size={16} color="#ffffff" />
+                  <Text style={{ color: '#ffffff', fontWeight: 'bold' }}>Unterkategorie anlegen</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* LISTE DER UNTERKATEGORIEN */}
+              <Text style={[styles.secTitle, { color: colors.text }]}>
+                Vorhandene Unterkategorien ({signalSubcategories.length})
+              </Text>
+
+              {signalSubcategories.length === 0 ? (
+                <View style={[styles.emptyBox, { paddingVertical: 24 }]}>
+                  <Text style={{ color: colors.textMuted, fontSize: 14 }}>
+                    Noch keine Signal-Unterkategorien angelegt.
+                  </Text>
+                </View>
+              ) : (
+                signalSubcategories.map((sub) => {
+                  const assignedCount = facts.filter(
+                    f => f.category === 'Signale' && getFactSignalSubcategory(f) === sub.name
+                  ).length;
+
+                  return (
+                    <View 
+                      key={sub.id || sub.name} 
+                      style={[styles.itemCard, { backgroundColor: colors.cardBg, borderColor: colors.border, marginBottom: 10 }]}
+                    >
+                      <View style={styles.cardHeader}>
+                        <View style={{ flex: 1, marginRight: 8 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                            <Text style={[styles.itemTitle, { color: colors.text, marginLeft: 0 }]}>
+                              {sub.name}
+                            </Text>
+                            <View style={{
+                              backgroundColor: colors.primary + '18',
+                              paddingHorizontal: 8,
+                              paddingVertical: 2,
+                              borderRadius: 4,
+                            }}>
+                              <Text style={{ fontSize: 11, fontWeight: '600', color: colors.primary }}>
+                                {assignedCount} {assignedCount === 1 ? 'Signal' : 'Signale'}
+                              </Text>
+                            </View>
+                          </View>
+                          {!!sub.desc && (
+                            <Text style={[styles.itemDescText, { color: colors.textMuted, marginTop: 4 }]}>
+                              {sub.desc}
+                            </Text>
+                          )}
+                        </View>
+                        <TouchableOpacity
+                          onPress={() => handleDeleteSignalSubcategory(sub)}
+                          hitSlop={{ top: 12, bottom: 12, left: 10, right: 10 }}
+                          style={{ padding: 4 }}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Unterkategorie ${sub.name} löschen`}
+                        >
+                          <Trash2 size={18} color={colors.error} />
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  );
+                })
+              )}
             </ScrollView>
           )}
         </View>
