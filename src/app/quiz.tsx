@@ -5,23 +5,56 @@ import {
   View,
   ScrollView,
   TouchableOpacity,
-  useColorScheme,
   Image,
   ActivityIndicator,
   Alert,
   Modal,
-  PanResponder,
   Animated,
   LayoutAnimation,
   Platform,
-  UIManager,
+  DeviceEventEmitter,
   type ScrollViewInstance,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { mockDb, Question, QuizAttempt, Category, User, getQuestionCorrectIndices, isQuestionAnswerCorrect, generateAntiIdentityShuffle, shuffleQuestionOptions } from '../database/mockDb';
+import { 
+  mockDb, 
+  Question, 
+  QuizAttempt, 
+  Category, 
+  User, 
+  getQuestionCorrectIndices, 
+  isQuestionAnswerCorrect, 
+  generateAntiIdentityShuffle, 
+  shuffleQuestionOptions 
+} from '../database/mockDb';
 import { useAppTheme } from '../context/ThemeContext';
 import { useDeviceLayout } from '../hooks/useDeviceLayout';
 import { CreateQuestionModal } from '../components/CreateQuestionModal';
+import { Button } from '../components/ui/Button';
+import { Heading } from '../components/ui/Section';
+import { RADIUS, SCREEN_PADDING, CONTENT_MAX_WIDTH, MIN_TOUCH_TARGET } from '../components/ui/tokens';
+import { 
+  Award, 
+  Play, 
+  RotateCcw, 
+  Clock, 
+  CheckCircle2, 
+  XCircle, 
+  HelpCircle, 
+  ChevronRight, 
+  ChevronLeft, 
+  Calendar, 
+  Maximize2, 
+  AlertTriangle,
+  ArrowUp,
+  ArrowDown,
+  Shuffle,
+  GripVertical,
+  X,
+  Plus
+} from 'lucide-react-native';
+
+const PASS_PERCENTAGE = 70; // Lokführerprüfung verlangt 70% zum Bestehen
 
 const triggerReorderAnimation = () => {
   try {
@@ -64,31 +97,6 @@ function cleanText(str: string = ''): string {
     .replace(/\*\*(.*?)\*\*/g, '$1')
     .replace(/\*(.*?)\*/g, '$1');
 }
-import { 
-  Award, 
-  Play, 
-  RotateCcw, 
-  Clock, 
-  CheckCircle2, 
-  XCircle, 
-  HelpCircle, 
-  ChevronRight, 
-  ChevronLeft, 
-  Calendar, 
-  ListOrdered, 
-  Lightbulb, 
-  Maximize2, 
-  AlertTriangle,
-  ArrowUp,
-  ArrowDown,
-  Shuffle,
-  GripVertical,
-  X,
-  Plus,
-  Sparkles
-} from 'lucide-react-native';
-
-const PASS_PERCENTAGE = 70; // Lokführerprüfung verlangt 70% zum Bestehen
 
 function DraggableOrderItem({
   slotIdx,
@@ -123,7 +131,6 @@ function DraggableOrderItem({
 }) {
   const panY = useRef(new Animated.Value(0)).current;
 
-  // Ensure panY is always 0 when not dragging
   useEffect(() => {
     if (!isDraggingThis) {
       panY.stopAnimation();
@@ -131,133 +138,89 @@ function DraggableOrderItem({
     }
   }, [isDraggingThis]);
 
-  const panResponder = useMemo(() => PanResponder.create({
-    onStartShouldSetPanResponder: () => !hasAnswered,
-    onMoveShouldSetPanResponder: (_, gs) => !hasAnswered && Math.abs(gs.dy) > 3,
-    onPanResponderGrant: () => {
-      panY.stopAnimation();
-      panY.setValue(0);
-      onDragStart(slotIdx);
-    },
-    onPanResponderMove: (_, gs) => {
-      panY.setValue(gs.dy);
-      onDragMove(slotIdx, gs.dy);
-    },
-    onPanResponderRelease: (_, gs) => {
-      const finalDy = gs.dy;
-      panY.stopAnimation();
-      panY.setValue(0);
-      onDragEnd(slotIdx, finalDy);
-    },
-    onPanResponderTerminate: () => {
-      panY.stopAnimation();
-      panY.setValue(0);
-      onDragEnd(slotIdx, 0);
+  const handleArrowUp = () => {
+    if (slotIdx > 0 && !hasAnswered) {
+      onMoveStep(slotIdx, 'up');
     }
-  }), [hasAnswered, slotIdx, onDragStart, onDragMove, onDragEnd]);
+  };
 
-  let cardBg = colors.background;
-  let cardBorder = colors.border;
-  let cardBorderWidth = 1.5;
-  let badgeBg = isDark ? '#1f2937' : '#e2e8f0';
-  let badgeColor = colors.text;
+  const handleArrowDown = () => {
+    if (slotIdx < totalCount - 1 && !hasAnswered) {
+      onMoveStep(slotIdx, 'down');
+    }
+  };
+
+  let itemBorderColor = colors.border;
+  let itemBg = colors.cardBg;
+  let badgeBg = isDark ? '#1f2937' : '#f3f4f6';
+  let badgeTextColor = colors.textMuted;
+  let statusIcon = null;
 
   if (hasAnswered) {
     if (isSlotCorrect) {
-      cardBg = isDark ? '#064e3b30' : '#ecfdf5';
-      cardBorder = '#10b981';
+      itemBorderColor = '#10b981';
+      itemBg = isDark ? '#064e3b25' : '#ecfdf5';
       badgeBg = '#10b981';
-      badgeColor = '#ffffff';
+      badgeTextColor = '#ffffff';
+      statusIcon = <CheckCircle2 size={18} color="#10b981" style={{ marginLeft: 6 }} />;
     } else {
-      cardBg = isDark ? '#7f1d1d30' : '#fef2f2';
-      cardBorder = '#ef4444';
+      itemBorderColor = '#ef4444';
+      itemBg = isDark ? '#7f1d1d25' : '#fef2f2';
       badgeBg = '#ef4444';
-      badgeColor = '#ffffff';
+      badgeTextColor = '#ffffff';
+      statusIcon = <XCircle size={18} color="#ef4444" style={{ marginLeft: 6 }} />;
     }
   } else if (isDraggingThis) {
-    cardBg = isDark ? '#0e749030' : '#cffafe40';
-    cardBorder = '#06b6d4';
-    cardBorderWidth = 2;
-    badgeBg = '#06b6d4';
-    badgeColor = '#ffffff';
+    itemBorderColor = colors.primary;
+    itemBg = isDark ? '#1e293b' : '#eff6ff';
   }
 
   return (
     <Animated.View
       style={[
+        styles.orderSlotCard,
         {
-          flexDirection: 'row',
-          alignItems: 'center',
-          backgroundColor: cardBg,
-          borderColor: cardBorder,
-          borderWidth: cardBorderWidth,
-          borderRadius: 12,
-          paddingVertical: 10,
-          paddingHorizontal: 12,
-          gap: 10,
+          borderColor: itemBorderColor,
+          backgroundColor: itemBg,
+          transform: [{ translateY: panY }],
+          zIndex: isDraggingThis ? 999 : 1,
         },
-        isDraggingThis ? {
-          transform: [{ translateY: panY }, { scale: 1.03 }],
-          zIndex: 999,
-          elevation: 12,
-          shadowColor: '#06b6d4',
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.35,
-          shadowRadius: 8,
-        } : {
-          transform: [{ translateY: 0 }, { scale: 1 }],
-          zIndex: 1,
-          elevation: 0,
-        }
       ]}
     >
-      <View style={{
-        width: 28,
-        height: 28,
-        borderRadius: 14,
-        backgroundColor: badgeBg,
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderWidth: 1,
-        borderColor: cardBorder
-      }}>
-        <Text style={{ color: badgeColor, fontWeight: 'bold', fontSize: 13 }}>
+      <View style={[styles.orderSlotBadge, { backgroundColor: badgeBg }]}>
+        <Text style={[styles.orderSlotBadgeText, { color: badgeTextColor }]}>
           {slotIdx + 1}
         </Text>
       </View>
 
-      <Text style={{
-        flex: 1,
-        fontSize: 14,
-        color: colors.text,
-        fontWeight: '500',
-        lineHeight: 19
-      }}>
+      <Text style={[styles.orderSlotText, { color: colors.text, flex: 1 }]}>
         {cleanText(stepText)}
       </Text>
 
-      {hasAnswered ? (
-        isSlotCorrect ? (
-          <CheckCircle2 size={20} color="#10b981" />
-        ) : (
-          <XCircle size={20} color="#ef4444" />
-        )
-      ) : (
-        <View
-          {...panResponder.panHandlers}
-          style={{
-            paddingVertical: 8,
-            paddingHorizontal: 10,
-            borderRadius: 8,
-            backgroundColor: isDraggingThis ? (isDark ? '#083344' : '#cffafe') : (isDark ? '#1f293780' : '#f1f5f9'),
-            borderWidth: 1,
-            borderColor: isDraggingThis ? '#06b6d4' : (isDark ? '#374151' : '#e2e8f0'),
-            justifyContent: 'center',
-            alignItems: 'center',
-          }}
-          hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
-        >
-          <GripVertical size={20} color={isDraggingThis ? '#06b6d4' : (isDark ? '#9ca3af' : '#64748b')} />
+      {statusIcon}
+
+      {!hasAnswered && (
+        <View style={styles.orderControlsRow}>
+          <TouchableOpacity
+            onPress={handleArrowUp}
+            disabled={slotIdx === 0}
+            style={[styles.arrowButton, slotIdx === 0 && { opacity: 0.2 }]}
+            hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+            accessibilityRole="button"
+            accessibilityLabel="Schritt nach oben schieben"
+          >
+            <ArrowUp size={16} color={colors.text} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={handleArrowDown}
+            disabled={slotIdx === totalCount - 1}
+            style={[styles.arrowButton, slotIdx === totalCount - 1 && { opacity: 0.2 }]}
+            hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+            accessibilityRole="button"
+            accessibilityLabel="Schritt nach unten schieben"
+          >
+            <ArrowDown size={16} color={colors.text} />
+          </TouchableOpacity>
         </View>
       )}
     </Animated.View>
@@ -266,7 +229,15 @@ function DraggableOrderItem({
 
 export default function QuizScreen() {
   const { isDark, colors: appColors } = useAppTheme();
-  const { isTablet, isLandscape, isLandscapeTablet, contentMaxWidth } = useDeviceLayout();
+  const { isTablet, isLandscape, isLandscapeTablet } = useDeviceLayout();
+
+  // Color theme
+  const colors = {
+    ...appColors,
+    success: '#10b981',
+    error: '#ef4444',
+  };
+  const screenBg = isDark ? colors.background : colors.cardBg;
 
   // States
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -299,12 +270,20 @@ export default function QuizScreen() {
   const timerRef = useRef<any>(null);
   const quizScrollRef = useRef<ScrollViewInstance>(null);
 
-  // Color theme
-  const colors = {
-    ...appColors,
-    success: '#10b981',
-    error: '#ef4444',
-  };
+  // Zurück zum Start/Setup beim 2x Tippen auf den Tab "Prüfung"
+  useEffect(() => {
+    const sub = DeviceEventEmitter.addListener('tabReset', (tabName: string) => {
+      if (tabName === 'quiz') {
+        if (timerRef.current) clearInterval(timerRef.current);
+        setQuizStatus('setup');
+        setUserAnswers({});
+        setPendingMultiSelection([]);
+        setOrderSelections({});
+        setCurrentQuestionIndex(0);
+      }
+    });
+    return () => sub.remove();
+  }, []);
 
   useEffect(() => {
     loadData();
@@ -328,7 +307,6 @@ export default function QuizScreen() {
     }
   };
 
-  // Regelmäßig Historie im Hintergrund laden, falls sich was ändert
   useEffect(() => {
     if (quizStatus === 'setup') {
       mockDb.getQuizHistory().then(setHistory);
@@ -337,13 +315,11 @@ export default function QuizScreen() {
     }
   }, [quizStatus]);
 
-  // Synchronisiere Auswahl-Status bei Fragenwechsel (ohne redundante Re-Renders)
   useEffect(() => {
     const current = userAnswers[currentQuestionIndex] || [];
     setPendingMultiSelection(prev => (prev === current || (prev.length === 0 && current.length === 0) ? prev : current));
   }, [currentQuestionIndex, userAnswers]);
 
-  // Bei Reihenfolge-Fragen: Garantiere zufällige, aber niemals die richtige Start-Reihenfolge (Anti-Identity)
   useEffect(() => {
     const currentQ = quizQuestions[currentQuestionIndex];
     if (currentQ?.questionType === 'order' && currentQ.options && currentQ.options.length > 0) {
@@ -364,7 +340,7 @@ export default function QuizScreen() {
         setTimeLeft(prev => {
           if (prev <= 1) {
             clearInterval(timerRef.current!);
-            handleFinishQuiz(true); // Time out submit
+            handleFinishQuiz(true);
             return 0;
           }
           return prev - 1;
@@ -378,26 +354,27 @@ export default function QuizScreen() {
   }, [quizStatus, timeLeft]);
 
   const handleStartQuiz = () => {
-    // Fragen filtern nach Freigabestatus und Kategorie
-    let filtered = questions.filter(q => q.isVerified === true);
-    if (selectedCategory !== 'Generaltest (Alle Themen)') {
-      filtered = filtered.filter(q => q.category === selectedCategory);
-    }
+    let pool = selectedCategory === 'Generaltest (Alle Themen)' 
+      ? [...questions] 
+      : questions.filter(q => q.category === selectedCategory);
 
-    if (filtered.length === 0) {
-      Alert.alert('Keine Fragen', 'Für diese Auswahl sind momentan keine geprüften Fragen vorhanden.');
+    if (pool.length === 0) {
+      Alert.alert('Keine Fragen', 'Für diese Kategorie sind noch keine Fragen freigegeben.');
       return;
     }
 
-    // Fragen mischen
-    const shuffled = [...filtered].sort(() => 0.5 - Math.random());
-    
-    // Fragenanzahl bestimmen
-    let count = questionCountChoice === 'all' ? shuffled.length : Number(questionCountChoice);
-    if (count > shuffled.length) count = shuffled.length;
-    const selection = shuffled.slice(0, count).map(q => shuffleQuestionOptions(q));
+    // Zufällig durchmischen
+    pool = pool.sort(() => Math.random() - 0.5);
 
-    setQuizQuestions(selection);
+    // Auf ausgewählte Anzahl beschränken
+    if (questionCountChoice !== 'all') {
+      pool = pool.slice(0, questionCountChoice);
+    }
+
+    // Antwortoptionen je Frage shufflen
+    pool = pool.map(q => shuffleQuestionOptions(q));
+
+    setQuizQuestions(pool);
     setCurrentQuestionIndex(0);
     setUserAnswers({});
     setPendingMultiSelection([]);
@@ -406,35 +383,37 @@ export default function QuizScreen() {
     setQuizStatus('active');
   };
 
-  const handleSelectOption = (optionIndex: number) => {
-    if (userAnswers[currentQuestionIndex] !== undefined) return; // Bereits beantwortet
-    setPendingMultiSelection(prev => 
-      prev.includes(optionIndex)
-        ? prev.filter(i => i !== optionIndex)
-        : [...prev, optionIndex].sort((a, b) => a - b)
-    );
+  const handleSelectOption = (index: number) => {
+    if (userAnswers[currentQuestionIndex] !== undefined) return;
+    
+    setPendingMultiSelection(prev => {
+      if (prev.includes(index)) {
+        return prev.filter(i => i !== index);
+      } else {
+        return [...prev, index];
+      }
+    });
   };
 
   const handleConfirmSelection = () => {
-    if (pendingMultiSelection.length === 0) {
-      Alert.alert('Auswahl erforderlich', 'Bitte wähle mindestens eine Antwort aus.');
-      return;
-    }
+    if (pendingMultiSelection.length === 0) return;
     setUserAnswers(prev => ({
       ...prev,
       [currentQuestionIndex]: pendingMultiSelection
     }));
   };
 
-  const handleMoveOrderStep = (slotIdx: number, direction: 'up' | 'down') => {
-    if (userAnswers[currentQuestionIndex] !== undefined) return; // Bereits eingeloggt
+  const handleMoveOrderStep = useCallback((slotIdx: number, direction: 'up' | 'down') => {
     const currentQ = quizQuestions[currentQuestionIndex];
     if (!currentQ || !currentQ.options) return;
-    const currentPerm = orderSelections[currentQuestionIndex] || currentQ.options.map((_, i) => i);
+
+    const totalCount = currentQ.options.length;
     const targetIdx = direction === 'up' ? slotIdx - 1 : slotIdx + 1;
-    if (targetIdx < 0 || targetIdx >= currentPerm.length) return;
+    if (targetIdx < 0 || targetIdx >= totalCount) return;
 
     triggerReorderAnimation();
+
+    const currentPerm = orderSelections[currentQuestionIndex] || currentQ.options.map((_, i) => i);
     const nextPerm = [...currentPerm];
     const temp = nextPerm[slotIdx];
     nextPerm[slotIdx] = nextPerm[targetIdx];
@@ -444,7 +423,7 @@ export default function QuizScreen() {
       ...prev,
       [currentQuestionIndex]: nextPerm
     }));
-  };
+  }, [quizQuestions, currentQuestionIndex, orderSelections]);
 
   const handleDragStart = useCallback((slotIdx: number) => {
     setIsDragging(true);
@@ -454,10 +433,12 @@ export default function QuizScreen() {
 
   const handleDragMove = useCallback((slotIdx: number, dy: number) => {
     const currentQ = quizQuestions[currentQuestionIndex];
-    const totalCount = currentQ?.options?.length || 4;
+    if (!currentQ || !currentQ.options) return;
+
+    const totalCount = currentQ.options.length;
     const slotDelta = Math.round(dy / 55);
     const target = Math.max(0, Math.min(totalCount - 1, slotIdx + slotDelta));
-    setHoverSlot(prev => (prev === target ? prev : target));
+    setHoverSlot(target);
   }, [quizQuestions, currentQuestionIndex]);
 
   const handleDragEnd = useCallback((slotIdx: number, dy: number) => {
@@ -516,35 +497,38 @@ export default function QuizScreen() {
   const handleFinishQuiz = async (wasTimeout = false) => {
     if (timerRef.current) clearInterval(timerRef.current);
 
-    // Score berechnen
     let score = 0;
     quizQuestions.forEach((q, index) => {
-      if (isQuestionAnswerCorrect(userAnswers[index], q)) {
+      const ans = userAnswers[index];
+      if (ans !== undefined && isQuestionAnswerCorrect(ans, q)) {
         score += 1;
       }
     });
 
     try {
-      await mockDb.addQuizAttempt(
+      const attempt = await mockDb.addQuizAttempt(
         selectedCategory,
         score,
         quizQuestions.length
       );
+      if (attempt) {
+        setHistory(prev => [attempt, ...prev]);
+      }
     } catch (e) {
       console.error('Konnte Versuch nicht speichern', e);
     }
 
-    if (wasTimeout) {
-      Alert.alert('Zeit abgelaufen!', 'Die Zeit für die Prüfung ist abgelaufen. Deine Antworten wurden ausgewertet.');
-    }
-
     setQuizStatus('result');
+
+    if (wasTimeout) {
+      Alert.alert('Zeit abgelaufen!', 'Die Zeit für diese Prüfungssimulation ist abgelaufen. Deine Antworten wurden ausgewertet.');
+    }
   };
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
   };
 
   const getScorePercentage = () => {
@@ -558,171 +542,187 @@ export default function QuizScreen() {
 
   if (loading) {
     return (
-      <View style={[styles.center, { backgroundColor: colors.background }]}>
+      <View style={[styles.center, { backgroundColor: screenBg }]}>
         <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: screenBg }]}>
       {quizStatus === 'setup' && (
         // --- QUIZ SETUP SCREEN ---
         <ScrollView 
           contentContainerStyle={[
             styles.scrollContainer, 
-            isTablet && { width: '100%', paddingHorizontal: 24 }
+            { maxWidth: CONTENT_MAX_WIDTH, width: '100%', alignSelf: 'center', paddingHorizontal: SCREEN_PADDING }
           ]} 
           showsVerticalScrollIndicator={false}
         >
-          <Text style={[styles.title, { color: colors.text }]}>Prüfungssimulation</Text>
+          <Heading level={1} style={styles.title}>Prüfungssimulation</Heading>
           <Text style={[styles.subtitle, { color: colors.textMuted }]}>
             Bereite dich unter realen Bedingungen auf deine Theorieprüfung vor. Du erhältst eine zufällige Auswahl von Fragen.
           </Text>
 
-          {/* FRAGE EINREICHEN BANNER */}
+          {/* FRAGE EINREICHEN AKTION */}
           <TouchableOpacity
-            activeOpacity={0.82}
+            activeOpacity={0.7}
             onPress={() => setCreateQuestionModalVisible(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Quizfrage einreichen"
             style={[
-              styles.contributeBanner,
+              styles.contributeCard,
               {
-                backgroundColor: isDark ? '#1e293b' : '#eff6ff',
-                borderColor: isDark ? '#334155' : '#bfdbfe',
+                backgroundColor: colors.cardBg,
+                borderColor: colors.border,
               }
             ]}
           >
-            <View style={[styles.contributeBannerIconBg, { backgroundColor: colors.primary + '25' }]}>
-              <Plus size={18} color={colors.primary} />
+            <View style={[styles.contributeIconBg, { backgroundColor: colors.buttonPrimaryBg + '15' }]}>
+              <Plus size={20} color={colors.primary} />
             </View>
-            <View style={{ flex: 1, marginHorizontal: 10 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Text style={[styles.contributeBannerTitle, { color: colors.text }]}>
-                  Quizfrage einreichen
-                </Text>
-                <View style={{ backgroundColor: '#10b981', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, marginLeft: 6 }}>
-                  <Text style={{ color: '#ffffff', fontSize: 10, fontWeight: 'bold' }}>NEU</Text>
-                </View>
-              </View>
-              <Text style={[styles.contributeBannerText, { color: colors.textMuted }]}>
-                Prüfungsfrage vorschlagen – Ausbilder & Mods prüfen sie vor Aufnahme in die Prüfung.
+            <View style={{ flex: 1, marginHorizontal: 12 }}>
+              <Text style={[styles.contributeTitle, { color: colors.text }]}>
+                Quizfrage einreichen
+              </Text>
+              <Text style={[styles.contributeText, { color: colors.textMuted }]}>
+                Prüfungsfrage vorschlagen – Ausbilder & Moderatoren prüfen sie vor Aufnahme in die Prüfung.
               </Text>
             </View>
             <ChevronRight size={18} color={colors.textMuted} />
           </TouchableOpacity>
 
-          <View style={isTablet ? { flexDirection: 'row', gap: 20, alignItems: 'flex-start', marginTop: 12 } : undefined}>
-            {/* LINKS: EINSTELLUNGEN */}
+          <View style={isTablet ? { flexDirection: 'row', gap: 16, alignItems: 'flex-start', marginTop: 12 } : undefined}>
+            {/* EINSTELLUNGEN */}
             <View style={isTablet ? { flex: 1.15 } : undefined}>
-              {/* EINSTELLUNGEN */}
+              {/* 1. KATEGORIE */}
               <View style={[styles.card, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
-                <Text style={[styles.cardTitle, { color: colors.text }]}>1. Kategorie wählen</Text>
+                <Heading level={3} style={styles.cardHeading}>1. Kategorie wählen</Heading>
                 <View style={styles.catGrid}>
-                  {['Generaltest (Alle Themen)', ...categories.map(c => c.name)].map(cat => (
-                    <TouchableOpacity
-                      key={cat}
-                      style={[
-                        styles.catOption,
-                        { 
-                          backgroundColor: colors.background, 
-                          borderColor: selectedCategory === cat ? colors.primary : colors.border,
-                          borderWidth: selectedCategory === cat ? 2 : 1
-                        }
-                      ]}
-                      onPress={() => setSelectedCategory(cat)}
-                    >
-                      <Text style={[
-                        styles.catOptionText, 
-                        { color: colors.text, fontWeight: selectedCategory === cat ? 'bold' : 'normal' }
-                      ]}>
-                        {cat}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
+                  {['Generaltest (Alle Themen)', ...categories.map(c => c.name)].map(cat => {
+                    const isSelected = selectedCategory === cat;
+                    return (
+                      <TouchableOpacity
+                        key={cat}
+                        activeOpacity={0.7}
+                        accessibilityRole="button"
+                        style={[
+                          styles.catOption,
+                          { 
+                            backgroundColor: isSelected ? (colors.primary + '15') : (isDark ? '#1f2937' : '#ffffff'), 
+                            borderColor: isSelected ? colors.primary : colors.border,
+                            borderWidth: isSelected ? 1.5 : 1
+                          }
+                        ]}
+                        onPress={() => setSelectedCategory(cat)}
+                      >
+                        <Text style={[
+                          styles.catOptionText, 
+                          { color: isSelected ? colors.primary : colors.text, fontWeight: isSelected ? '600' : 'normal' }
+                        ]}>
+                          {cat}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
                 </View>
               </View>
 
+              {/* 2. ZEITLIMIT */}
               <View style={[styles.card, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
-                <Text style={[styles.cardTitle, { color: colors.text }]}>2. Zeitlimit wählen</Text>
+                <Heading level={3} style={styles.cardHeading}>2. Zeitlimit wählen</Heading>
                 <View style={styles.timeGrid}>
-                  {[5, 10, 15, 20].map(mins => (
-                    <TouchableOpacity
-                      key={mins}
-                      style={[
-                        styles.timeOption,
-                        { 
-                          backgroundColor: colors.background, 
-                          borderColor: timeLimitMinutes === mins ? colors.primary : colors.border,
-                          borderWidth: timeLimitMinutes === mins ? 2 : 1
-                        }
-                      ]}
-                      onPress={() => setTimeLimitMinutes(mins)}
-                    >
-                      <Clock size={16} color={timeLimitMinutes === mins ? colors.primary : colors.textMuted} />
-                      <Text style={[
-                        styles.timeOptionText, 
-                        { color: colors.text, fontWeight: timeLimitMinutes === mins ? 'bold' : 'normal' }
-                      ]}>
-                        {mins} Min.
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
+                  {[5, 10, 15, 20].map(mins => {
+                    const isSelected = timeLimitMinutes === mins;
+                    return (
+                      <TouchableOpacity
+                        key={mins}
+                        activeOpacity={0.7}
+                        accessibilityRole="button"
+                        style={[
+                          styles.timeOption,
+                          { 
+                            backgroundColor: isSelected ? (colors.primary + '15') : (isDark ? '#1f2937' : '#ffffff'), 
+                            borderColor: isSelected ? colors.primary : colors.border,
+                            borderWidth: isSelected ? 1.5 : 1
+                          }
+                        ]}
+                        onPress={() => setTimeLimitMinutes(mins)}
+                      >
+                        <Clock size={16} color={isSelected ? colors.primary : colors.textMuted} />
+                        <Text style={[
+                          styles.timeOptionText, 
+                          { color: isSelected ? colors.primary : colors.text, fontWeight: isSelected ? '600' : 'normal' }
+                        ]}>
+                          {mins} Min.
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
                 </View>
               </View>
 
-              {/* 3. FRAGENANZAHL WÄHLEN */}
+              {/* 3. FRAGENANZAHL */}
               {(() => {
                 const availableQs = selectedCategory === 'Generaltest (Alle Themen)' 
                   ? questions 
                   : questions.filter(q => q.category === selectedCategory);
                 return (
                   <View style={[styles.card, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Text style={[styles.cardTitle, { color: colors.text, marginBottom: 0 }]}>3. Anzahl der Fragen</Text>
-                      <Text style={{ fontSize: 12, color: colors.primary, fontWeight: 'bold' }}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                      <Heading level={3} style={{ marginBottom: 0 }}>3. Anzahl der Fragen</Heading>
+                      <Text style={{ fontSize: 13, color: colors.primary, fontWeight: '600' }}>
                         {availableQs.length} verfügbar
                       </Text>
                     </View>
-                    <View style={[styles.timeGrid, { marginTop: 12 }]}>
-                      {[5, 10, 15, 20, 'all'].map(cnt => (
-                        <TouchableOpacity
-                          key={cnt.toString()}
-                          style={[
-                            styles.timeOption,
-                            { 
-                              backgroundColor: colors.background, 
-                              borderColor: questionCountChoice === cnt ? colors.primary : colors.border,
-                              borderWidth: questionCountChoice === cnt ? 2 : 1
-                            }
-                          ]}
-                          onPress={() => setQuestionCountChoice(cnt as any)}
-                        >
-                          <Text style={[
-                            styles.timeOptionText, 
-                            { color: colors.text, fontWeight: questionCountChoice === cnt ? 'bold' : 'normal' }
-                          ]}>
-                            {cnt === 'all' ? 'Alle' : cnt}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
+                    <View style={styles.timeGrid}>
+                      {[5, 10, 15, 20, 'all'].map(cnt => {
+                        const isSelected = questionCountChoice === cnt;
+                        return (
+                          <TouchableOpacity
+                            key={cnt.toString()}
+                            activeOpacity={0.7}
+                            accessibilityRole="button"
+                            style={[
+                              styles.timeOption,
+                              { 
+                                backgroundColor: isSelected ? (colors.primary + '15') : (isDark ? '#1f2937' : '#ffffff'), 
+                                borderColor: isSelected ? colors.primary : colors.border,
+                                borderWidth: isSelected ? 1.5 : 1
+                              }
+                            ]}
+                            onPress={() => setQuestionCountChoice(cnt as any)}
+                          >
+                            <Text style={[
+                              styles.timeOptionText, 
+                              { color: isSelected ? colors.primary : colors.text, fontWeight: isSelected ? '600' : 'normal' }
+                            ]}>
+                              {cnt === 'all' ? 'Alle' : cnt}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
                     </View>
                   </View>
                 );
               })()}
             </View>
 
-            {/* RECHTS AUF TABLET: START-BUTTON & HISTORY */}
+            {/* START & HISTORIE */}
             <View style={isTablet ? { flex: 0.85 } : undefined}>
               {/* START BUTTON */}
-              <TouchableOpacity style={styles.startButton} onPress={handleStartQuiz}>
-                <Play color="#ffffff" size={20} fill="#ffffff" />
-                <Text style={styles.startButtonText}>Prüfung starten</Text>
-              </TouchableOpacity>
+              <Button
+                variant="primary"
+                icon={Play}
+                title="Prüfung starten"
+                onPress={handleStartQuiz}
+                style={{ marginTop: 4, height: 48, minHeight: 48 }}
+              />
 
               {/* HISTORY */}
               {history.length > 0 && (
                 <View style={styles.historySection}>
-                  <Text style={[styles.historyTitle, { color: colors.text }]}>Bisherige Versuche</Text>
+                  <Heading level={2} style={styles.historyTitle}>Bisherige Versuche</Heading>
                   {history.map((attempt) => {
                     const percentage = Math.round((attempt.score / attempt.total) * 100);
                     const passed = percentage >= PASS_PERCENTAGE;
@@ -764,13 +764,16 @@ export default function QuizScreen() {
         // --- ACTIVE QUIZ SCREEN ---
         <View style={{ flex: 1 }}>
           {/* HEADER MIT TIMER & FORTSCHRITT */}
-          <View style={[styles.quizHeader, { backgroundColor: colors.cardBg, borderBottomColor: colors.border }, isTablet && { alignItems: 'center' }]}>
-            <View style={[{ flexDirection: 'row', alignItems: 'center', width: '100%', justifyContent: 'space-between' }, isTablet && { paddingHorizontal: 8 }]}>
-              <View style={[styles.progressContainer, isTablet && { flex: 1, marginRight: 24 }]}>
+          <View style={[styles.quizHeader, { backgroundColor: screenBg, borderBottomColor: colors.border }]}>
+            <View style={[
+              { flexDirection: 'row', alignItems: 'center', width: '100%', justifyContent: 'space-between' },
+              { maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' }
+            ]}>
+              <View style={[styles.progressContainer, { flex: 1, marginRight: 16 }]}>
                 <Text style={[styles.progressText, { color: colors.text }]}>
-                  Frage <Text style={{ fontWeight: 'bold' }}>{currentQuestionIndex + 1}</Text> von {quizQuestions.length}
+                  Frage <Text style={{ fontWeight: '700' }}>{currentQuestionIndex + 1}</Text> von {quizQuestions.length}
                 </Text>
-                <View style={[styles.progressBarBg, { backgroundColor: colors.background }]}>
+                <View style={[styles.progressBarBg, { backgroundColor: isDark ? '#374151' : '#e5e7eb' }]}>
                   <View 
                     style={[
                       styles.progressBarFill, 
@@ -783,11 +786,18 @@ export default function QuizScreen() {
                 </View>
               </View>
 
-              <View style={[styles.timerContainer, { backgroundColor: timeLeft < 60 ? (isDark ? '#7f1d1d' : '#fecaca') : colors.background }]}>
-                <Clock size={16} color={timeLeft < 60 ? (isDark ? '#fca5a5' : '#b91c1c') : colors.text} />
+              <View style={[
+                styles.timerContainer, 
+                { 
+                  backgroundColor: timeLeft < 60 ? (isDark ? '#7f1d1d40' : '#fee2e2') : (isDark ? '#1f2937' : '#f3f4f6'),
+                  borderWidth: 1,
+                  borderColor: timeLeft < 60 ? colors.error : colors.border
+                }
+              ]}>
+                <Clock size={16} color={timeLeft < 60 ? colors.error : colors.text} />
                 <Text style={[
                   styles.timerText, 
-                  { color: timeLeft < 60 ? (isDark ? '#fca5a5' : '#b91c1c') : colors.text, fontWeight: 'bold' }
+                  { color: timeLeft < 60 ? colors.error : colors.text, fontWeight: '700' }
                 ]}>
                   {formatTime(timeLeft)}
                 </Text>
@@ -801,14 +811,13 @@ export default function QuizScreen() {
             scrollEnabled={!isDragging}
             contentContainerStyle={[
               styles.quizContentContainer,
-              isTablet && { width: '100%', paddingHorizontal: 16 }
+              { maxWidth: CONTENT_MAX_WIDTH, width: '100%', alignSelf: 'center', paddingHorizontal: SCREEN_PADDING }
             ]} 
             showsVerticalScrollIndicator={false}
           >
             <View style={[
               styles.questionCard, 
-              { backgroundColor: colors.cardBg, borderColor: colors.border },
-              isTablet && { padding: 24, borderRadius: 16 }
+              { backgroundColor: colors.cardBg, borderColor: colors.border }
             ]}>
               {(() => {
                 const currentQ = quizQuestions[currentQuestionIndex];
@@ -820,18 +829,18 @@ export default function QuizScreen() {
                   <>
                     {/* MODUS-BADGE */}
                     {isOrder ? (
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', backgroundColor: '#06b6d418', borderColor: '#06b6d4', borderWidth: 1, paddingVertical: 4, paddingHorizontal: 10, borderRadius: 8, marginBottom: 12 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', backgroundColor: '#06b6d418', borderColor: '#06b6d4', borderWidth: 1, paddingVertical: 4, paddingHorizontal: 8, borderRadius: 4, marginBottom: 12 }}>
                         <Shuffle size={14} color="#06b6d4" />
-                        <Text style={{ color: '#06b6d4', fontSize: 12, fontWeight: 'bold' }}>Reihenfolge bestimmen</Text>
+                        <Text style={{ color: '#06b6d4', fontSize: 12, fontWeight: '600' }}>Reihenfolge bestimmen</Text>
                       </View>
                     ) : isMultiChoice ? (
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', backgroundColor: colors.primary + '18', borderColor: colors.primary, borderWidth: 1, paddingVertical: 4, paddingHorizontal: 10, borderRadius: 8, marginBottom: 12 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', backgroundColor: colors.primary + '18', borderColor: colors.primary, borderWidth: 1, paddingVertical: 4, paddingHorizontal: 8, borderRadius: 4, marginBottom: 12 }}>
                         <CheckCircle2 size={14} color={colors.primary} />
-                        <Text style={{ color: colors.primary, fontSize: 12, fontWeight: 'bold' }}>Mehrfachauswahl</Text>
+                        <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '600' }}>Mehrfachauswahl</Text>
                       </View>
                     ) : null}
 
-                    <Text style={[styles.questionText, { color: colors.text }, isTablet && { fontSize: 18, lineHeight: 26 }]}>
+                    <Text style={[styles.questionText, { color: colors.text }]}>
                       {cleanText(currentQ?.text)}
                     </Text>
 
@@ -841,16 +850,18 @@ export default function QuizScreen() {
                           <TouchableOpacity
                             onPress={() => setPreviewImageUrl(currentQ.imageUrl!)}
                             activeOpacity={0.85}
-                            style={{ position: 'relative', marginTop: isTablet ? 0 : 10, marginBottom: 16 }}
+                            style={{ position: 'relative', marginTop: isTablet ? 0 : 8, marginBottom: 16 }}
+                            accessibilityRole="button"
+                            accessibilityLabel="Bild vergrößern"
                           >
                             <Image 
                               source={{ uri: currentQ.imageUrl }} 
                               style={[styles.questionImage, isTablet && { height: 320 }]} 
                               resizeMode="contain" 
                             />
-                            <View style={[styles.zoomBadge, { backgroundColor: isDark ? '#000000bb' : '#ffffffdd' }]}>
+                            <View style={[styles.zoomBadge, { backgroundColor: isDark ? '#000000cc' : '#ffffffdd' }]}>
                               <Maximize2 size={13} color={colors.text} />
-                              <Text style={{ fontSize: 11, color: colors.text, fontWeight: 'bold', marginLeft: 4 }}>
+                              <Text style={{ fontSize: 11, color: colors.text, fontWeight: '600', marginLeft: 4 }}>
                                 Tippen zum Vergrößern
                               </Text>
                             </View>
@@ -859,318 +870,284 @@ export default function QuizScreen() {
                       )}
 
                       <View style={isTablet && currentQ?.imageUrl ? { flex: 1.05 } : undefined}>
-                        {/* INTERAKTIVER BEREICH: REIHENFOLGE VS. KLASSISCHE AUSWAHL */}
                         {isOrder ? (
-                          <View style={{ gap: 10, marginTop: 4 }}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                          <View style={{ gap: 8, marginTop: 4 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
                               <GripVertical size={16} color={colors.primary} />
                               <Text style={{ fontSize: 13, color: colors.textMuted, flex: 1 }}>
-                                Bringe die Schritte per <Text style={{ color: colors.primary, fontWeight: 'bold' }}>Drag & Drop</Text> (Griff ⠿ ziehen) in die richtige Reihenfolge:
+                                Bringe die Schritte per Pfeil oder Ziehen in die richtige Reihenfolge:
                               </Text>
                             </View>
-                        {(() => {
-                          const hasAnswered = userAnswers[currentQuestionIndex] !== undefined;
-                          const activePermutation = hasAnswered 
-                            ? (userAnswers[currentQuestionIndex] || [])
-                            : (orderSelections[currentQuestionIndex] || currentQ?.options?.map((_, i) => i) || []);
+                            {(() => {
+                              const hasAnswered = userAnswers[currentQuestionIndex] !== undefined;
+                              const activePermutation = hasAnswered 
+                                ? (userAnswers[currentQuestionIndex] || [])
+                                : (orderSelections[currentQuestionIndex] || currentQ?.options?.map((_, i) => i) || []);
 
-                          const dropLinePosition = (isDragging && draggingSlot !== null && hoverSlot !== null && hoverSlot !== draggingSlot)
-                            ? (hoverSlot < draggingSlot ? hoverSlot : hoverSlot + 1)
-                            : -1;
+                              const dropLinePosition = (isDragging && draggingSlot !== null && hoverSlot !== null && hoverSlot !== draggingSlot)
+                                ? (hoverSlot < draggingSlot ? hoverSlot : hoverSlot + 1)
+                                : -1;
 
-                          return (
-                            <View style={{ gap: 2 }}>
-                              {activePermutation.map((origOptIdx, slotIdx) => {
-                                const stepText = currentQ?.options?.[origOptIdx] || '';
-                                const isSlotCorrect = origOptIdx === slotIdx;
-                                const isDraggingThis = isDragging && draggingSlot === slotIdx;
+                              return (
+                                <View style={{ gap: 4 }}>
+                                  {activePermutation.map((origOptIdx, slotIdx) => {
+                                    const stepText = currentQ?.options?.[origOptIdx] || '';
+                                    const isSlotCorrect = origOptIdx === slotIdx;
+                                    const isDraggingThis = isDragging && draggingSlot === slotIdx;
+
+                                    return (
+                                      <View key={slotIdx}>
+                                        {slotIdx === 0 && (
+                                          <DropLineIndicator active={dropLinePosition === 0} />
+                                        )}
+
+                                        <DraggableOrderItem
+                                          slotIdx={slotIdx}
+                                          origOptIdx={origOptIdx}
+                                          stepText={stepText}
+                                          totalCount={activePermutation.length}
+                                          hasAnswered={hasAnswered}
+                                          isSlotCorrect={isSlotCorrect}
+                                          colors={colors}
+                                          isDark={isDark}
+                                          onMoveStep={handleMoveOrderStep}
+                                          onDragStart={handleDragStart}
+                                          onDragMove={handleDragMove}
+                                          onDragEnd={handleDragEnd}
+                                          isDraggingThis={isDraggingThis}
+                                          draggingSlot={draggingSlot}
+                                        />
+
+                                        <DropLineIndicator active={dropLinePosition === slotIdx + 1} />
+                                      </View>
+                                    );
+                                  })}
+
+                                  {!hasAnswered && (
+                                    <Button
+                                      variant="primary"
+                                      icon={CheckCircle2}
+                                      title="Reihenfolge einloggen & prüfen"
+                                      onPress={handleConfirmOrderSelection}
+                                      style={{ marginTop: 12 }}
+                                    />
+                                  )}
+                                </View>
+                              );
+                            })()}
+                          </View>
+                        ) : (
+                          <>
+                            <View style={styles.optionsContainer}>
+                              {currentQ?.options.map((option, oIndex) => {
+                                const hasAnswered = userAnswers[currentQuestionIndex] !== undefined;
+                                const selectedAnswers = hasAnswered 
+                                  ? (userAnswers[currentQuestionIndex] || []) 
+                                  : pendingMultiSelection;
+
+                                const isSelected = selectedAnswers.includes(oIndex);
+                                const isCorrectAnswer = correctIndices.includes(oIndex);
+                                const isDangerOption = (currentQ?.danger_indices || currentQ?.dangerIndices || []).includes(oIndex);
+                                const optionLetter = ['A', 'B', 'C', 'D', 'E', 'F'][oIndex] || `${oIndex + 1}`;
+
+                                let btnBg = isDark ? '#1f293750' : '#ffffff';
+                                let btnBorder = colors.border;
+                                let btnBorderWidth = 1;
+                                let textColor = colors.text;
+                                let badgeBg = isDark ? '#374151' : '#f3f4f6';
+                                let badgeBorder = isDark ? '#4b5563' : '#e5e7eb';
+                                let badgeTextColor = colors.textMuted;
+                                let rightIcon = null;
+
+                                if (hasAnswered) {
+                                  if (isSelected && isCorrectAnswer) {
+                                    btnBg = isDark ? '#064e3b30' : '#ecfdf5';
+                                    btnBorder = '#10b981';
+                                    btnBorderWidth = 1.5;
+                                    textColor = isDark ? '#6ee7b7' : '#065f46';
+                                    badgeBg = '#10b981';
+                                    badgeBorder = '#10b981';
+                                    badgeTextColor = '#ffffff';
+                                    rightIcon = <CheckCircle2 size={18} color="#10b981" style={{ marginLeft: 6 }} />;
+                                  } else if (isSelected && !isCorrectAnswer) {
+                                    btnBg = isDark ? '#7f1d1d30' : '#fef2f2';
+                                    btnBorder = '#ef4444';
+                                    btnBorderWidth = 1.5;
+                                    textColor = isDark ? '#fca5a5' : '#991b1b';
+                                    badgeBg = '#ef4444';
+                                    badgeBorder = '#ef4444';
+                                    badgeTextColor = '#ffffff';
+                                    rightIcon = <XCircle size={18} color="#ef4444" style={{ marginLeft: 6 }} />;
+                                  } else if (!isSelected && isCorrectAnswer) {
+                                    btnBg = isDark ? '#064e3b15' : '#ecfdf560';
+                                    btnBorder = '#10b981';
+                                    btnBorderWidth = 1.5;
+                                    textColor = isDark ? '#6ee7b7' : '#065f46';
+                                    badgeBg = '#10b98180';
+                                    badgeBorder = '#10b981';
+                                    badgeTextColor = '#ffffff';
+                                    rightIcon = <CheckCircle2 size={18} color="#10b98180" style={{ marginLeft: 6 }} />;
+                                  } else {
+                                    textColor = colors.textMuted;
+                                  }
+                                } else if (isSelected) {
+                                  btnBg = colors.primary + '15';
+                                  btnBorder = colors.primary;
+                                  btnBorderWidth = 1.5;
+                                  badgeBg = colors.primary;
+                                  badgeBorder = colors.primary;
+                                  badgeTextColor = '#ffffff';
+                                  rightIcon = <CheckCircle2 size={18} color={colors.primary} style={{ marginLeft: 6 }} />;
+                                }
 
                                 return (
-                                  <View key={slotIdx}>
-                                    {slotIdx === 0 && (
-                                      <DropLineIndicator active={dropLinePosition === 0} />
+                                  <TouchableOpacity
+                                    key={oIndex}
+                                    delayPressIn={0}
+                                    style={[
+                                      styles.optionButton,
+                                      {
+                                        backgroundColor: btnBg,
+                                        borderColor: btnBorder,
+                                        borderWidth: btnBorderWidth,
+                                        opacity: hasAnswered && !isCorrectAnswer && !isSelected ? 0.6 : 1,
+                                      }
+                                    ]}
+                                    disabled={hasAnswered}
+                                    onPress={() => handleSelectOption(oIndex)}
+                                    activeOpacity={0.7}
+                                    accessibilityRole="button"
+                                    accessibilityLabel={`Antwort ${optionLetter}: ${cleanText(option)}`}
+                                  >
+                                    <View style={[styles.optionBadge, { backgroundColor: badgeBg, borderColor: badgeBorder }]}>
+                                      <Text style={[styles.optionBadgeText, { color: badgeTextColor }]}>
+                                        {optionLetter}
+                                      </Text>
+                                    </View>
+                                    <Text style={[
+                                      styles.optionText, 
+                                      { color: textColor, fontWeight: isSelected || (hasAnswered && isCorrectAnswer) ? '600' : 'normal', flex: 1 }
+                                    ]}>
+                                      {cleanText(option)}
+                                    </Text>
+                                    {hasAnswered && isDangerOption && (
+                                      <View style={{ backgroundColor: '#ef444420', borderColor: '#ef4444', borderWidth: 1, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginRight: 4, flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+                                        <AlertTriangle size={11} color="#ef4444" />
+                                        <Text style={{ fontSize: 10, fontWeight: '700', color: '#ef4444' }}>BG</Text>
+                                      </View>
                                     )}
-
-                                    <DraggableOrderItem
-                                      slotIdx={slotIdx}
-                                      origOptIdx={origOptIdx}
-                                      stepText={stepText}
-                                      totalCount={activePermutation.length}
-                                      hasAnswered={hasAnswered}
-                                      isSlotCorrect={isSlotCorrect}
-                                      colors={colors}
-                                      isDark={isDark}
-                                      onMoveStep={handleMoveOrderStep}
-                                      onDragStart={handleDragStart}
-                                      onDragMove={handleDragMove}
-                                      onDragEnd={handleDragEnd}
-                                      isDraggingThis={isDraggingThis}
-                                      draggingSlot={draggingSlot}
-                                    />
-
-                                    <DropLineIndicator active={dropLinePosition === slotIdx + 1} />
-                                  </View>
+                                    {rightIcon}
+                                  </TouchableOpacity>
                                 );
                               })}
+                            </View>
 
-                              {!hasAnswered && (
-                                <TouchableOpacity
-                                  onPress={handleConfirmOrderSelection}
-                                  activeOpacity={0.8}
-                                  style={{
-                                    backgroundColor: colors.primary,
-                                    paddingVertical: 14,
-                                    paddingHorizontal: 16,
-                                    borderRadius: 12,
-                                    flexDirection: 'row',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    marginTop: 10,
-                                    gap: 8,
-                                  }}
-                                >
-                                  <CheckCircle2 size={20} color="#ffffff" />
-                                  <Text style={{ color: '#ffffff', fontWeight: 'bold', fontSize: 15 }}>
-                                    Reihenfolge einloggen & prüfen
+                            {/* ANTWORT BESTÄTIGEN BUTTON */}
+                            {userAnswers[currentQuestionIndex] === undefined && (
+                              <Button
+                                variant="primary"
+                                icon={CheckCircle2}
+                                title={
+                                  pendingMultiSelection.length > 0 
+                                    ? (pendingMultiSelection.length === 1 ? 'Antwort bestätigen' : `Antworten bestätigen (${pendingMultiSelection.length} gewählt)`) 
+                                    : 'Antwort(en) auswählen'
+                                }
+                                disabled={pendingMultiSelection.length === 0}
+                                onPress={handleConfirmSelection}
+                                style={{ marginTop: 14 }}
+                              />
+                            )}
+                          </>
+                        )}
+
+                        {/* DIREKTES FEEDBACK & ERKLÄRUNG */}
+                        {userAnswers[currentQuestionIndex] !== undefined && (() => {
+                          const currentAns = userAnswers[currentQuestionIndex] || [];
+                          const isCorrect = isQuestionAnswerCorrect(currentAns, currentQ);
+                          const isDangerTriggered = !isOrder && currentAns.some(i => (currentQ?.danger_indices || currentQ?.dangerIndices || []).includes(i));
+
+                          return (
+                            <View style={[
+                              styles.feedbackBox, 
+                              { 
+                                backgroundColor: isCorrect
+                                  ? (isDark ? '#064e3b30' : '#ecfdf5')
+                                  : (isDark ? '#7f1d1d30' : '#fef2f2'),
+                                borderColor: isCorrect
+                                  ? '#10b981'
+                                  : '#ef4444'
+                              }
+                            ]}>
+                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                                {isCorrect ? (
+                                  <>
+                                    <CheckCircle2 size={20} color="#10b981" />
+                                    <Text style={{ fontWeight: '700', color: '#10b981', fontSize: 15 }}>
+                                      {isOrder ? 'Reihenfolge perfekt richtig!' : 'Richtig gelöst!'}
+                                    </Text>
+                                  </>
+                                ) : (
+                                  <>
+                                    <XCircle size={20} color="#ef4444" />
+                                    <View style={{ flex: 1 }}>
+                                      <Text style={{ fontWeight: '700', color: '#ef4444', fontSize: 15 }}>
+                                        {isOrder ? 'Reihenfolge nicht korrekt!' : 'Falsche Antwort!'}
+                                      </Text>
+                                      {!isOrder && isMultiChoice && (
+                                        <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 1 }}>
+                                          Bei dieser Frage waren {correctIndices.length} Antworten richtig.
+                                        </Text>
+                                      )}
+                                    </View>
+                                  </>
+                                )}
+                              </View>
+
+                              {/* Korrekte Reihenfolge anzeigen falls falsch */}
+                              {isOrder && !isCorrect && (
+                                <View style={{ marginTop: 8, padding: 10, backgroundColor: colors.cardBg, borderRadius: RADIUS, borderWidth: 1, borderColor: colors.border }}>
+                                  <Text style={{ fontSize: 12, fontWeight: '700', color: '#10b981', marginBottom: 6 }}>
+                                    KORREKTE REIHENFOLGE:
                                   </Text>
-                                </TouchableOpacity>
+                                  {currentQ?.options?.map((opt, sIdx) => (
+                                    <View key={sIdx} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 6, marginVertical: 2 }}>
+                                      <View style={{ width: 20, height: 20, borderRadius: 4, backgroundColor: '#10b981', alignItems: 'center', justifyContent: 'center', marginTop: 1 }}>
+                                        <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700' }}>{sIdx + 1}</Text>
+                                      </View>
+                                      <Text style={{ color: colors.text, fontSize: 13, flex: 1 }}>
+                                        {cleanText(opt)}
+                                      </Text>
+                                    </View>
+                                  ))}
+                                </View>
+                              )}
+
+                              {/* Betriebsgefährdend Warnung */}
+                              {isDangerTriggered && (
+                                <View style={{ marginTop: 8, marginBottom: 8, padding: 10, backgroundColor: isDark ? '#7f1d1d40' : '#fee2e2', borderRadius: RADIUS, borderWidth: 1, borderColor: '#ef4444', flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                  <AlertTriangle size={18} color="#ef4444" />
+                                  <View style={{ flex: 1 }}>
+                                    <Text style={{ color: '#ef4444', fontWeight: '700', fontSize: 13 }}>
+                                      BETRIEBSGEFÄHRDENDE ANTWORT (BG)
+                                    </Text>
+                                    <Text style={{ color: isDark ? '#fca5a5' : '#991b1b', fontSize: 12, marginTop: 2, lineHeight: 16 }}>
+                                      Diese Fehlhandlung führt im realen Eisenbahnbetrieb zu einer akuten Betriebsgefahr!
+                                    </Text>
+                                  </View>
+                                </View>
+                              )}
+
+                              {currentQ?.explanation && (
+                                <View style={[styles.explanationContainer, { backgroundColor: isDark ? '#1f293750' : '#f8fafc', borderColor: colors.border }]}>
+                                  <Text style={{ fontSize: 12, fontWeight: '700', color: colors.text, marginBottom: 2 }}>Erklärung:</Text>
+                                  <Text style={[styles.explanationText, { color: colors.textMuted }]}>
+                                    {cleanText(currentQ.explanation)}
+                                  </Text>
+                                </View>
                               )}
                             </View>
                           );
                         })()}
-                      </View>
-                    ) : (
-                      <>
-                        <View style={[
-                          styles.optionsContainer,
-                          isLandscapeTablet && !currentQ?.imageUrl && { flexDirection: 'row', flexWrap: 'wrap', gap: 12 }
-                        ]}>
-                          {currentQ?.options.map((option, oIndex) => {
-                            const hasAnswered = userAnswers[currentQuestionIndex] !== undefined;
-                            const selectedAnswers = hasAnswered 
-                              ? (userAnswers[currentQuestionIndex] || []) 
-                              : pendingMultiSelection;
-
-                            const isSelected = selectedAnswers.includes(oIndex);
-                            const isCorrectAnswer = correctIndices.includes(oIndex);
-                            const isDangerOption = (currentQ?.danger_indices || currentQ?.dangerIndices || []).includes(oIndex);
-                            const optionLetter = ['A', 'B', 'C', 'D', 'E', 'F'][oIndex] || `${oIndex + 1}`;
-
-                            let btnBg = colors.background;
-                            let btnBorder = colors.border;
-                            let btnBorderWidth = 1.2;
-                            let textColor = colors.text;
-                            let badgeBg = isDark ? '#1f2937' : '#f3f4f6';
-                            let badgeBorder = isDark ? '#374151' : '#e5e7eb';
-                            let badgeTextColor = colors.textMuted;
-                            let rightIcon = null;
-
-                            if (hasAnswered) {
-                              if (isSelected && isCorrectAnswer) {
-                                // GRÜN = Richtig gewählt
-                                btnBg = isDark ? '#064e3b35' : '#ecfdf5';
-                                btnBorder = '#10b981';
-                                btnBorderWidth = 1.8;
-                                textColor = isDark ? '#6ee7b7' : '#065f46';
-                                badgeBg = '#10b981';
-                                badgeBorder = '#10b981';
-                                badgeTextColor = '#ffffff';
-                                rightIcon = <CheckCircle2 size={20} color="#10b981" style={{ marginLeft: 8 }} />;
-                              } else if (isSelected && !isCorrectAnswer) {
-                                // ROT = Falsch gewählt
-                                btnBg = isDark ? '#7f1d1d35' : '#fef2f2';
-                                btnBorder = '#ef4444';
-                                btnBorderWidth = 1.8;
-                                textColor = isDark ? '#fca5a5' : '#991b1b';
-                                badgeBg = '#ef4444';
-                                badgeBorder = '#ef4444';
-                                badgeTextColor = '#ffffff';
-                                rightIcon = <XCircle size={20} color="#ef4444" style={{ marginLeft: 8 }} />;
-                              } else if (!isSelected && isCorrectAnswer) {
-                                // GRÜNE UMRANDUNG = Verpasste richtige Antwort
-                                btnBg = isDark ? '#064e3b20' : '#ecfdf580';
-                                btnBorder = '#10b981';
-                                btnBorderWidth = 1.8;
-                                textColor = isDark ? '#6ee7b7' : '#065f46';
-                                badgeBg = '#10b98180';
-                                badgeBorder = '#10b981';
-                                badgeTextColor = '#ffffff';
-                                rightIcon = <CheckCircle2 size={18} color="#10b98180" style={{ marginLeft: 8 }} />;
-                              } else {
-                                textColor = colors.textMuted;
-                              }
-                            } else if (isSelected) {
-                              btnBg = colors.primary + '18';
-                              btnBorder = colors.primary;
-                              btnBorderWidth = 1.8;
-                              badgeBg = colors.primary;
-                              badgeBorder = colors.primary;
-                              badgeTextColor = '#ffffff';
-                              rightIcon = <CheckCircle2 size={18} color={colors.primary} style={{ marginLeft: 8 }} />;
-                            }
-
-                            return (
-                              <TouchableOpacity
-                                key={oIndex}
-                                delayPressIn={0}
-                                style={[
-                                  styles.optionButton,
-                                  {
-                                    backgroundColor: btnBg,
-                                    borderColor: btnBorder,
-                                    borderWidth: btnBorderWidth,
-                                    opacity: hasAnswered && !isCorrectAnswer && !isSelected ? 0.6 : 1,
-                                  },
-                                  isLandscapeTablet && !currentQ?.imageUrl && { width: '48.8%', marginHorizontal: 0, marginBottom: 0 }
-                                ]}
-                                disabled={hasAnswered}
-                                onPress={() => handleSelectOption(oIndex)}
-                                activeOpacity={0.75}
-                              >
-                                <View style={[styles.optionBadge, { backgroundColor: badgeBg, borderColor: badgeBorder }]}>
-                                  <Text style={[styles.optionBadgeText, { color: badgeTextColor }]}>
-                                    {optionLetter}
-                                  </Text>
-                                </View>
-                                <Text style={[
-                                  styles.optionText, 
-                                  { color: textColor, fontWeight: isSelected || (hasAnswered && isCorrectAnswer) ? '600' : 'normal', flex: 1 }
-                                ]}>
-                                  {cleanText(option)}
-                                </Text>
-                                {hasAnswered && isDangerOption && (
-                                  <View style={{ backgroundColor: '#ef444420', borderColor: '#ef4444', borderWidth: 1, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, marginRight: 4, flexDirection: 'row', alignItems: 'center', gap: 2 }}>
-                                    <AlertTriangle size={11} color="#ef4444" />
-                                    <Text style={{ fontSize: 10, fontWeight: 'bold', color: '#ef4444' }}>BG</Text>
-                                  </View>
-                                )}
-                                {rightIcon}
-                              </TouchableOpacity>
-                            );
-                          })}
-                        </View>
-
-                        {/* ANTWORT BESTÄTIGEN BUTTON (FÜR ALLE FRAGEN) */}
-                        {userAnswers[currentQuestionIndex] === undefined && (
-                          <TouchableOpacity
-                            delayPressIn={0}
-                            style={{
-                              backgroundColor: pendingMultiSelection.length > 0 ? colors.primary : (isDark ? '#374151' : '#e2e8f0'),
-                              paddingVertical: 14,
-                              paddingHorizontal: 16,
-                              borderRadius: 12,
-                              flexDirection: 'row',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              marginTop: 14,
-                              gap: 8,
-                            }}
-                            disabled={pendingMultiSelection.length === 0}
-                            onPress={handleConfirmSelection}
-                            activeOpacity={0.8}
-                          >
-                            <CheckCircle2 size={20} color={pendingMultiSelection.length > 0 ? '#ffffff' : colors.textMuted} />
-                            <Text style={{ color: pendingMultiSelection.length > 0 ? '#ffffff' : colors.textMuted, fontWeight: 'bold', fontSize: 15 }}>
-                              {pendingMultiSelection.length > 0 
-                                ? (pendingMultiSelection.length === 1 ? 'Antwort bestätigen' : `Antworten bestätigen (${pendingMultiSelection.length} gewählt)`) 
-                                : 'Antwort(en) auswählen'}
-                            </Text>
-                          </TouchableOpacity>
-                        )}
-                      </>
-                    )}
-
-                    {/* DIREKTES FEEDBACK & ERKLÄRUNG */}
-                    {userAnswers[currentQuestionIndex] !== undefined && (() => {
-                      const currentAns = userAnswers[currentQuestionIndex] || [];
-                      const isCorrect = isQuestionAnswerCorrect(currentAns, currentQ);
-                      const isDangerTriggered = !isOrder && currentAns.some(i => (currentQ?.danger_indices || currentQ?.dangerIndices || []).includes(i));
-
-                      return (
-                        <View style={[
-                          styles.feedbackBox, 
-                          { 
-                            backgroundColor: isCorrect
-                              ? (isDark ? '#064e3b40' : '#d1fae5')
-                              : (isDark ? '#7f1d1d40' : '#fee2e2'),
-                            borderColor: isCorrect
-                              ? '#10b981'
-                              : '#ef4444'
-                          }
-                        ]}>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                            {isCorrect ? (
-                              <>
-                                <CheckCircle2 size={20} color="#10b981" />
-                                <Text style={{ fontWeight: 'bold', color: '#10b981', fontSize: 15 }}>
-                                  {isOrder ? 'Reihenfolge perfekt richtig!' : 'Richtig gelöst!'}
-                                </Text>
-                              </>
-                            ) : (
-                              <>
-                                <XCircle size={20} color="#ef4444" />
-                                <View style={{ flex: 1 }}>
-                                  <Text style={{ fontWeight: 'bold', color: '#ef4444', fontSize: 15 }}>
-                                    {isOrder ? 'Reihenfolge nicht korrekt!' : 'Falsche Antwort!'}
-                                  </Text>
-                                  {!isOrder && isMultiChoice && (
-                                    <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 1 }}>
-                                      Bei dieser Frage waren {correctIndices.length} Antworten richtig.
-                                    </Text>
-                                  )}
-                                </View>
-                              </>
-                            )}
-                          </View>
-
-                          {/* Falls falsche Reihenfolge: Richtige Reihenfolge anzeigen */}
-                          {isOrder && !isCorrect && (
-                            <View style={{ marginTop: 8, padding: 10, backgroundColor: colors.background, borderRadius: 8, borderWidth: 1, borderColor: colors.border }}>
-                              <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#10b981', marginBottom: 6 }}>
-                                KORREKTE REIHENFOLGE:
-                              </Text>
-                              {currentQ?.options?.map((opt, sIdx) => (
-                                <View key={sIdx} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 6, marginVertical: 2 }}>
-                                  <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: '#10b981', alignItems: 'center', justifyContent: 'center', marginTop: 1 }}>
-                                    <Text style={{ color: '#fff', fontSize: 11, fontWeight: 'bold' }}>{sIdx + 1}</Text>
-                                  </View>
-                                  <Text style={{ color: colors.text, fontSize: 13, flex: 1 }}>
-                                    {cleanText(opt)}
-                                  </Text>
-                                </View>
-                              ))}
-                            </View>
-                          )}
-
-                          {/* BETRIEBSGEFÄHRDEND WARNUNG */}
-                          {isDangerTriggered && (
-                            <View style={{ marginTop: 6, marginBottom: 8, padding: 10, backgroundColor: isDark ? '#7f1d1d60' : '#fee2e2', borderRadius: 10, borderWidth: 1.5, borderColor: '#ef4444', flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                              <AlertTriangle size={20} color="#ef4444" />
-                              <View style={{ flex: 1 }}>
-                                <Text style={{ color: '#ef4444', fontWeight: '900', fontSize: 13 }}>
-                                  BETRIEBSGEFÄHRDENDE ANTWORT (BG)!
-                                </Text>
-                                <Text style={{ color: isDark ? '#fca5a5' : '#991b1b', fontSize: 11, marginTop: 2, lineHeight: 15 }}>
-                                  Diese Fehlhandlung führt im realen Eisenbahnbetrieb zu einer akuten Betriebsgefahr für Züge, Personal und Fahrgäste!
-                                </Text>
-                              </View>
-                            </View>
-                          )}
-
-                          {currentQ?.explanation && (
-                            <View style={[styles.explanationContainer, { backgroundColor: colors.background }]}>
-                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-                                <Lightbulb size={14} color={colors.primary} />
-                                <Text style={{ fontSize: 12, fontWeight: 'bold', color: colors.text }}>Erklärung:</Text>
-                              </View>
-                              <Text style={[styles.explanationText, { color: colors.textMuted }]}>
-                                {cleanText(currentQ.explanation)}
-                              </Text>
-                            </View>
-                          )}
-                        </View>
-                      );
-                    })()}
                       </View>
                     </View>
                   </>
@@ -1182,27 +1159,26 @@ export default function QuizScreen() {
           {/* STEUERUNGSLEISTE UNTEN */}
           <View style={[
             styles.quizFooter, 
-            { backgroundColor: colors.cardBg, borderTopColor: colors.border },
-            isTablet && { alignItems: 'center' }
+            { backgroundColor: screenBg, borderTopColor: colors.border }
           ]}>
             <View style={[
               { flexDirection: 'row', alignItems: 'center', width: '100%', gap: 12 },
-              isTablet && { width: '100%', paddingHorizontal: 8 }
+              { maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' }
             ]}>
-              <TouchableOpacity 
-                delayPressIn={0}
-                style={[styles.navButton, { opacity: currentQuestionIndex === 0 ? 0.3 : 1 }]}
+              <Button
+                variant="secondary"
+                icon={ChevronLeft}
+                title="Zurück"
                 disabled={currentQuestionIndex === 0}
                 onPress={handlePrevQuestion}
-              >
-                <ChevronLeft color={colors.text} size={20} />
-                <Text style={[styles.navButtonText, { color: colors.text }]}>Zurück</Text>
-              </TouchableOpacity>
+                style={{ flex: 1 }}
+              />
 
               {currentQuestionIndex === quizQuestions.length - 1 ? (
-                <TouchableOpacity 
-                  delayPressIn={0}
-                  style={styles.submitButton}
+                <Button
+                  variant="primary"
+                  icon={Award}
+                  title="Prüfung abgeben"
                   onPress={() => {
                     const answeredCount = Object.keys(userAnswers).length;
                     if (answeredCount < quizQuestions.length) {
@@ -1218,18 +1194,16 @@ export default function QuizScreen() {
                       handleFinishQuiz(false);
                     }
                   }}
-                >
-                  <Text style={styles.submitButtonText}>Prüfung abgeben</Text>
-                </TouchableOpacity>
+                  style={{ flex: 1 }}
+                />
               ) : (
-                <TouchableOpacity 
-                  delayPressIn={0}
-                  style={styles.navButton}
+                <Button
+                  variant="primary"
+                  icon={ChevronRight}
+                  title="Weiter"
                   onPress={handleNextQuestion}
-                >
-                  <Text style={[styles.navButtonText, { color: colors.text }]}>Weiter</Text>
-                  <ChevronRight color={colors.text} size={20} />
-                </TouchableOpacity>
+                  style={{ flex: 1 }}
+                />
               )}
             </View>
           </View>
@@ -1241,11 +1215,11 @@ export default function QuizScreen() {
         <ScrollView 
           contentContainerStyle={[
             styles.scrollContainer,
-            isTablet && { width: '100%', paddingHorizontal: 20 }
+            { maxWidth: CONTENT_MAX_WIDTH, width: '100%', alignSelf: 'center', paddingHorizontal: SCREEN_PADDING }
           ]} 
           showsVerticalScrollIndicator={false}
         >
-          <Text style={[styles.title, { color: colors.text, textAlign: 'center' }]}>Testergebnis</Text>
+          <Heading level={1} style={[styles.title, { textAlign: 'center', marginBottom: 16 }]}>Testergebnis</Heading>
           
           {/* RESULT CARD */}
           {(() => {
@@ -1259,12 +1233,11 @@ export default function QuizScreen() {
             return (
               <View style={[
                 styles.resultCard, 
-                { backgroundColor: colors.cardBg, borderColor: colors.border },
-                isTablet && { width: '100%', padding: 28 }
+                { backgroundColor: colors.cardBg, borderColor: colors.border }
               ]}>
-                <Award size={64} color={passed ? colors.success : colors.error} style={styles.resultIcon} />
+                <Award size={56} color={passed ? colors.success : colors.error} style={styles.resultIcon} />
                 <Text style={[styles.resultOutcome, { color: passed ? colors.success : colors.error }]}>
-                  {passed ? 'Prüfung Bestanden!' : 'Leider nicht bestanden'}
+                  {passed ? 'Prüfung bestanden!' : 'Leider nicht bestanden'}
                 </Text>
                 <Text style={[styles.resultScore, { color: colors.text }]}>
                   {correctCount} / {quizQuestions.length} richtig ({percentage}%)
@@ -1280,7 +1253,9 @@ export default function QuizScreen() {
           })()}
 
           {/* DETAILÜBERSICHT ANTWORTEN */}
-          <Text style={[styles.sectionTitle, { color: colors.text, marginTop: 24 }]}>Antworten-Detailübersicht</Text>
+          <Heading level={2} style={[styles.sectionTitle, { color: colors.text, marginTop: 24, marginBottom: 12 }]}>
+            Antworten-Detailübersicht
+          </Heading>
           
           <View style={isTablet ? { flexDirection: 'row', flexWrap: 'wrap', gap: 12 } : undefined}>
             {quizQuestions.map((q, idx) => {
@@ -1304,20 +1279,20 @@ export default function QuizScreen() {
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                       <Text style={[styles.detailAnswerNum, { color: colors.primary }]}>Frage {idx + 1}</Text>
                       {isOrder ? (
-                        <View style={[styles.badge, { backgroundColor: '#06b6d418', borderColor: '#06b6d4', borderWidth: 1, paddingVertical: 2, paddingHorizontal: 6 }]}>
-                          <Text style={{ color: '#06b6d4', fontSize: 10, fontWeight: 'bold' }}>🔀 Reihenfolge</Text>
+                        <View style={[styles.badge, { backgroundColor: '#06b6d418', borderColor: '#06b6d4', borderWidth: 1 }]}>
+                          <Text style={{ color: '#06b6d4', fontSize: 10, fontWeight: '600' }}>Reihenfolge</Text>
                         </View>
                       ) : isMulti ? (
-                        <View style={[styles.badge, { backgroundColor: colors.primary + '18', paddingVertical: 2, paddingHorizontal: 6 }]}>
-                          <Text style={{ color: colors.primary, fontSize: 10, fontWeight: 'bold' }}>Mehrfachauswahl</Text>
+                        <View style={[styles.badge, { backgroundColor: colors.primary + '18' }]}>
+                          <Text style={{ color: colors.primary, fontSize: 10, fontWeight: '600' }}>Mehrfachauswahl</Text>
                         </View>
                       ) : null}
                     </View>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                       {isUserAnsDanger && (
-                        <View style={{ backgroundColor: '#ef444420', borderColor: '#ef4444', borderWidth: 1, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                        <View style={{ backgroundColor: '#ef444420', borderColor: '#ef4444', borderWidth: 1, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, flexDirection: 'row', alignItems: 'center', gap: 3 }}>
                           <AlertTriangle size={12} color="#ef4444" />
-                          <Text style={{ fontSize: 10, fontWeight: 'bold', color: '#ef4444' }}>BG</Text>
+                          <Text style={{ fontSize: 10, fontWeight: '700', color: '#ef4444' }}>BG</Text>
                         </View>
                       )}
                       {isCorrect ? (
@@ -1342,14 +1317,14 @@ export default function QuizScreen() {
                     {isOrder ? (
                       <View style={{ gap: 4 }}>
                         <Text style={[styles.ansLabel, { color: colors.textMuted }]}>
-                          Deine gewählte Reihenfolge:{' '}
+                          Deine gewählte Reihenfolge:
                         </Text>
                         {userAns.length > 0 ? (
                           userAns.map((origIdx, sIdx) => {
                             const isSlotCorrect = origIdx === sIdx;
                             return (
                               <View key={sIdx} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
-                                <Text style={{ fontSize: 12, fontWeight: 'bold', color: isSlotCorrect ? colors.success : colors.error, width: 20 }}>
+                                <Text style={{ fontSize: 12, fontWeight: '700', color: isSlotCorrect ? colors.success : colors.error, width: 20 }}>
                                   {sIdx + 1}.
                                 </Text>
                                 <Text style={{ color: colors.text, fontSize: 13, flex: 1 }}>
@@ -1365,14 +1340,14 @@ export default function QuizScreen() {
                         )}
 
                         {!isCorrect && (
-                          <View style={{ marginTop: 8, padding: 8, backgroundColor: colors.background, borderRadius: 6, borderWidth: 1, borderColor: colors.border }}>
-                            <Text style={{ fontSize: 11, fontWeight: 'bold', color: '#10b981', marginBottom: 4 }}>
+                          <View style={{ marginTop: 8, padding: 10, backgroundColor: isDark ? '#1f293750' : '#f8fafc', borderRadius: RADIUS, borderWidth: 1, borderColor: colors.border }}>
+                            <Text style={{ fontSize: 11, fontWeight: '700', color: '#10b981', marginBottom: 4 }}>
                               KORREKTE REIHENFOLGE:
                             </Text>
                             {q.options?.map((opt, sIdx) => (
                               <View key={sIdx} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 6, marginVertical: 2 }}>
-                                <View style={{ width: 18, height: 18, borderRadius: 9, backgroundColor: '#10b981', alignItems: 'center', justifyContent: 'center', marginTop: 1 }}>
-                                  <Text style={{ color: '#fff', fontSize: 10, fontWeight: 'bold' }}>{sIdx + 1}</Text>
+                                <View style={{ width: 18, height: 18, borderRadius: 4, backgroundColor: '#10b981', alignItems: 'center', justifyContent: 'center', marginTop: 1 }}>
+                                  <Text style={{ color: '#fff', fontSize: 10, fontWeight: '700' }}>{sIdx + 1}</Text>
                                 </View>
                                 <Text style={{ color: colors.text, fontSize: 12, flex: 1 }}>
                                   {cleanText(opt)}
@@ -1386,21 +1361,21 @@ export default function QuizScreen() {
                       <>
                         <Text style={[styles.ansLabel, { color: colors.textMuted }]}>
                           Deine Antwort:{' '}
-                          <Text style={{ color: isCorrect ? colors.success : colors.error, fontWeight: 'bold' }}>
+                          <Text style={{ color: isCorrect ? colors.success : colors.error, fontWeight: '600' }}>
                             {userAns.length > 0 
                               ? userAns.map(i => `${['A', 'B', 'C', 'D', 'E', 'F'][i] || i + 1}) ${cleanText(q.options[i])}`).join(' • ')
                               : 'Keine Antwort abgegeben'}
                           </Text>
                         </Text>
                         {isUserAnsDanger && (
-                          <Text style={{ fontSize: 11, fontWeight: 'bold', color: '#ef4444', marginTop: 2 }}>
-                            ⚠️ Diese Antwort ist betriebsgefährdend (BG)!
+                          <Text style={{ fontSize: 11, fontWeight: '700', color: '#ef4444', marginTop: 2 }}>
+                            Diese Antwort ist betriebsgefährdend (BG)!
                           </Text>
                         )}
                         {!isCorrect && (
                           <Text style={[styles.ansLabel, { color: colors.textMuted, marginTop: 4 }]}>
                             Richtige Antwort:{' '}
-                            <Text style={{ color: colors.success, fontWeight: 'bold' }}>
+                            <Text style={{ color: colors.success, fontWeight: '600' }}>
                               {correctIndices.map(i => `${['A', 'B', 'C', 'D', 'E', 'F'][i] || i + 1}) ${cleanText(q.options[i])}`).join(' • ')}
                             </Text>
                           </Text>
@@ -1410,9 +1385,9 @@ export default function QuizScreen() {
                   </View>
 
                   {q.explanation && (
-                    <View style={[styles.resultExplanation, { backgroundColor: colors.background }]}>
+                    <View style={[styles.resultExplanation, { backgroundColor: isDark ? '#1f293750' : '#f8fafc', borderColor: colors.border }]}>
                       <Text style={[styles.explText, { color: colors.textMuted }]}>
-                        <Text style={{ fontWeight: 'bold' }}>Erklärung: </Text>
+                        <Text style={{ fontWeight: '700', color: colors.text }}>Erklärung: </Text>
                         {cleanText(q.explanation)}
                       </Text>
                     </View>
@@ -1423,32 +1398,22 @@ export default function QuizScreen() {
           </View>
 
           {/* BACK TO SETUP BUTTON */}
-          <TouchableOpacity 
-            style={[
-              styles.restartButton,
-              isTablet && { maxWidth: 400, width: '100%', alignSelf: 'center', marginTop: 24 }
-            ]} 
+          <Button
+            variant="primary"
+            icon={RotateCcw}
+            title="Zurück zur Auswahl"
             onPress={() => setQuizStatus('setup')}
-          >
-            <RotateCcw color="#ffffff" size={20} />
-            <Text style={styles.restartButtonText}>Zurück zur Auswahl</Text>
-          </TouchableOpacity>
+            style={{ marginTop: 24, maxWidth: 400, width: '100%', alignSelf: 'center' }}
+          />
 
           {/* FRAGE EINREICHEN BUTTON ON RESULT SCREEN */}
-          <TouchableOpacity
-            style={[
-              styles.resultContributeBtn,
-              { backgroundColor: colors.cardBg, borderColor: colors.border },
-              isTablet && { maxWidth: 400, width: '100%', alignSelf: 'center', marginTop: 12 }
-            ]}
+          <Button
+            variant="secondary"
+            icon={Plus}
+            title="Quizfrage einreichen"
             onPress={() => setCreateQuestionModalVisible(true)}
-            activeOpacity={0.8}
-          >
-            <Sparkles size={18} color={colors.primary} style={{ marginRight: 8 }} />
-            <Text style={{ color: colors.primary, fontWeight: 'bold', fontSize: 14 }}>
-              Eigene Prüfungsfrage für dieses Thema einreichen
-            </Text>
-          </TouchableOpacity>
+            style={{ marginTop: 12, marginBottom: 24, maxWidth: 400, width: '100%', alignSelf: 'center' }}
+          />
         </ScrollView>
       )}
 
@@ -1464,12 +1429,16 @@ export default function QuizScreen() {
             style={styles.modalCloseBackdrop} 
             onPress={() => setPreviewImageUrl(null)} 
             activeOpacity={1}
+            accessibilityRole="button"
+            accessibilityLabel="Vollbild schließen"
           />
           
           <View style={styles.lightboxContainer}>
             <TouchableOpacity 
               style={styles.lightboxCloseBtn}
               onPress={() => setPreviewImageUrl(null)}
+              accessibilityRole="button"
+              accessibilityLabel="Schließen"
             >
               <X size={22} color="#ffffff" />
             </TouchableOpacity>
@@ -1508,28 +1477,49 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   scrollContainer: {
-    padding: 16,
+    paddingHorizontal: SCREEN_PADDING,
+    paddingTop: 16,
     paddingBottom: 40,
   },
   title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 8,
+    marginBottom: 4,
   },
   subtitle: {
-    fontSize: 14,
-    lineHeight: 20,
-    marginBottom: 20,
+    fontSize: 15,
+    lineHeight: 22,
+    marginBottom: 16,
   },
-  card: {
-    borderRadius: 12,
-    padding: 16,
+  contributeCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    borderRadius: RADIUS,
     borderWidth: 1,
     marginBottom: 16,
   },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
+  contributeIconBg: {
+    width: 40,
+    height: 40,
+    borderRadius: RADIUS,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  contributeTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  contributeText: {
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 2,
+  },
+  card: {
+    borderRadius: RADIUS,
+    padding: 16,
+    borderWidth: 1,
+    marginBottom: 14,
+  },
+  cardHeading: {
     marginBottom: 12,
   },
   catGrid: {
@@ -1538,9 +1528,9 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   catOption: {
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     paddingVertical: 9,
-    borderRadius: 8,
+    borderRadius: RADIUS,
     borderWidth: 1,
   },
   catOptionText: {
@@ -1556,40 +1546,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    paddingVertical: 11,
-    borderRadius: 8,
+    paddingVertical: 10,
+    borderRadius: RADIUS,
     borderWidth: 1,
   },
   timeOptionText: {
     fontSize: 13,
   },
-  startButton: {
-    backgroundColor: '#16a34a',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 14,
-    borderRadius: 10,
-    marginTop: 10,
-    elevation: 3,
-    shadowColor: '#16a34a',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-  },
-  startButtonText: {
-    color: '#ffffff',
-    fontSize: 15,
-    fontWeight: 'bold',
-    letterSpacing: 0.2,
-  },
   historySection: {
     marginTop: 24,
   },
   historyTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
     marginBottom: 12,
   },
   historyItem: {
@@ -1597,7 +1564,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 14,
-    borderRadius: 10,
+    borderRadius: RADIUS,
     borderWidth: 1,
     marginBottom: 8,
   },
@@ -1616,17 +1583,17 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   historyDate: {
-    fontSize: 11,
+    fontSize: 12,
   },
   historyRight: {
     alignItems: 'flex-end',
   },
   historyScore: {
     fontSize: 14,
-    fontWeight: 'bold',
+    fontWeight: '700',
   },
   historyStatus: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '600',
     marginTop: 2,
   },
@@ -1634,26 +1601,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: SCREEN_PADDING,
+    paddingVertical: 10,
     borderBottomWidth: 1,
   },
   progressContainer: {
     flex: 1,
-    marginRight: 20,
+    marginRight: 16,
   },
   progressText: {
-    fontSize: 12,
+    fontSize: 13,
     marginBottom: 6,
   },
   progressBarBg: {
-    height: 6,
-    borderRadius: 3,
+    height: 4,
+    borderRadius: 2,
     overflow: 'hidden',
   },
   progressBarFill: {
     height: '100%',
-    borderRadius: 3,
+    borderRadius: 2,
   },
   timerContainer: {
     flexDirection: 'row',
@@ -1661,35 +1628,35 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: 8,
+    borderRadius: RADIUS,
   },
   timerText: {
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   quizContentContainer: {
-    padding: 16,
+    paddingTop: 14,
     paddingBottom: 24,
   },
   questionCard: {
-    borderRadius: 12,
+    borderRadius: RADIUS,
     padding: 18,
     borderWidth: 1,
   },
   questionText: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '600',
-    lineHeight: 23,
+    lineHeight: 25,
     marginBottom: 16,
   },
   questionImage: {
     width: '100%',
-    height: 150,
-    borderRadius: 8,
+    height: 180,
+    borderRadius: RADIUS,
     marginBottom: 16,
   },
   optionsContainer: {
-    gap: 10,
+    gap: 8,
   },
   optionButton: {
     flexDirection: 'row',
@@ -1697,96 +1664,62 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 12,
     paddingHorizontal: 14,
-    borderRadius: 10,
-    borderWidth: 1.2,
+    borderRadius: RADIUS,
+    borderWidth: 1,
     gap: 12,
   },
   optionBadge: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+    width: 28,
+    height: 28,
+    borderRadius: 4,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
   optionBadgeText: {
     fontSize: 12,
-    fontWeight: 'bold',
+    fontWeight: '700',
   },
   optionText: {
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 15,
+    lineHeight: 22,
   },
   quizFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
+    paddingHorizontal: SCREEN_PADDING,
     paddingVertical: 12,
     borderTopWidth: 1,
   },
-  navButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 9,
-    paddingHorizontal: 14,
-    borderRadius: 8,
-    borderWidth: 1,
-  },
-  navButtonText: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  submitButton: {
-    backgroundColor: '#16a34a',
-    paddingVertical: 10,
-    paddingHorizontal: 18,
-    borderRadius: 8,
-  },
-  submitButtonText: {
-    color: '#ffffff',
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
   resultCard: {
-    borderRadius: 16,
+    borderRadius: RADIUS,
     padding: 24,
     alignItems: 'center',
     borderWidth: 1,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
   },
   resultIcon: {
     marginBottom: 12,
   },
   resultOutcome: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontWeight: '700',
     marginBottom: 6,
   },
   resultScore: {
     fontSize: 18,
     fontWeight: '600',
-    marginBottom: 12,
+    marginBottom: 10,
   },
   resultDesc: {
-    fontSize: 13,
+    fontSize: 14,
     textAlign: 'center',
-    lineHeight: 18,
+    lineHeight: 20,
     paddingHorizontal: 10,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
     marginBottom: 12,
   },
   detailAnswerCard: {
-    borderRadius: 12,
-    padding: 14,
+    borderRadius: RADIUS,
+    padding: 16,
     borderWidth: 1,
     marginBottom: 12,
   },
@@ -1794,11 +1727,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 6,
+    marginBottom: 8,
   },
   detailAnswerNum: {
-    fontSize: 12,
-    fontWeight: 'bold',
+    fontSize: 13,
+    fontWeight: '700',
   },
   resultBadgeContainer: {
     flexDirection: 'row',
@@ -1806,61 +1739,48 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   resultBadgeText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '600',
   },
   detailAnswerText: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
-    lineHeight: 18,
+    lineHeight: 22,
     marginBottom: 10,
   },
   resultAnsOptions: {
-    gap: 2,
+    gap: 4,
     marginBottom: 8,
   },
   ansLabel: {
-    fontSize: 12,
+    fontSize: 13,
+    lineHeight: 19,
   },
   resultExplanation: {
-    padding: 8,
-    borderRadius: 6,
-    marginTop: 4,
+    padding: 10,
+    borderRadius: RADIUS,
+    borderWidth: 1,
+    marginTop: 6,
   },
   explText: {
-    fontSize: 11,
-    lineHeight: 16,
-  },
-  restartButton: {
-    backgroundColor: '#2563eb',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 12,
-    borderRadius: 10,
-    marginTop: 16,
-    marginBottom: 20,
-  },
-  restartButtonText: {
-    color: '#ffffff',
-    fontSize: 14,
-    fontWeight: 'bold',
+    fontSize: 12,
+    lineHeight: 18,
   },
   feedbackBox: {
-    marginTop: 16,
+    marginTop: 14,
     padding: 14,
-    borderRadius: 12,
-    borderWidth: 1.5,
+    borderRadius: RADIUS,
+    borderWidth: 1,
   },
   explanationContainer: {
     marginTop: 8,
     padding: 10,
-    borderRadius: 8,
+    borderRadius: RADIUS,
+    borderWidth: 1,
   },
   explanationText: {
-    fontSize: 12,
-    lineHeight: 18,
+    fontSize: 13,
+    lineHeight: 19,
   },
   zoomBadge: {
     position: 'absolute',
@@ -1870,7 +1790,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 12,
+    borderRadius: 4,
   },
   modalOverlay: {
     flex: 1,
@@ -1911,7 +1831,7 @@ const styles = StyleSheet.create({
   badge: {
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 6,
+    borderRadius: 4,
     alignSelf: 'flex-start',
   },
   dropLineContainer: {
@@ -1922,60 +1842,52 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   dropLineDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
     backgroundColor: '#06b6d4',
-    shadowColor: '#06b6d4',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 1,
-    shadowRadius: 6,
-    elevation: 6,
   },
   dropLineBar: {
     flex: 1,
-    height: 3.5,
-    borderRadius: 2,
+    height: 2,
+    borderRadius: 1,
     backgroundColor: '#06b6d4',
-    shadowColor: '#06b6d4',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 1,
-    shadowRadius: 8,
-    elevation: 6,
   },
-  contributeBanner: {
+  orderSlotCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
-    borderRadius: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: RADIUS,
     borderWidth: 1,
-    marginTop: 14,
-    marginBottom: 6,
+    gap: 10,
+    marginBottom: 4,
   },
-  contributeBannerIconBg: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
+  orderSlotBadge: {
+    width: 26,
+    height: 26,
+    borderRadius: 4,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  contributeBannerTitle: {
-    fontSize: 14,
+  orderSlotBadgeText: {
+    fontSize: 12,
     fontWeight: '700',
   },
-  contributeBannerText: {
-    fontSize: 12,
-    marginTop: 2,
-    lineHeight: 16,
+  orderSlotText: {
+    fontSize: 14,
+    lineHeight: 20,
   },
-  resultContributeBtn: {
+  orderControlsRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 4,
+  },
+  arrowButton: {
+    width: 32,
+    height: 32,
+    borderRadius: RADIUS,
+    alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    marginTop: 10,
   },
 });

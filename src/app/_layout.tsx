@@ -14,7 +14,8 @@ import {
   TextInput, 
   Alert,
   Keyboard,
-  Platform
+  Platform,
+  DeviceEventEmitter
 } from 'react-native';
 import { 
   BookOpen, 
@@ -184,6 +185,8 @@ function CustomTabBar({
 
             if (!isFocused && !event.defaultPrevented) {
               navigateToTab(route.key);
+            } else if (isFocused) {
+              DeviceEventEmitter.emit('tabReset', route.name);
             }
           };
 
@@ -1398,7 +1401,7 @@ function MainAppLayout() {
             title: 'Profil',
             headerTitle: 'Benutzerkonto',
             tabBarLabel: 'Profil',
-            href: null, // Versteckt den Profilreiter aus der unteren Leiste
+            tabBarItemStyle: { display: 'none' },
             headerRight: () => null, // Deaktiviert das eigene Profil-Icon im Profil-Header
             headerLeft: () => (
               <TouchableOpacity 

@@ -49,6 +49,14 @@ export interface Category {
   icon: string; // Name des Eisenbahn- oder Lucide-Icons
 }
 
+export interface SignalSubcategory {
+  id: string;
+  name: string;
+  desc?: string;
+  color?: string;
+  icon?: string;
+}
+
 export interface CustomIconItem {
   id: string;
   name: string;
@@ -253,6 +261,7 @@ export function unpackQuestionMetadata(rawExplanation?: string): {
 
 export function packFactMetadata(f: {
   reference?: string;
+  subcategory?: string;
   createdBy?: string;
   createdByName?: string;
   creatorRole?: string;
@@ -261,6 +270,7 @@ export function packFactMetadata(f: {
   duplicateReviewed?: boolean;
 }): string {
   const meta: Record<string, any> = {};
+  if (f.subcategory) meta.sub = f.subcategory;
   if (f.createdBy) meta.cb = f.createdBy;
   if (f.createdByName) meta.cbn = f.createdByName;
   if (f.creatorRole) meta.cr = f.creatorRole;
@@ -275,7 +285,7 @@ export function packFactMetadata(f: {
 
 export function unpackFactMetadata(rawReference?: string): {
   reference: string;
-  meta: { cb?: string; cbn?: string; cr?: string; vb?: string; vbn?: string; dr?: boolean; duplicateReviewed?: boolean } | null;
+  meta: { sub?: string; cb?: string; cbn?: string; cr?: string; vb?: string; vbn?: string; dr?: boolean; duplicateReviewed?: boolean } | null;
 } {
   let reference = rawReference || '';
   let meta: any = null;
@@ -310,6 +320,7 @@ export interface QuizAttempt {
 export interface Fact {
   id: string;
   category: string;
+  subcategory?: string;
   title: string;
   content: string;
   reference: string;
@@ -401,6 +412,7 @@ const STORAGE_KEYS = {
   CHAT_BANS: '@lok_lernapp_chat_bans_v1',
   WEB_KEYS: '@lok_lernapp_web_keys_v1',
   WEB_LICENSES: '@lok_lernapp_web_licenses_v1',
+  SIGNAL_SUBCATEGORIES: '@lok_lernapp_signal_subcategories_v1',
 };
 
 // Checksum-basierte Lizenzschlüssel-Generierung für PayPal Web-Zugang (4,99 €)
@@ -501,6 +513,43 @@ const INITIAL_CATEGORIES: Category[] = [
   { name: 'Wagenmeister', icon: 'Güterwagen', color: '#0284c7', desc: 'Wagenprüfer Stufe 3 & 4 im Güter- und Kombinierten Verkehr (KV)' },
   { name: 'Signale', icon: 'Eisenbahnsignal', color: '#ef4444', desc: 'Haupt-, Vor- und Zusatzsignale erkennen und verstehen' },
 ];
+
+// Initialdaten für Signal-Unterkategorien
+export const INITIAL_SIGNAL_SUBCATEGORIES: SignalSubcategory[] = [
+  { id: 'sub_hauptsignale', name: 'Hauptsignale', desc: 'Hp-, Ks-, Hl- und Sv-Signale zur Regelung von Zugfahrten', color: '#ef4444', icon: 'TrafficCone' },
+  { id: 'sub_vorsignale', name: 'Vorsignale', desc: 'Signale zur Ankündigung des Signalbilds am folgenden Hauptsignal', color: '#f59e0b', icon: 'Eye' },
+  { id: 'sub_zusatzsignale', name: 'Zusatzsignale', desc: 'Zs-Signale: Ersatzsignal, Geschwindigkeitsanzeiger, Gegengleis etc.', color: '#3b82f6', icon: 'PlusCircle' },
+  { id: 'sub_sperrsignale', name: 'Sperr- & Schutzsignale', desc: 'Sh- und Ra-Signale für Fahrverbote und Rangierfahrten', color: '#8b5cf6', icon: 'ShieldAlert' },
+  { id: 'sub_weichensignale', name: 'Weichensignale', desc: 'Wn-Signale für einfache Weichen, DKWs und Gleissperren', color: '#10b981', icon: 'GitFork' },
+  { id: 'sub_nebensignale', name: 'Nebensignale', desc: 'Ne-Signale: Trapeztafel, Vorsignaltafeln, H-Tafeln, ETCS', color: '#6366f1', icon: 'Bookmark' },
+  { id: 'sub_sonstige', name: 'Sonstige Signale', desc: 'So-, Bü- und bahnbetriebliche Hinweisschilder', color: '#64748b', icon: 'Info' },
+];
+
+export function getFactSignalSubcategory(fact: Partial<Fact>): string {
+  if (fact.subcategory && fact.subcategory.trim()) {
+    return fact.subcategory.trim();
+  }
+  const t = (fact.title || '').toLowerCase();
+  if (t.includes('hp ') || t.includes('ks ') || t.includes('hl-') || t.includes('sv-') || t.includes('hauptsignal')) {
+    return 'Hauptsignale';
+  }
+  if (t.includes('vr ') || t.includes('vorsignal')) {
+    return 'Vorsignale';
+  }
+  if (t.includes('zs ') || t.includes('zusatzsignal')) {
+    return 'Zusatzsignale';
+  }
+  if (t.includes('sh ') || t.includes('ra ') || t.includes('sperrsignal') || t.includes('schutzsignal') || t.includes('rangiersignal')) {
+    return 'Sperr- & Schutzsignale';
+  }
+  if (t.includes('wn ') || t.includes('weichensignal')) {
+    return 'Weichensignale';
+  }
+  if (t.includes('ne ') || t.includes('nebensignal')) {
+    return 'Nebensignale';
+  }
+  return 'Sonstige Signale';
+}
 
 // Initialdaten für Fakten (inkl. VDV-Schrift 757 & Regelwerke)
 const INITIAL_FACTS: Fact[] = [
@@ -3951,6 +4000,7 @@ export const mockDb = {
             return {
               id: f.id,
               category: f.category,
+              subcategory: (f as any).subcategory || meta?.sub || undefined,
               title: f.title,
               content: f.content,
               reference: reference,
@@ -4006,6 +4056,7 @@ export const mockDb = {
         const { reference, meta } = unpackFactMetadata(f.reference);
         return {
           ...f,
+          subcategory: f.subcategory || meta?.sub || undefined,
           reference,
           isVerified: f.isVerified === true,
           createdBy: f.createdBy || meta?.cb || undefined,
@@ -4561,6 +4612,72 @@ export const mockDb = {
     } catch (e) {
       console.warn('[mockDb] Error getting user submissions:', e);
       return { questions: [], facts: [] };
+    }
+  },
+
+  // --- SIGNAL UNTERKATEGORIEN CRUD ---
+  async getSignalSubcategories(): Promise<SignalSubcategory[]> {
+    const cached = getFromMemoryCache<SignalSubcategory[]>('signal_subcategories', 30000);
+    if (cached) return cached;
+
+    try {
+      const data = await AsyncStorage.getItem(STORAGE_KEYS.SIGNAL_SUBCATEGORIES);
+      if (data) {
+        const parsed: SignalSubcategory[] = JSON.parse(data);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return setToMemoryCache('signal_subcategories', parsed);
+        }
+      }
+      await AsyncStorage.setItem(STORAGE_KEYS.SIGNAL_SUBCATEGORIES, JSON.stringify(INITIAL_SIGNAL_SUBCATEGORIES));
+      return setToMemoryCache('signal_subcategories', INITIAL_SIGNAL_SUBCATEGORIES);
+    } catch {
+      return INITIAL_SIGNAL_SUBCATEGORIES;
+    }
+  },
+
+  async saveSignalSubcategory(subcat: { id?: string; name: string; desc?: string; color?: string; icon?: string }): Promise<SignalSubcategory> {
+    invalidateMemoryCache('signal_subcategories');
+    const list = await this.getSignalSubcategories();
+    const cleanName = subcat.name.trim();
+    const existingIndex = list.findIndex(s => (subcat.id && s.id === subcat.id) || s.name.toLowerCase() === cleanName.toLowerCase());
+    
+    let itemToSave: SignalSubcategory;
+    if (existingIndex !== -1) {
+      itemToSave = {
+        ...list[existingIndex],
+        ...subcat,
+        name: cleanName,
+      };
+      list[existingIndex] = itemToSave;
+    } else {
+      itemToSave = {
+        id: subcat.id || 'sig_sub_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+        name: cleanName,
+        desc: subcat.desc?.trim() || '',
+        color: subcat.color || '#3b82f6',
+        icon: subcat.icon || 'Bookmark',
+      };
+      list.push(itemToSave);
+    }
+
+    try {
+      await AsyncStorage.setItem(STORAGE_KEYS.SIGNAL_SUBCATEGORIES, JSON.stringify(list));
+    } catch (e) {
+      console.error('[mockDb] Error saving signal subcategory:', e);
+    }
+    return itemToSave;
+  },
+
+  async deleteSignalSubcategory(idOrName: string): Promise<boolean> {
+    invalidateMemoryCache('signal_subcategories');
+    try {
+      const list = await this.getSignalSubcategories();
+      const updated = list.filter(s => s.id !== idOrName && s.name.toLowerCase() !== idOrName.toLowerCase());
+      await AsyncStorage.setItem(STORAGE_KEYS.SIGNAL_SUBCATEGORIES, JSON.stringify(updated));
+      return true;
+    } catch (e) {
+      console.error('[mockDb] Error deleting signal subcategory:', e);
+      return false;
     }
   }
 };
