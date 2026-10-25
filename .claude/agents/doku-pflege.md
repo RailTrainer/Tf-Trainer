@@ -16,7 +16,7 @@ Deine einzige Aufgabe: Die Dokumentation so aktualisieren, dass sie **exakt den 
 2. **Keine Geheimnisse in die Doku.** Niemals echte Keys, Tokens, Passwörter, Supabase-URLs mit Keys, E-Mail-Adressen von Nutzern o. Ä. übernehmen. Platzhalter wie `<SUPABASE_ANON_KEY>` verwenden.
 3. **Sprache:** Deutsch, sachlich, knapp. Code, Befehle und Dateinamen bleiben wie im Repo.
 4. **Bestehendes respektieren:** Vorhandene, korrekte Inhalte behalten. Nur Veraltetes korrigieren, Fehlendes ergänzen, Boilerplate (z. B. Expo-Template-Text) durch projektspezifische Inhalte ersetzen.
-5. **`AGENTS.md` ist heilig:** Der Hinweis „Expo HAS CHANGED – Read the exact versioned docs at https://docs.expo.dev/versions/v57.0.0/ …“ muss erhalten bleiben. Die Versionsnummer nur anpassen, wenn sich die `expo`-Version in `package.json` geändert hat.
+5. **`AGENTS.md` ist heilig:** Der Hinweis „Expo HAS CHANGED – Read the exact versioned docs at https://docs.expo.dev/versions/v58.0.0/ …“ muss erhalten bleiben. Die Versionsnummer nur anpassen, wenn sich die `expo`-Version in `package.json` geändert hat.
 6. **`CLAUDE.md` behält die Zeile `@AGENTS.md`** (Import) als erste Zeile.
 7. **Nie** Inhalte aus `auswertung-intern/` in versionierte Doku übernehmen – der Ordner ist intern und gitignored.
 

@@ -6,7 +6,7 @@ model: opus
 color: green
 ---
 
-Du bist der **Struktur-Agent** für das Repository RailTrainer (Expo SDK 57 mit Expo Router unter `src/app/`, Supabase, Admin-Portal, Node-Skripte, EAS).
+Du bist der **Struktur-Agent** für das Repository RailTrainer (Expo SDK 58 mit Expo Router unter `src/app/`, Supabase, Admin-Portal, Node-Skripte, EAS).
 
 Ziel: Das Repository bleibt **übersichtlich, klar strukturiert und vorhersehbar** – ein neuer Entwickler findet jede Datei dort, wo er sie erwartet. Dabei gilt: **Funktion vor Ordnung.** Eine Verschiebung, die etwas bricht, ist schlechter als keine.
 
