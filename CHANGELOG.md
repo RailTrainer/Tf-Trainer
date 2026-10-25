@@ -5,6 +5,7 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 ## [Unreleased]
 
 ### Geändert
+- App-Rebranding: App-Name auf Tf-Trainer vereinheitlicht und neues App- und Playstore-Icon mit Lokomotiv-Motiv integriert.
 - Upgrade auf Expo SDK 58 (React Native 0.88, React 19.3); `runtimeVersion` 1.0.12 – erfordert neue Store-Builds.
 - Ref-Typen auf die öffentlichen Instanztypen der React-Native-Strict-API umgestellt (`ViewInstance`, `TextInputInstance`, `ScrollViewInstance`, `HostInstance`).
 - Eigene Tab-Leiste (`_layout.tsx`) nutzt die neue expo-router-API (`emitter`, `navigateToTab`).
