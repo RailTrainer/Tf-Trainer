@@ -2769,7 +2769,7 @@ export const mockDb = {
 
     // 1. Admins & Moderatoren
     if (user.role === 'admin' || user.role === 'moderator') return true;
-    const userRoleDef = roles.find(r => r.id === user.role);
+    const userRoleDef = Array.isArray(roles) ? roles.find(r => r && r.id === user.role) : undefined;
     if (userRoleDef?.canAccessAdmin) return true;
 
     // 2. Ausbilder, Dozenten, Prüfer
@@ -4231,7 +4231,7 @@ export const mockDb = {
   async deleteRole(id: string): Promise<boolean> {
     try {
       const roles = await this.getRoles();
-      const target = roles.find(r => r.id === id);
+      const target = Array.isArray(roles) ? roles.find(r => r && r.id === id) : undefined;
       if (target?.isSystem || id === 'admin' || id === 'moderator' || id === 'user') {
         return false;
       }

@@ -6,6 +6,7 @@ import {
   ScrollView,
   TextInput,
   TouchableOpacity,
+  Pressable,
   useColorScheme,
   ActivityIndicator,
   Alert,
@@ -80,11 +81,18 @@ import {
   CheckCheck,
   RefreshCw,
   Laptop,
-  Sparkles
+  Sparkles,
+  EllipsisVertical
 } from 'lucide-react-native';
+import { CONTENT_MAX_WIDTH, RADIUS } from '../components/ui/tokens';
 
 const PRESET_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 const PRESET_ICONS = ['Compass', 'Sliders', 'BookOpen', 'GraduationCap', 'Wrench', 'Eye', 'HelpCircle'];
+
+const isImgUri = (uri?: string | null) => {
+  if (!uri || typeof uri !== 'string') return false;
+  return uri.startsWith('http') || uri.startsWith('file://') || uri.startsWith('content://') || uri.startsWith('ph://') || uri.startsWith('data:') || uri.includes('/') || uri.includes('\\');
+};
 
 // Top-level component to edit ticket response (prevents keyboard dismiss)
 const TicketResponseEditor = React.memo(({ 
@@ -353,6 +361,28 @@ export default function AdminScreen() {
   const [newSigSubDesc, setNewSigSubDesc] = useState('');
   const [userSubTab, setUserSubTab] = useState<'users' | 'roles' | 'webkeys'>('users');
   const [webKeysList, setWebKeysList] = useState<{ key: string; isRedeemed: boolean; redeemedBy?: string; createdAt: number }[]>([]);
+  const [userSearchQuery, setUserSearchQuery] = useState('');
+  const [selectedUserForMenu, setSelectedUserForMenu] = useState<DbUser | null>(null);
+
+  const filteredUsers = useMemo(() => {
+    if (!Array.isArray(users)) return [];
+    const q = userSearchQuery.trim().toLowerCase();
+    return users.filter(u => {
+      if (!u) return false;
+      const roleDef = Array.isArray(roles) ? roles.find(r => r && r.id === u.role) : undefined;
+      const roleName = (roleDef?.name || u.role || '').toLowerCase();
+      const title = (u.title || '').toLowerCase();
+      const email = (u.email || '').toLowerCase();
+      const name = (u.name || '').toLowerCase();
+      if (!q) return true;
+      return name.includes(q) || email.includes(q) || roleName.includes(q) || title.includes(q);
+    });
+  }, [users, userSearchQuery, roles]);
+
+  const activeUserInMenu = useMemo(() => {
+    if (!selectedUserForMenu) return null;
+    return users.find(u => u.id === selectedUserForMenu.id) || selectedUserForMenu;
+  }, [selectedUserForMenu, users]);
 
   // Ticket Filter & Response State
   const [ticketFilter, setTicketFilter] = useState<'all' | 'open' | 'in_progress' | 'resolved'>('all');
@@ -3408,7 +3438,7 @@ export default function AdminScreen() {
               {/* Signal-Unterkategorie (nur wenn Kategorie "Signale" ist) */}
               {formFCategory === 'Signale' && (
                 <View style={{ marginTop: 14 }}>
-                  <Text style={[styles.formLabel, { color: colors.text }]}>Signal-Unterkategorie</Text>
+                  <Text style={[styles.formLabel, { color: colors.text }]}>Signalgruppe (Unterkategorie)</Text>
                   <View style={styles.chipGrid}>
                     {signalSubcategories.map((s) => (
                       <TouchableOpacity
@@ -3531,7 +3561,7 @@ export default function AdminScreen() {
       )}
 
       {/* --- REITER 3: KATEGORIEN VERWALTEN (NUR ADMIN) --- */}
-      {activeTab === 'categories' && currentUser.role === 'admin' && (
+      {activeTab === 'categories' && currentUser?.role === 'admin' && (
         <View style={{ flex: 1 }}>
           <View style={[styles.subTabBar, { backgroundColor: colors.cardBg, borderBottomColor: colors.border }]}>
             <TouchableOpacity
@@ -3549,16 +3579,16 @@ export default function AdminScreen() {
               style={[styles.subTabBtn, catSubTab === 'form' && { borderBottomColor: colors.primary }]}
               onPress={() => setCatSubTab('form')}
             >
-              <Text style={[styles.subTabText, { color: catSubTab === 'form' ? colors.primary : colors.textMuted }]}>
-                {editingCatName ? 'Kategorie bearbeiten' : 'Neue Kategorie'}
+              <Text numberOfLines={1} style={[styles.subTabText, { color: catSubTab === 'form' ? colors.primary : colors.textMuted }]}>
+                {editingCatName ? 'Bearbeiten' : 'Neu'}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.subTabBtn, catSubTab === 'signal_subcategories' && { borderBottomColor: colors.primary }]}
               onPress={() => setCatSubTab('signal_subcategories')}
             >
-              <Text style={[styles.subTabText, { color: catSubTab === 'signal_subcategories' ? colors.primary : colors.textMuted }]}>
-                Signal-Unterkategorien
+              <Text numberOfLines={1} style={[styles.subTabText, { color: catSubTab === 'signal_subcategories' ? colors.primary : colors.textMuted }]}>
+                Signalgruppen
               </Text>
             </TouchableOpacity>
           </View>
@@ -3811,16 +3841,16 @@ export default function AdminScreen() {
               keyboardShouldPersistTaps="handled"
             >
               <Text style={[styles.secTitle, { color: colors.text }]}>
-                Signal-Unterkategorien verwalten
+                Signalgruppen verwalten
               </Text>
               <Text style={{ fontSize: 13, color: colors.textMuted, marginBottom: 16, lineHeight: 18 }}>
-                Lege hier Unterkategorien für Signale fest (z.B. Hauptsignale, Zusatzsignale, Rangiersignale). In der Lern-Ansicht wählen Schüler zuerst einen dieser Bereiche aus, um die zugehörigen Signale gezielt durchzublättern.
+                Lege hier Signalgruppen (Unterkategorien) für Signale fest (z.B. Hauptsignale, Zusatzsignale, Rangiersignale). In der Lern-Ansicht wählen Schüler zuerst einen dieser Bereiche aus, um die zugehörigen Signale gezielt durchzublättern.
               </Text>
 
               {/* NEUE UNTERKATEGORIE ERSTELLEN */}
               <View style={[styles.itemCard, { backgroundColor: colors.cardBg, borderColor: colors.border, marginBottom: 20 }]}>
                 <Text style={[styles.formLabel, { color: colors.text, marginTop: 0 }]}>
-                  Neue Signal-Unterkategorie hinzufügen
+                  Neue Signalgruppe hinzufügen
                 </Text>
 
                 <TextInput
@@ -3913,7 +3943,7 @@ export default function AdminScreen() {
       )}
 
       {/* --- REITER 4: BENUTZER & ROLLEN VERWALTEN (NUR ADMIN) --- */}
-      {activeTab === 'users' && currentUser.role === 'admin' && (
+      {activeTab === 'users' && currentUser?.role === 'admin' && (
         <View style={{ flex: 1 }}>
           {/* UNTERREITER: BENUTZER VS ROLLEN */}
           <View style={[styles.subTabsContainer, { backgroundColor: colors.cardBg, borderBottomColor: colors.border }]}>
@@ -3958,9 +3988,43 @@ export default function AdminScreen() {
             >
               <Text style={[styles.secTitle, { color: colors.text }]}>Eingetragene Benutzer ({users.length})</Text>
 
+              {/* SUCHE-INPUT BENUTZER */}
+              <View style={[styles.searchBox, { backgroundColor: isDark ? '#1f2937' : '#ffffff', borderColor: colors.border }]}>
+                <Search size={18} color={colors.textMuted} style={{ marginRight: 8 }} />
+                <TextInput
+                  style={[styles.searchInput, { color: colors.text }]}
+                  placeholder="Benutzer suchen (Name, E-Mail, Rolle, Titel) …"
+                  placeholderTextColor={colors.textMuted}
+                  value={userSearchQuery}
+                  onChangeText={setUserSearchQuery}
+                  clearButtonMode="while-editing"
+                />
+                {userSearchQuery.trim().length > 0 && (
+                  <TouchableOpacity 
+                    onPress={() => setUserSearchQuery('')} 
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    accessibilityRole="button"
+                    accessibilityLabel="Suche leeren"
+                  >
+                    <X size={16} color={colors.textMuted} />
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {userSearchQuery.trim().length > 0 && (
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                  <Text style={{ fontSize: 13, fontWeight: '600', color: colors.primary }}>
+                    {filteredUsers.length} {filteredUsers.length === 1 ? 'Benutzer gefunden' : 'Benutzer gefunden'}
+                  </Text>
+                  <TouchableOpacity onPress={() => setUserSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                    <Text style={{ fontSize: 13, color: colors.textMuted }}>Suche leeren</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
               {/* HINWEIS-BANNER FÜR BENUTZER, DIE AUF WEB-FREISCHALTUNG WARTEN */}
               {(() => {
-                const waitingList = users.filter(u => mockDb.isUserWaitingForWebUnlock(u) && !mockDb.isUserWebUnlocked(u, roles));
+                const waitingList = Array.isArray(users) ? users.filter(u => u && mockDb.isUserWaitingForWebUnlock(u) && !mockDb.isUserWebUnlocked(u, roles)) : [];
                 if (waitingList.length === 0) return null;
                 return (
                   <View style={{
@@ -3982,318 +4046,482 @@ export default function AdminScreen() {
                     <Text style={{ fontSize: 12, color: colors.text, marginBottom: 10 }}>
                       Die folgenden Benutzer haben gezahlt oder eine Web-Freischaltung angefordert:
                     </Text>
-                    {waitingList.map(wu => (
-                      <View key={wu.id} style={{
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        paddingVertical: 8,
-                        paddingHorizontal: 12,
-                        backgroundColor: isDark ? '#1e293b' : '#ffffff',
-                        borderRadius: 8,
-                        borderWidth: 1,
-                        borderColor: isDark ? '#d97706' : '#fcd34d',
-                        marginBottom: 6,
-                        gap: 8,
-                      }}>
-                        <View style={{ flex: 1 }}>
-                          <Text style={{ fontSize: 13, fontWeight: 'bold', color: colors.text }}>{wu.name}</Text>
-                          <Text style={{ fontSize: 11, color: colors.textMuted }}>{wu.email}</Text>
+                    {waitingList.map(wu => {
+                      if (!wu) return null;
+                      return (
+                        <View key={wu.id} style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          paddingVertical: 8,
+                          paddingHorizontal: 12,
+                          backgroundColor: isDark ? '#1e293b' : '#ffffff',
+                          borderRadius: 8,
+                          borderWidth: 1,
+                          borderColor: isDark ? '#d97706' : '#fcd34d',
+                          marginBottom: 6,
+                          gap: 8,
+                        }}>
+                          <View style={{ flex: 1 }}>
+                            <Text style={{ fontSize: 13, fontWeight: 'bold', color: colors.text }}>{wu.name || 'Benutzer'}</Text>
+                            <Text style={{ fontSize: 11, color: colors.textMuted }}>{wu.email || ''}</Text>
+                          </View>
+                          <TouchableOpacity
+                            style={{
+                              backgroundColor: '#10b981',
+                              paddingVertical: 6,
+                              paddingHorizontal: 12,
+                              borderRadius: 6,
+                            }}
+                            onPress={() => handleToggleWebAccess(wu.id, wu.name, false)}
+                            activeOpacity={0.8}
+                          >
+                            <Text style={{ color: '#ffffff', fontSize: 12, fontWeight: 'bold' }}>
+                              🔓 Jetzt freischalten
+                            </Text>
+                          </TouchableOpacity>
                         </View>
-                        <TouchableOpacity
-                          style={{
-                            backgroundColor: '#10b981',
-                            paddingVertical: 6,
-                            paddingHorizontal: 12,
-                            borderRadius: 6,
-                          }}
-                          onPress={() => handleToggleWebAccess(wu.id, wu.name, false)}
-                          activeOpacity={0.8}
-                        >
-                          <Text style={{ color: '#ffffff', fontSize: 12, fontWeight: 'bold' }}>
-                            🔓 Jetzt freischalten
-                          </Text>
-                        </TouchableOpacity>
-                      </View>
-                    ))}
+                      );
+                    })}
                   </View>
                 );
               })()}
 
-              {users.map((u) => {
-                const isMe = u.id === currentUser.id;
-                const userRoleDef = roles.find(r => r.id === u.role);
-                const roleName = userRoleDef?.name || u.role.toUpperCase();
-                const roleColor = userRoleDef?.color || '#3b82f6';
-                const isWaiting = mockDb.isUserWaitingForWebUnlock(u) && !mockDb.isUserWebUnlocked(u, roles);
+              {filteredUsers.length === 0 ? (
+                <View style={[styles.emptyBox, { paddingVertical: 40 }]}>
+                  <Users size={36} color={colors.textMuted} />
+                  <Text style={{ color: colors.text, marginTop: 12, fontWeight: '600', fontSize: 15 }}>
+                    {userSearchQuery.trim() ? `Keine Benutzer für „${userSearchQuery}“ gefunden` : 'Keine Benutzer vorhanden'}
+                  </Text>
+                </View>
+              ) : (
+                filteredUsers.map((u) => {
+                  if (!u) return null;
+                  const isMe = u.id === currentUser?.id;
+                  const userRoleDef = Array.isArray(roles) ? roles.find(r => r && r.id === u.role) : undefined;
+                  const roleName = userRoleDef?.name || u.role || 'Benutzer';
+                  const roleColor = userRoleDef?.color || '#3b82f6';
+                  const isWaiting = mockDb.isUserWaitingForWebUnlock(u) && !mockDb.isUserWebUnlocked(u, roles);
+                  const isWebUnlocked = mockDb.isUserWebUnlocked(u, roles);
 
-                return (
-                  <View 
-                    key={u.id} 
-                    style={[
-                      styles.userCard, 
-                      { 
-                        backgroundColor: isWaiting ? (isDark ? '#451a0325' : '#fffbeb') : colors.cardBg, 
-                        borderColor: isWaiting ? '#f59e0b' : colors.border,
-                        borderWidth: isWaiting ? 2 : 1,
-                      }
-                    ]}
-                  >
-                    <View style={styles.userHeader}>
-                      <View style={{ flex: 1, paddingRight: 8 }}>
-                        <Text style={[styles.userName, { color: colors.text }]}>
-                          {u.name} {isMe && <Text style={{ color: colors.primary, fontSize: 11 }}>(Du)</Text>}
-                        </Text>
-                        <Text style={[styles.userEmail, { color: colors.textMuted }]}>{u.email}</Text>
-                        <View style={{ flexDirection: 'row', gap: 6, marginTop: 4, flexWrap: 'wrap', alignItems: 'center' }}>
-                          {u.title ? (
-                            <Text style={{ fontSize: 11, color: colors.primary, fontWeight: 'bold' }}>
-                              Titel: {u.title}
-                            </Text>
-                          ) : null}
-                          {mockDb.isUserWebUnlocked(u, roles) ? (
-                            <View style={{ backgroundColor: isDark ? '#064e3b' : '#dcfce7', borderColor: '#10b981', borderWidth: 1, borderRadius: 4, paddingHorizontal: 6, paddingVertical: 1 }}>
-                              <Text style={{ fontSize: 10, color: '#10b981', fontWeight: 'bold' }}>🖥️ Web freigeschaltet</Text>
-                            </View>
-                          ) : isWaiting ? (
-                            <View style={{ backgroundColor: isDark ? '#78350f' : '#fef3c7', borderColor: '#f59e0b', borderWidth: 1, borderRadius: 4, paddingHorizontal: 6, paddingVertical: 1 }}>
-                              <Text style={{ fontSize: 10, color: isDark ? '#fef08a' : '#b45309', fontWeight: 'bold' }}>⏳ WARTET AUF FREISCHALTUNG</Text>
-                            </View>
+                  return (
+                    <TouchableOpacity 
+                      key={u.id} 
+                      style={[
+                        styles.userRowItem, 
+                        { 
+                          backgroundColor: isWaiting ? (isDark ? '#451a0325' : '#fffbeb') : colors.cardBg, 
+                          borderColor: isWaiting ? '#f59e0b' : colors.border,
+                          borderWidth: isWaiting ? 1.5 : 1,
+                        }
+                      ]}
+                      onPress={() => setSelectedUserForMenu(u)}
+                      activeOpacity={0.7}
+                    >
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1, minWidth: 0 }}>
+                        <View style={{
+                          width: 38,
+                          height: 38,
+                          borderRadius: 19,
+                          backgroundColor: roleColor + '20',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          overflow: 'hidden',
+                        }}>
+                          {u.avatarUrl && isImgUri(u.avatarUrl) ? (
+                            <Image source={{ uri: u.avatarUrl }} style={{ width: '100%', height: '100%' }} />
                           ) : (
-                            <View style={{ backgroundColor: isDark ? '#1e293b' : '#f1f5f9', borderColor: colors.border, borderWidth: 1, borderRadius: 4, paddingHorizontal: 6, paddingVertical: 1 }}>
-                              <Text style={{ fontSize: 10, color: colors.textMuted }}>🖥️ Kein Web</Text>
-                            </View>
+                            <Text style={{ fontSize: 18 }}>{u.avatarUrl || '👤'}</Text>
                           )}
                         </View>
-                      </View>
-                      <View style={[
-                        styles.roleBadge, 
-                        { 
-                          backgroundColor: roleColor + '20',
-                          borderColor: roleColor,
-                          borderWidth: 1,
-                        }
-                      ]}>
-                        <Text style={{ 
-                          fontSize: 10, 
-                          fontWeight: 'bold',
-                          color: roleColor
-                        }}>
-                          {roleName.toUpperCase()}
-                        </Text>
-                      </View>
-                    </View>
-
-                    {/* Rollenzuweisung dynamisch für alle definierten Rollen */}
-                    {!isMe && (
-                      <View style={[styles.roleActionRow, { borderTopColor: colors.background }]}>
-                        <Text style={[styles.actionLabel, { color: colors.textMuted }]}>Rolle ändern:</Text>
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 6 }}>
-                          <View style={{ flexDirection: 'row', gap: 6 }}>
-                            {roles.map(r => {
-                              const isCurrentRole = u.role === r.id;
-                              return (
-                                <TouchableOpacity
-                                  key={r.id}
-                                  style={[
-                                    styles.roleBtn,
-                                    { 
-                                      backgroundColor: isCurrentRole ? r.color : colors.background,
-                                      borderColor: isCurrentRole ? r.color : colors.border,
-                                      borderWidth: 1,
-                                    }
-                                  ]}
-                                  onPress={() => handleUserRoleChange(u.id, u, r.id)}
-                                >
-                                  <Text style={[
-                                    styles.roleBtnText, 
-                                    { color: isCurrentRole ? '#ffffff' : colors.text, fontWeight: isCurrentRole ? 'bold' : 'normal' }
-                                  ]}>
-                                    {r.name}
-                                  </Text>
-                                </TouchableOpacity>
-                              );
-                            })}
+                        <View style={{ flex: 1, minWidth: 0 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                            <Text numberOfLines={1} style={[styles.userName, { color: colors.text, fontSize: 15, fontWeight: '600' }]}>
+                              {u.name || 'Benutzer'}
+                            </Text>
+                            {isMe && (
+                              <Text style={{ color: colors.primary, fontSize: 11, fontWeight: '700' }}>(Du)</Text>
+                            )}
                           </View>
-                        </ScrollView>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2, flexWrap: 'wrap' }}>
+                            {u.title ? (
+                              <Text numberOfLines={1} style={{ fontSize: 12, color: colors.primary, fontWeight: '500' }}>
+                                {u.title}
+                              </Text>
+                            ) : null}
+                            {isWaiting ? (
+                              <Text style={{ fontSize: 11, color: '#f59e0b', fontWeight: 'bold' }}>⏳ Wartet auf Web</Text>
+                            ) : isWebUnlocked ? (
+                              <Text style={{ fontSize: 11, color: '#10b981', fontWeight: '500' }}>🖥️ Web</Text>
+                            ) : null}
+                          </View>
+                        </View>
                       </View>
-                    )}
 
-                    {/* Name ändern (auch für den Admin selbst) */}
-                    <View style={[styles.titleActionRow, { borderTopColor: colors.background }]}>
-                      <Text style={[styles.actionLabel, { color: colors.textMuted }]}>
-                        {isMe ? 'Eigener Name:' : 'Name anpassen:'}
-                      </Text>
-                      <UserNameEditor user={u} colors={colors} onSave={(val) => handleSaveUserName(u.id, val)} />
-                    </View>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        <View style={[
+                          styles.roleBadge, 
+                          { 
+                            backgroundColor: roleColor + '20',
+                            borderColor: roleColor,
+                            borderWidth: 1,
+                          }
+                        ]}>
+                          <Text style={{ 
+                            fontSize: 11, 
+                            fontWeight: 'bold',
+                            color: roleColor
+                          }}>
+                            {roleName.toUpperCase()}
+                          </Text>
+                        </View>
 
-                    {/* Titel ändern (auch für den Admin selbst) */}
-                    <View style={[styles.titleActionRow, { borderTopColor: colors.background }]}>
-                      <Text style={[styles.actionLabel, { color: colors.textMuted }]}>
-                        {isMe ? 'Eigener Titel:' : 'Titel ändern:'}
-                      </Text>
-                      <UserTitleEditor user={u} colors={colors} onSave={(val) => handleSaveUserTitle(u.id, val)} />
-                    </View>
+                        <TouchableOpacity
+                          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                          onPress={() => setSelectedUserForMenu(u)}
+                          style={{
+                            width: 34,
+                            height: 34,
+                            borderRadius: 8,
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            backgroundColor: colors.background,
+                          }}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Menü für ${u.name || 'Benutzer'} öffnen`}
+                        >
+                          <EllipsisVertical size={18} color={colors.text} />
+                        </TouchableOpacity>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })
+              )}
+            </ScrollView>
+          )}
 
-                    {/* Passwort auf 'railtrainer' zurücksetzen */}
-                    <View style={[styles.titleActionRow, { borderTopColor: colors.background, alignItems: 'center', justifyContent: 'space-between' }]}>
-                      <Text style={[styles.actionLabel, { color: colors.textMuted }]}>
-                        Passwort-Reset:
-                      </Text>
-                      <TouchableOpacity
-                        style={{
-                          backgroundColor: '#f59e0b',
-                          flexDirection: 'row',
+          {/* USER DETAIL MODAL (3-PUNKTE MENÜ IM NEUEN DESIGN) */}
+          {activeUserInMenu && (() => {
+            const activeUserRoleDef = Array.isArray(roles) ? roles.find(r => r && r.id === activeUserInMenu.role) : undefined;
+            const activeUserRoleName = activeUserRoleDef?.name || activeUserInMenu.role || 'Benutzer';
+            const activeUserRoleColor = activeUserRoleDef?.color || '#3b82f6';
+
+            return (
+              <Modal
+                visible={!!activeUserInMenu}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setSelectedUserForMenu(null)}
+              >
+                <View style={styles.modalOverlay}>
+                  <Pressable 
+                    style={StyleSheet.absoluteFill} 
+                    onPress={() => setSelectedUserForMenu(null)} 
+                  />
+                  <View style={[
+                    styles.userModalContainer, 
+                    { 
+                      backgroundColor: colors.cardBg, 
+                      borderColor: colors.border,
+                      maxWidth: CONTENT_MAX_WIDTH,
+                    }
+                  ]}>
+                    {/* Modal Header */}
+                    <View style={[styles.userModalHeader, { borderBottomColor: colors.border }]}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
+                        <View style={{
+                          width: 40,
+                          height: 40,
+                          borderRadius: 20,
+                          backgroundColor: activeUserRoleColor + '20',
                           alignItems: 'center',
-                          paddingHorizontal: 10,
-                          paddingVertical: 6,
-                          borderRadius: 6,
-                          gap: 4
+                          justifyContent: 'center',
+                          overflow: 'hidden',
+                        }}>
+                          {activeUserInMenu.avatarUrl && isImgUri(activeUserInMenu.avatarUrl) ? (
+                            <Image source={{ uri: activeUserInMenu.avatarUrl }} style={{ width: '100%', height: '100%' }} />
+                          ) : (
+                            <Text style={{ fontSize: 20 }}>{activeUserInMenu.avatarUrl || '👤'}</Text>
+                          )}
+                        </View>
+                        <View style={{ flex: 1, minWidth: 0 }}>
+                          <Text numberOfLines={1} style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>
+                            {activeUserInMenu.name || 'Benutzer'}
+                          </Text>
+                          <Text numberOfLines={1} style={{ fontSize: 12, color: colors.textMuted }}>
+                            {activeUserInMenu.email || ''}
+                          </Text>
+                        </View>
+                      </View>
+                      <TouchableOpacity
+                        onPress={() => setSelectedUserForMenu(null)}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        style={{
+                          width: 32,
+                          height: 32,
+                          borderRadius: 16,
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          backgroundColor: colors.background
                         }}
-                        onPress={() => handleAdminResetPassword(u.id, u.name)}
                       >
-                        <KeyRound size={13} color="#ffffff" />
-                        <Text style={{ color: '#ffffff', fontSize: 11, fontWeight: 'bold' }}>
-                          🔑 Auf „railtrainer“ zurücksetzen
-                        </Text>
+                        <X size={18} color={colors.text} />
                       </TouchableOpacity>
                     </View>
 
-                    {/* Chat Moderation (Timeout / Bann) */}
-                    {!isMe && (
-                      <View style={[styles.titleActionRow, { borderTopColor: colors.background, flexDirection: 'column', alignItems: 'stretch', gap: 6 }]}>
+                    {/* Modal Scroll Content */}
+                    <ScrollView
+                      showsVerticalScrollIndicator={false}
+                      contentContainerStyle={{ padding: 16, gap: 14 }}
+                    >
+                      {/* Status & Badges */}
+                      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+                        <View style={[styles.roleBadge, { 
+                          backgroundColor: activeUserRoleColor + '20',
+                          borderColor: activeUserRoleColor,
+                          borderWidth: 1,
+                        }]}>
+                          <Text style={{ fontSize: 11, fontWeight: '700', color: activeUserRoleColor }}>
+                            {activeUserRoleName.toUpperCase()}
+                          </Text>
+                        </View>
+
+                        {activeUserInMenu.title ? (
+                          <View style={{ backgroundColor: colors.primary + '18', borderColor: colors.primary, borderWidth: 1, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 }}>
+                            <Text style={{ fontSize: 11, color: colors.primary, fontWeight: '600' }}>Titel: {activeUserInMenu.title}</Text>
+                          </View>
+                        ) : null}
+
+                        {mockDb.isUserWebUnlocked(activeUserInMenu, roles) ? (
+                          <View style={{ backgroundColor: isDark ? '#064e3b' : '#dcfce7', borderColor: '#10b981', borderWidth: 1, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 }}>
+                            <Text style={{ fontSize: 11, color: '#10b981', fontWeight: 'bold' }}>🖥️ Web freigeschaltet</Text>
+                          </View>
+                        ) : mockDb.isUserWaitingForWebUnlock(activeUserInMenu) ? (
+                          <View style={{ backgroundColor: isDark ? '#78350f' : '#fef3c7', borderColor: '#f59e0b', borderWidth: 1, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 }}>
+                            <Text style={{ fontSize: 11, color: isDark ? '#fef08a' : '#b45309', fontWeight: 'bold' }}>⏳ Wartet auf Freischaltung</Text>
+                          </View>
+                        ) : (
+                          <View style={{ backgroundColor: isDark ? '#1e293b' : '#f1f5f9', borderColor: colors.border, borderWidth: 1, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 }}>
+                            <Text style={{ fontSize: 11, color: colors.textMuted }}>🖥️ Kein Web-Zugang</Text>
+                          </View>
+                        )}
+                      </View>
+
+                      {/* ROLLE ÄNDERN */}
+                      {activeUserInMenu.id !== currentUser?.id && (
+                        <View style={[styles.modalSectionCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                          <Text style={[styles.modalSectionTitle, { color: colors.text }]}>Rolle zuweisen</Text>
+                          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
+                            <View style={{ flexDirection: 'row', gap: 6 }}>
+                              {Array.isArray(roles) && roles.map(r => {
+                                if (!r) return null;
+                                const isCurrentRole = activeUserInMenu.role === r.id;
+                                return (
+                                  <TouchableOpacity
+                                    key={r.id}
+                                    style={[
+                                      styles.roleBtn,
+                                      {
+                                        backgroundColor: isCurrentRole ? r.color : colors.cardBg,
+                                        borderColor: isCurrentRole ? r.color : colors.border,
+                                        borderWidth: 1,
+                                        paddingHorizontal: 12,
+                                        paddingVertical: 7,
+                                      }
+                                    ]}
+                                    onPress={() => handleUserRoleChange(activeUserInMenu.id, activeUserInMenu, r.id)}
+                                  >
+                                    <Text style={[
+                                      styles.roleBtnText,
+                                      { color: isCurrentRole ? '#ffffff' : colors.text, fontWeight: isCurrentRole ? 'bold' : 'normal' }
+                                    ]}>
+                                      {r.name || r.id}
+                                    </Text>
+                                  </TouchableOpacity>
+                                );
+                              })}
+                            </View>
+                          </ScrollView>
+                        </View>
+                      )}
+
+                      {/* NAME & TITEL ANPASSEN */}
+                      <View style={[styles.modalSectionCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                        <Text style={[styles.modalSectionTitle, { color: colors.text }]}>Name & Titel anpassen</Text>
+                        
+                        <View style={{ marginTop: 8 }}>
+                          <Text style={{ fontSize: 12, color: colors.textMuted, marginBottom: 4 }}>Name:</Text>
+                          <UserNameEditor user={activeUserInMenu} colors={colors} onSave={(val) => handleSaveUserName(activeUserInMenu.id, val)} />
+                        </View>
+
+                        <View style={{ marginTop: 12 }}>
+                          <Text style={{ fontSize: 12, color: colors.textMuted, marginBottom: 4 }}>Titel (z. B. Tf-Ausbilder):</Text>
+                          <UserTitleEditor user={activeUserInMenu} colors={colors} onSave={(val) => handleSaveUserTitle(activeUserInMenu.id, val)} />
+                        </View>
+                      </View>
+
+                      {/* PASSWORT-RESET */}
+                      <View style={[styles.modalSectionCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <Text style={[styles.actionLabel, { color: colors.textMuted }]}>
-                            Chat-Status:
-                          </Text>
-                          {(() => {
-                            const ban = chatBans.find(b => b.targetUserId === u.id);
-                            const isRestricted = ban && (ban.type === 'permanent' || (ban.type === 'timeout_1d' && (!ban.timeoutUntil || Date.now() < ban.timeoutUntil)));
-                            if (!isRestricted) {
-                              return <Text style={{ fontSize: 11, color: '#10b981', fontWeight: 'bold' }}>🟢 Aktiv</Text>;
-                            }
-                            if (ban.type === 'timeout_1d') {
-                              return <Text style={{ fontSize: 11, color: '#f59e0b', fontWeight: 'bold' }}>⏱️ 1-Tag Timeout aktiv</Text>;
-                            }
-                            return <Text style={{ fontSize: 11, color: '#ef4444', fontWeight: 'bold' }}>🚫 Im Chat gebannt</Text>;
-                          })()}
+                          <View style={{ flex: 1, paddingRight: 8 }}>
+                            <Text style={[styles.modalSectionTitle, { color: colors.text }]}>Passwort zurücksetzen</Text>
+                            <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 2 }}>
+                              Setzt das Kennwort auf „railtrainer“ zurück.
+                            </Text>
+                          </View>
+                          <TouchableOpacity
+                            style={{
+                              backgroundColor: '#f59e0b',
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              paddingHorizontal: 12,
+                              paddingVertical: 8,
+                              borderRadius: RADIUS,
+                              gap: 6
+                            }}
+                            onPress={() => handleAdminResetPassword(activeUserInMenu.id, activeUserInMenu.name)}
+                          >
+                            <KeyRound size={14} color="#ffffff" />
+                            <Text style={{ color: '#ffffff', fontSize: 12, fontWeight: '700' }}>
+                              Zurücksetzen
+                            </Text>
+                          </TouchableOpacity>
                         </View>
-                        <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
-                          {(() => {
-                            const ban = chatBans.find(b => b.targetUserId === u.id);
-                            const isRestricted = ban && (ban.type === 'permanent' || (ban.type === 'timeout_1d' && (!ban.timeoutUntil || Date.now() < ban.timeoutUntil)));
-                            if (isRestricted) {
+                      </View>
+
+                      {/* CHAT-MODERATION */}
+                      {activeUserInMenu.id !== currentUser?.id && (
+                        <View style={[styles.modalSectionCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                            <Text style={[styles.modalSectionTitle, { color: colors.text }]}>Chat-Moderation</Text>
+                            {(() => {
+                              const ban = chatBans.find(b => b.targetUserId === activeUserInMenu.id);
+                              const isRestricted = ban && (ban.type === 'permanent' || (ban.type === 'timeout_1d' && (!ban.timeoutUntil || Date.now() < ban.timeoutUntil)));
+                              if (!isRestricted) {
+                                return <Text style={{ fontSize: 12, color: '#10b981', fontWeight: 'bold' }}>🟢 Aktiv</Text>;
+                              }
+                              if (ban.type === 'timeout_1d') {
+                                return <Text style={{ fontSize: 12, color: '#f59e0b', fontWeight: 'bold' }}>⏱️ 24h Timeout</Text>;
+                              }
+                              return <Text style={{ fontSize: 12, color: '#ef4444', fontWeight: 'bold' }}>🚫 Gebannt</Text>;
+                            })()}
+                          </View>
+
+                          <View style={{ flexDirection: 'row', gap: 8 }}>
+                            {(() => {
+                              const ban = chatBans.find(b => b.targetUserId === activeUserInMenu.id);
+                              const isRestricted = ban && (ban.type === 'permanent' || (ban.type === 'timeout_1d' && (!ban.timeoutUntil || Date.now() < ban.timeoutUntil)));
+                              if (isRestricted) {
+                                return (
+                                  <TouchableOpacity
+                                    style={{ flex: 1, backgroundColor: '#10b981', paddingVertical: 8, borderRadius: RADIUS, alignItems: 'center', justifyContent: 'center' }}
+                                    onPress={() => handleUnbanUser(activeUserInMenu.id, activeUserInMenu.name)}
+                                  >
+                                    <Text style={{ color: '#ffffff', fontSize: 12, fontWeight: '700' }}>🟢 Sperre aufheben</Text>
+                                  </TouchableOpacity>
+                                );
+                              }
                               return (
-                                <TouchableOpacity
-                                  style={{ flex: 1, backgroundColor: '#10b981', paddingVertical: 6, borderRadius: 6, alignItems: 'center', justifyContent: 'center' }}
-                                  onPress={() => handleUnbanUser(u.id, u.name)}
-                                >
-                                  <Text style={{ color: '#ffffff', fontSize: 11, fontWeight: 'bold' }}>🟢 Sperre aufheben</Text>
-                                </TouchableOpacity>
+                                <>
+                                  <TouchableOpacity
+                                    style={{ flex: 1, backgroundColor: '#f59e0b', paddingVertical: 8, borderRadius: RADIUS, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 4 }}
+                                    onPress={() => handleTimeoutUser(activeUserInMenu.id, activeUserInMenu.name)}
+                                  >
+                                    <Clock size={13} color="#ffffff" />
+                                    <Text style={{ color: '#ffffff', fontSize: 12, fontWeight: '700' }}>1 Tag Timeout</Text>
+                                  </TouchableOpacity>
+                                  <TouchableOpacity
+                                    style={{ flex: 1, backgroundColor: '#ef4444', paddingVertical: 8, borderRadius: RADIUS, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 4 }}
+                                    onPress={() => handleBanUser(activeUserInMenu.id, activeUserInMenu.name)}
+                                  >
+                                    <Ban size={13} color="#ffffff" />
+                                    <Text style={{ color: '#ffffff', fontSize: 12, fontWeight: '700' }}>Chat-Bann</Text>
+                                  </TouchableOpacity>
+                                </>
                               );
-                            }
-                            return (
-                              <>
-                                <TouchableOpacity
-                                  style={{ flex: 1, backgroundColor: '#f59e0b', paddingVertical: 6, borderRadius: 6, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 4 }}
-                                  onPress={() => handleTimeoutUser(u.id, u.name)}
-                                >
-                                  <Clock size={12} color="#ffffff" />
-                                  <Text style={{ color: '#ffffff', fontSize: 11, fontWeight: 'bold' }}>1 Tag Timeout</Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                  style={{ flex: 1, backgroundColor: '#ef4444', paddingVertical: 6, borderRadius: 6, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 4 }}
-                                  onPress={() => handleBanUser(u.id, u.name)}
-                                >
-                                  <Ban size={12} color="#ffffff" />
-                                  <Text style={{ color: '#ffffff', fontSize: 11, fontWeight: 'bold' }}>Chat-Bann</Text>
-                                </TouchableOpacity>
-                              </>
-                            );
-                          })()}
+                            })()}
+                          </View>
                         </View>
-                      </View>
-                    )}
+                      )}
 
-                    {/* Web-Plattform (4,99 € Zugang) verwalten */}
-                    {!isMe && (
-                      <View style={[styles.titleActionRow, { borderTopColor: colors.background, alignItems: 'center', justifyContent: 'space-between' }]}>
-                        <Text style={[styles.actionLabel, { color: colors.textMuted }]}>
-                          Web-Version:
-                        </Text>
-                        <TouchableOpacity
-                          style={{
-                            backgroundColor: mockDb.isUserWebUnlocked(u, roles) 
-                              ? (isDark ? '#7f1d1d35' : '#fee2e2') 
-                              : isWaiting 
-                                ? '#10b981' 
-                                : (isDark ? '#064e3b35' : '#ecfdf5'),
-                            borderWidth: 1,
-                            borderColor: mockDb.isUserWebUnlocked(u, roles) 
-                              ? '#fca5a5' 
-                              : isWaiting 
-                                ? '#059669' 
-                                : '#86efac',
-                            flexDirection: 'row',
-                            alignItems: 'center',
-                            paddingHorizontal: 10,
-                            paddingVertical: 6,
-                            borderRadius: 6,
-                            gap: 4
-                          }}
-                          onPress={() => handleToggleWebAccess(u.id, u.name, mockDb.isUserWebUnlocked(u, roles))}
-                        >
-                          <Text style={{ 
-                            color: mockDb.isUserWebUnlocked(u, roles) 
-                              ? '#ef4444' 
-                              : isWaiting 
-                                ? '#ffffff' 
-                                : '#10b981', 
-                            fontSize: 11, 
-                            fontWeight: 'bold' 
-                          }}>
-                            {mockDb.isUserWebUnlocked(u, roles) 
-                              ? '🚫 Web-Zugang entziehen' 
-                              : isWaiting 
-                                ? '🔓 WARTET: Jetzt freischalten!' 
-                                : '⚡ Web freischalten (4,99 €)'}
-                          </Text>
-                        </TouchableOpacity>
-                      </View>
-                    )}
+                      {/* WEB-FREISCHALTUNG */}
+                      {activeUserInMenu.id !== currentUser?.id && (
+                        <View style={[styles.modalSectionCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <View style={{ flex: 1, paddingRight: 8 }}>
+                              <Text style={[styles.modalSectionTitle, { color: colors.text }]}>Web-Plattform (4,99 €)</Text>
+                              <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 2 }}>
+                                Desktop- & Browser-Zugang freischalten.
+                              </Text>
+                            </View>
+                            <TouchableOpacity
+                              style={{
+                                backgroundColor: mockDb.isUserWebUnlocked(activeUserInMenu, roles) 
+                                  ? (isDark ? '#7f1d1d35' : '#fee2e2') 
+                                  : (isDark ? '#064e3b' : '#10b981'),
+                                borderWidth: 1,
+                                borderColor: mockDb.isUserWebUnlocked(activeUserInMenu, roles) ? '#fca5a5' : '#059669',
+                                paddingHorizontal: 12,
+                                paddingVertical: 8,
+                                borderRadius: RADIUS,
+                              }}
+                              onPress={() => handleToggleWebAccess(activeUserInMenu.id, activeUserInMenu.name, mockDb.isUserWebUnlocked(activeUserInMenu, roles))}
+                            >
+                              <Text style={{
+                                color: mockDb.isUserWebUnlocked(activeUserInMenu, roles) ? '#ef4444' : '#ffffff',
+                                fontSize: 12,
+                                fontWeight: '700'
+                              }}>
+                                {mockDb.isUserWebUnlocked(activeUserInMenu, roles) 
+                                  ? '🚫 Web entziehen' 
+                                  : '🔓 Web freischalten'}
+                              </Text>
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                      )}
 
-                    {/* Benutzer dauerhaft löschen (nur für andere Accounts) */}
-                    {!isMe && (
-                      <View style={[styles.titleActionRow, { borderTopColor: colors.background, alignItems: 'center', justifyContent: 'space-between' }]}>
-                        <Text style={[styles.actionLabel, { color: colors.textMuted }]}>
-                          Account entfernen:
-                        </Text>
-                        <TouchableOpacity
-                          style={{
-                            backgroundColor: isDark ? '#7f1d1d' : '#fee2e2',
-                            borderWidth: 1,
-                            borderColor: isDark ? '#b91c1c' : '#fca5a5',
-                            flexDirection: 'row',
-                            alignItems: 'center',
-                            paddingHorizontal: 10,
-                            paddingVertical: 6,
-                            borderRadius: 6,
-                            gap: 4
-                          }}
-                          onPress={() => handleDeleteUser(u.id, u.name)}
-                        >
-                          <Trash2 size={13} color="#ef4444" />
-                          <Text style={{ color: '#ef4444', fontSize: 11, fontWeight: 'bold' }}>
-                            🗑️ Benutzer löschen
-                          </Text>
-                        </TouchableOpacity>
-                      </View>
-                    )}
+                      {/* ACCOUNT LÖSCHEN */}
+                      {activeUserInMenu.id !== currentUser?.id && (
+                        <View style={[styles.modalSectionCard, { backgroundColor: isDark ? '#450a0a20' : '#fef2f2', borderColor: '#fca5a5' }]}>
+                          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <View style={{ flex: 1, paddingRight: 8 }}>
+                              <Text style={[styles.modalSectionTitle, { color: '#ef4444' }]}>Account entfernen</Text>
+                              <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 2 }}>
+                                Löscht den Benutzer dauerhaft aus dem System.
+                              </Text>
+                            </View>
+                            <TouchableOpacity
+                              style={{
+                                backgroundColor: '#ef4444',
+                                paddingHorizontal: 12,
+                                paddingVertical: 8,
+                                borderRadius: RADIUS,
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                gap: 6
+                              }}
+                              onPress={() => {
+                                const targetId = activeUserInMenu.id;
+                                const targetName = activeUserInMenu.name;
+                                setSelectedUserForMenu(null);
+                                handleDeleteUser(targetId, targetName);
+                              }}
+                            >
+                              <Trash2 size={13} color="#ffffff" />
+                              <Text style={{ color: '#ffffff', fontSize: 12, fontWeight: '700' }}>
+                                Löschen
+                              </Text>
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                      )}
+                    </ScrollView>
                   </View>
-                );
-              })}
-            </ScrollView>
-          )}
+                </View>
+              </Modal>
+            );
+          })()}
 
           {userSubTab === 'roles' && (
             <ScrollView 
@@ -6462,5 +6690,64 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 1,
     marginTop: 14,
+  },
+  searchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: RADIUS,
+    paddingHorizontal: 12,
+    height: 44,
+    marginBottom: 14,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+    paddingVertical: 0,
+  },
+  userRowItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: RADIUS,
+    borderWidth: 1,
+    marginBottom: 10,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+  },
+  userModalContainer: {
+    width: '100%',
+    borderRadius: 16,
+    borderWidth: 1,
+    maxHeight: '85%',
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  userModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderBottomWidth: 1,
+  },
+  modalSectionCard: {
+    padding: 14,
+    borderRadius: RADIUS,
+    borderWidth: 1,
+  },
+  modalSectionTitle: {
+    fontSize: 14,
+    fontWeight: '700',
   },
 });

@@ -1,4 +1,4 @@
-# Changelog
+﻿# Changelog
 
 Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
@@ -19,6 +19,19 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 ### Entfernt
 - Veraltetes Top-Level-Feld `notification` in `app.json` (Icon/Farbe kommen aus dem `expo-notifications`-Plugin).
 - Profil-Screen: Die eigene E-Mail-Adresse lässt sich nicht mehr ändern; `updateUserProfile` (`mockDb`) schreibt keine E-Mail mehr.
+
+## [1.2.3] - 2026-10-25
+
+### Behoben
+- Admin-Menü: App-Absturz beim Öffnen des Benutzer-Tabs und beim Aufrufen des Benutzer-Detailmenüs behoben.
+- Natives Android-Rendering: Bild- und Base64-URLs in Benutzer-Avataren werden nun sicher als <Image> statt im <Text>-Knoten gerendert.
+- Icon-Kompatibilität: Menü-Icon auf EllipsisVertical vereinheitlicht.
+- Rollenabfrage: Defensiver Fallback für Benutzer ohne explizite Rollenzuweisung implementiert.
+
+## [1.2.2] - 2026-10-25
+
+### Behoben
+- Admin-Men�: App-Absturz beim �ffnen des Benutzer-Tabs behoben (`u.role.toUpperCase()` crashte bei Benutzern ohne gesetztes Rollenfeld; `currentUser.id`/`.role` jetzt durchg�ngig mit Optional Chaining abgesichert).
 
 ## [2.1.0] – 2026-10-22
 
