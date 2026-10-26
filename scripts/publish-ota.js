@@ -1,27 +1,81 @@
 /**
- * EAS OTA Update Publisher with Real-Time Percentage Progress
- * Usage: node scripts/publish-ota.js --branch production --message "Update Nachricht"
+ * EAS OTA Update Publisher with Automatic Version Increment (+1) & Real-Time Progress
+ * Usage: node scripts/publish-ota.js [--branch production] [--message "Update Nachricht"] [--no-bump]
  */
 
-const { spawn } = require('child_process');
+const { spawn, execSync } = require('child_process');
 const path = require('path');
+const fs = require('fs');
 
 const args = process.argv.slice(2);
 let branch = 'production';
-let message = 'OTA Update';
+let customMessage = null;
+let autoBump = true;
 
 for (let i = 0; i < args.length; i++) {
   if (args[i] === '--branch' && args[i + 1]) {
     branch = args[i + 1];
     i++;
-  } else if (args[i] === '--message' && args[i + 1]) {
-    message = args[i + 1];
+  } else if (args[i] === '--channel' && args[i + 1]) {
+    branch = args[i + 1];
     i++;
+  } else if (args[i] === '--message' && args[i + 1]) {
+    customMessage = args[i + 1];
+    i++;
+  } else if (args[i] === '--no-bump') {
+    autoBump = false;
   }
 }
 
+// 1. Automatische Versionserhöhung (+1 Patch)
+const appJsonPath = path.resolve(__dirname, '../app.json');
+const packageJsonPath = path.resolve(__dirname, '../package.json');
+
+let appJson = JSON.parse(fs.readFileSync(appJsonPath, 'utf8'));
+let packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+
+let currentVersion = appJson.expo?.version || packageJson.version || '1.0.0';
+let newVersion = currentVersion;
+
+if (autoBump) {
+  const parts = currentVersion.split('.');
+  const lastIndex = parts.length - 1;
+  parts[lastIndex] = String((parseInt(parts[lastIndex], 10) || 0) + 1);
+  newVersion = parts.join('.');
+
+  console.log(`\n📦 Versionsnummer wird automatisch erhöht: ${currentVersion} ➔ ${newVersion}`);
+
+  if (appJson.expo) {
+    appJson.expo.version = newVersion;
+    fs.writeFileSync(appJsonPath, JSON.stringify(appJson, null, 2) + '\n', 'utf8');
+  }
+
+  packageJson.version = newVersion;
+  fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2) + '\n', 'utf8');
+
+  // Git Commit & Push für saubere Versionshistorie
+  try {
+    const gitStatus = execSync('git status --porcelain app.json package.json', { encoding: 'utf8' });
+    if (gitStatus.trim().length > 0) {
+      console.log(`🔄 Erstelle Git-Commit für Version ${newVersion}...`);
+      execSync('git add app.json package.json', { stdio: 'ignore' });
+      execSync(`git commit -m "chore(ota): bump version to ${newVersion}"`, { stdio: 'ignore' });
+      const currentBranch = execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf8' }).trim();
+      execSync(`git push origin ${currentBranch}`, { stdio: 'ignore' });
+      console.log(`✅ Version ${newVersion} nach origin/${currentBranch} gepusht.`);
+    }
+  } catch (gitErr) {
+    console.log(`ℹ️ Git Auto-Commit Hinweis: ${gitErr.message || 'übersprungen'}`);
+  }
+}
+
+const message = customMessage
+  ? `v${newVersion}: ${customMessage}`
+  : `v${newVersion}: OTA Update`;
+
 console.log(`\n========================================`);
-console.log(`🚀 Starte OTA-Update für Branch: [${branch}]`);
+console.log(`🚀 Starte OTA-Update für Channel/Branch: [${branch}]`);
+console.log(`📱 App-Version: v${newVersion}`);
 console.log(`📝 Nachricht: "${message}"`);
 console.log(`========================================\n`);
 console.log(`[0%] Initialisiere EAS Build-Umgebung...`);
@@ -39,7 +93,7 @@ const child = spawn(
   [
     'eas-cli',
     'update',
-    '--branch',
+    '--channel',
     branch,
     '--environment',
     branch,
@@ -91,7 +145,7 @@ child.stderr.on('data', (data) => {
 child.on('close', (code) => {
   if (code === 0) {
     reportProgress(100, `Fertig! OTA Update für [${branch}] zu 100% abgeschlossen.`);
-    console.log(`\n✅ Erfolgreich: Das Update ist nun für alle Geräte auf [${branch}] verfügbar.\n`);
+    console.log(`\n✅ Erfolgreich: Das Update v${newVersion} ist nun für alle Geräte auf [${branch}] verfügbar.\n`);
     process.exit(0);
   } else {
     console.error(`\n❌ Fehler: EAS Update beendet mit Exit-Code ${code}`);
