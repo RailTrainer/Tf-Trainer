@@ -1,4 +1,4 @@
-﻿# Changelog
+# Changelog
 
 Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
@@ -19,6 +19,17 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 ### Entfernt
 - Veraltetes Top-Level-Feld `notification` in `app.json` (Icon/Farbe kommen aus dem `expo-notifications`-Plugin).
 - Profil-Screen: Die eigene E-Mail-Adresse lässt sich nicht mehr ändern; `updateUserProfile` (`mockDb`) schreibt keine E-Mail mehr.
+
+## [1.2.4] - 2026-10-26
+
+### Hinzugefügt
+- Force-Update: Sperrbildschirm bei veralteter App-Version mit direkter Weiterleitung in den Google Play Store / App Store.
+- Lernkarten: Unterstützung für mehrere Bilder pro Lernkarte (`imageUrls`) im Admin-Bereich und beim Lernen.
+- Duplikat-Erkennung: Erweiterter Doppel-Check scannt jetzt nicht nur den Fragentext, sondern vergleicht auch alle Antwortoptionen und die korrekte Lösung.
+- Signale: Automatische Sortierung nach Bedeutungsnummer.
+
+### Geändert
+- Admin-Menü: Design-Anpassung mit einheitlichem eckigen Stil (`borderRadius: 6`) für obere Leisten und Kategorie-Filter.
 
 ## [1.2.3] - 2026-10-25
 
