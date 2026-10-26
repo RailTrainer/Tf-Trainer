@@ -15,7 +15,8 @@ import {
   Alert,
   Keyboard,
   Platform,
-  DeviceEventEmitter
+  DeviceEventEmitter,
+  AppState
 } from 'react-native';
 import { 
   BookOpen, 
@@ -38,11 +39,8 @@ import {
   CheckCheck,
   Inbox,
   Archive,
-  GraduationCap,
-  Download
+  GraduationCap
 } from 'lucide-react-native';
-import { ConfirmDialog } from '../components/ui/ConfirmDialog';
-import { checkAppStoreUpdate, openAppStore, type AppStoreUpdateInfo } from '../services/appStoreUpdateService';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { mockDb, User, RoleDefinition, NewsItem } from '../database/mockDb';
 import AuthScreen from '../components/AuthScreen';
@@ -1078,7 +1076,6 @@ function MainAppLayout() {
   const [readNewsIds, setReadNewsIds] = useState<string[]>([]);
   const [newsModalVisible, setNewsModalVisible] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [storeUpdateInfo, setStoreUpdateInfo] = useState<AppStoreUpdateInfo | null>(null);
 
   // Farben konfigurieren
   const activeColor = themeColors.primary;
@@ -1212,66 +1209,37 @@ function MainAppLayout() {
       setLoading(false);
     };
 
-    // Lautloses, blitzschnelles Laden von Updates im Hintergrund ohne Ladebalken
+    // Lautloses, automatisches Laden von serverseitigen Updates im Hintergrund
     async function checkOtaUpdate() {
       try {
-        if (!__DEV__) {
+        if (!__DEV__ && Updates.isEnabled) {
           const update = await Updates.checkForUpdateAsync();
           if (update.isAvailable) {
+            console.log('[expo-updates] Neues serverseitiges Update gefunden, lade herunter...');
             await Updates.fetchUpdateAsync();
+            console.log('[expo-updates] Update geladen, wende an...');
             await Updates.reloadAsync();
           }
         }
       } catch (e) {
-        console.log('OTA Check error:', e);
+        console.log('[expo-updates] Auto-Update Prüfung:', e);
       }
     }
 
     requestNotificationPermissions();
     checkData();
-    // Automatische Prüfung auf App Store / Google Play Store Update beim Start
-    async function checkStoreUpdate() {
-      try {
-        console.log('[StoreUpdate] checkStoreUpdate aufgerufen');
-        const update = await checkAppStoreUpdate();
-        console.log('[StoreUpdate] Ergebnis:', update);
-        if (update?.isAvailable) {
-          setStoreUpdateInfo(update);
-        }
-      } catch (e) {
-        console.log('[StoreUpdate] Check error:', e);
-      }
-    }
-
     checkOtaUpdate();
-    checkStoreUpdate();
-    const interval = setInterval(checkData, 30000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const renderUpdateDialog = () => (
-    <ConfirmDialog
-      visible={!!storeUpdateInfo}
-      title="Update verfügbar"
-      message={
-        storeUpdateInfo
-          ? `Eine neue Version (${storeUpdateInfo.storeVersion}) von Tf-Trainer ist im ${storeUpdateInfo.storeName} verfügbar.\n\nDeine installierte Version: ${storeUpdateInfo.currentVersion}\n\nMöchtest du die App jetzt aktualisieren?`
-          : ''
+    const appStateSub = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') {
+        checkOtaUpdate();
       }
-      confirmTitle="Jetzt aktualisieren"
-      confirmIcon={Download}
-      cancelTitle="Später"
-      onConfirm={async () => {
-        if (storeUpdateInfo?.storeUrl) {
-          await openAppStore(storeUpdateInfo.storeUrl);
-        }
-        setStoreUpdateInfo(null);
-      }}
-      onCancel={() => {
-        setStoreUpdateInfo(null);
-      }}
-    />
-  );
+    });
+    const interval = setInterval(checkData, 30000);
+    return () => {
+      clearInterval(interval);
+      appStateSub.remove();
+    };
+  }, []);
 
   if (loading) {
     return (
@@ -1284,8 +1252,7 @@ function MainAppLayout() {
   // Falls nicht eingeloggt, Login/Registrierung vorschalten
   if (!currentUser) {
     return (
-      <>
-        <AuthScreen 
+      <AuthScreen 
           onLoginSuccess={async (loggedInUser) => {
             if (loggedInUser && typeof loggedInUser === 'object') {
               if (Platform.OS === 'web') {
@@ -1297,8 +1264,6 @@ function MainAppLayout() {
             }
           }} 
         />
-        {renderUpdateDialog()}
-      </>
     );
   }
 
@@ -1350,7 +1315,6 @@ function MainAppLayout() {
           }}
           isDark={isDark}
         />
-        {renderUpdateDialog()}
 
 
 

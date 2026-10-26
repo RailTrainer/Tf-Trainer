@@ -47,7 +47,9 @@
       ]
     ],
     "updates": {
-      "url": "https://u.expo.dev/a2b87163-fd25-4e06-a94b-0b3e9ac0f803"
+      "url": "https://u.expo.dev/a2b87163-fd25-4e06-a94b-0b3e9ac0f803",
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
     },
     "runtimeVersion": "1.0.12",
     "experiments": {
