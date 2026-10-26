@@ -2191,7 +2191,7 @@ export default function AdminScreen() {
                   flexDirection: 'row', 
                   alignItems: 'center', 
                   backgroundColor: colors.background, 
-                  borderRadius: 12, 
+                  borderRadius: RADIUS, 
                   borderWidth: 1, 
                   borderColor: colors.border, 
                   paddingHorizontal: 12,
@@ -2303,7 +2303,7 @@ export default function AdminScreen() {
                           borderWidth: 1,
                           paddingHorizontal: 12,
                           paddingVertical: 9,
-                          borderRadius: 10,
+                          borderRadius: RADIUS,
                           marginBottom: 12
                         }}
                         activeOpacity={0.7}
@@ -3019,7 +3019,7 @@ export default function AdminScreen() {
                   flexDirection: 'row', 
                   alignItems: 'center', 
                   backgroundColor: colors.background, 
-                  borderRadius: 12, 
+                  borderRadius: RADIUS, 
                   borderWidth: 1, 
                   borderColor: colors.border, 
                   paddingHorizontal: 12,
@@ -3133,7 +3133,7 @@ export default function AdminScreen() {
                           borderWidth: 1,
                           paddingHorizontal: 12,
                           paddingVertical: 9,
-                          borderRadius: 10,
+                          borderRadius: RADIUS,
                           marginBottom: 12
                         }}
                         activeOpacity={0.7}
@@ -6102,7 +6102,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 9,
-    borderRadius: 20,
+    borderRadius: RADIUS,
     borderWidth: 1,
     borderColor: '#6b728030',
     gap: 6,
@@ -6123,7 +6123,7 @@ const styles = StyleSheet.create({
   tabBadge: {
     paddingHorizontal: 7,
     paddingVertical: 2,
-    borderRadius: 10,
+    borderRadius: 4,
     marginLeft: 2,
     alignItems: 'center',
     justifyContent: 'center',
@@ -6160,7 +6160,7 @@ const styles = StyleSheet.create({
   categoryFilterChip: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 16,
+    borderRadius: RADIUS,
     borderWidth: 1,
   },
   categoryFilterChipActive: {
@@ -6247,7 +6247,7 @@ const styles = StyleSheet.create({
   pickerChip: {
     paddingHorizontal: 12,
     paddingVertical: 8,
-    borderRadius: 16,
+    borderRadius: RADIUS,
     borderWidth: 1,
   },
   input: {
@@ -6476,7 +6476,7 @@ const styles = StyleSheet.create({
   filterChip: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 8,
+    borderRadius: RADIUS,
     backgroundColor: 'transparent',
     borderWidth: 1,
     borderColor: '#6b728040',
@@ -6600,7 +6600,7 @@ const styles = StyleSheet.create({
   iconFilterTab: {
     paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: 8,
+    borderRadius: RADIUS,
     borderWidth: 1,
     borderColor: '#6b728030',
   },
