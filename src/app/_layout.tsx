@@ -1232,7 +1232,9 @@ function MainAppLayout() {
     // Automatische Prüfung auf App Store / Google Play Store Update beim Start
     async function checkStoreUpdate() {
       try {
+        console.log('[StoreUpdate] checkStoreUpdate aufgerufen');
         const update = await checkAppStoreUpdate();
+        console.log('[StoreUpdate] Ergebnis:', update);
         if (update?.isAvailable) {
           setStoreUpdateInfo(update);
         }
@@ -1348,6 +1350,7 @@ function MainAppLayout() {
           }}
           isDark={isDark}
         />
+        {renderUpdateDialog()}
 
 
 

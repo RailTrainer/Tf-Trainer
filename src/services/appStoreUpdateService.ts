@@ -70,12 +70,14 @@ export async function checkAppStoreUpdate(): Promise<AppStoreUpdateInfo | null> 
   }
 
   const currentVersion = Constants.expoConfig?.version || '1.0.0';
+  console.log('[appStoreUpdateService] Starte Prüfung. OS:', Platform.OS, 'currentVersion:', currentVersion);
 
   try {
     if (Platform.OS === 'android') {
       const packageName = Constants.expoConfig?.android?.package || 'com.railtrainer';
       const playStoreWebUrl = `https://play.google.com/store/apps/details?id=${packageName}&hl=de`;
       const playStoreMarketUrl = `market://details?id=${packageName}`;
+      console.log('[appStoreUpdateService] Rufe Play Store ab:', playStoreWebUrl);
 
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 6000);
@@ -90,14 +92,17 @@ export async function checkAppStoreUpdate(): Promise<AppStoreUpdateInfo | null> 
       });
       clearTimeout(timeoutId);
 
+      console.log('[appStoreUpdateService] Play Store HTTP Status:', response.status);
       if (!response.ok) {
         return null;
       }
 
       const html = await response.text();
       const storeVersion = extractPlayStoreVersion(html);
+      const isNewer = storeVersion ? isNewerVersion(storeVersion, currentVersion) : false;
+      console.log('[appStoreUpdateService] Gefundene Store-Version:', storeVersion, 'isNewer:', isNewer);
 
-      if (storeVersion && isNewerVersion(storeVersion, currentVersion)) {
+      if (storeVersion && isNewer) {
         return {
           isAvailable: true,
           currentVersion,
@@ -137,8 +142,9 @@ export async function checkAppStoreUpdate(): Promise<AppStoreUpdateInfo | null> 
         const item = data.results[0];
         const storeVersion = item.version;
         const storeUrl = item.trackViewUrl || `https://apps.apple.com/app/id${item.trackId}`;
+        const isNewer = storeVersion ? isNewerVersion(storeVersion, currentVersion) : false;
 
-        if (storeVersion && isNewerVersion(storeVersion, currentVersion)) {
+        if (storeVersion && isNewer) {
           return {
             isAvailable: true,
             currentVersion,
