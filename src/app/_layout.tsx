@@ -45,6 +45,8 @@ import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-cont
 import { mockDb, User, RoleDefinition, NewsItem } from '../database/mockDb';
 import AuthScreen from '../components/AuthScreen';
 import WebPaywallScreen from '../components/WebPaywallScreen';
+import ForceUpdateScreen from '../components/ForceUpdateScreen';
+import { checkAppStoreUpdate, type AppStoreUpdateInfo } from '../services/appStoreUpdateService';
 import { ThemeProvider, useAppTheme } from '../context/ThemeContext';
 import { useDynamicKeyboard } from '../hooks/useDynamicKeyboard';
 import { useDeviceLayout } from '../hooks/useDeviceLayout';
@@ -1076,6 +1078,7 @@ function MainAppLayout() {
   const [readNewsIds, setReadNewsIds] = useState<string[]>([]);
   const [newsModalVisible, setNewsModalVisible] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [forceUpdateInfo, setForceUpdateInfo] = useState<AppStoreUpdateInfo | null>(null);
 
   // Farben konfigurieren
   const activeColor = themeColors.primary;
@@ -1229,6 +1232,17 @@ function MainAppLayout() {
     requestNotificationPermissions();
     checkData();
     checkOtaUpdate();
+    async function checkStoreVersion() {
+      try {
+        const info = await checkAppStoreUpdate();
+        if (info?.isAvailable) {
+          setForceUpdateInfo(info);
+        }
+      } catch (e) {
+        console.log('[ForceUpdate] Check error:', e);
+      }
+    }
+    checkStoreVersion();
     const appStateSub = AppState.addEventListener('change', (nextState) => {
       if (nextState === 'active') {
         checkOtaUpdate();
@@ -1240,6 +1254,10 @@ function MainAppLayout() {
       appStateSub.remove();
     };
   }, []);
+
+  if (forceUpdateInfo?.isAvailable) {
+    return <ForceUpdateScreen updateInfo={forceUpdateInfo} />;
+  }
 
   if (loading) {
     return (
