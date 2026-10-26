@@ -268,6 +268,7 @@ export function packFactMetadata(f: {
   verifiedBy?: string;
   verifiedByName?: string;
   duplicateReviewed?: boolean;
+  imageUrls?: string[];
 }): string {
   const meta: Record<string, any> = {};
   if (f.subcategory) meta.sub = f.subcategory;
@@ -277,6 +278,7 @@ export function packFactMetadata(f: {
   if (f.verifiedBy) meta.vb = f.verifiedBy;
   if (f.verifiedByName) meta.vbn = f.verifiedByName;
   if (f.duplicateReviewed) meta.dr = true;
+  if (Array.isArray(f.imageUrls) && f.imageUrls.length > 0) meta.imgs = f.imageUrls;
 
   const clean = (f.reference || '').replace(/\s*<!--RT_META:.*?-->/gs, '').trim();
   if (Object.keys(meta).length === 0) return clean;
@@ -285,7 +287,7 @@ export function packFactMetadata(f: {
 
 export function unpackFactMetadata(rawReference?: string): {
   reference: string;
-  meta: { sub?: string; cb?: string; cbn?: string; cr?: string; vb?: string; vbn?: string; dr?: boolean; duplicateReviewed?: boolean } | null;
+  meta: { sub?: string; cb?: string; cbn?: string; cr?: string; vb?: string; vbn?: string; dr?: boolean; duplicateReviewed?: boolean; imgs?: string[] } | null;
 } {
   let reference = rawReference || '';
   let meta: any = null;
@@ -325,6 +327,8 @@ export interface Fact {
   content: string;
   reference: string;
   imageUrl?: string;
+  imageUrls?: string[];
+  image_urls?: string[];
   isVerified?: boolean;
   createdBy?: string;
   createdByName?: string;
@@ -334,6 +338,24 @@ export interface Fact {
   verifiedBy?: string;
   verifiedByName?: string;
   duplicateReviewed?: boolean;
+}
+
+/**
+ * Gibt alle Bild-URLs einer Lernkarte als bereinigtes Array zurück.
+ * Unterstützt imageUrls, image_urls und abwärtskompatibles imageUrl.
+ */
+export function getFactImageUrls(fact?: Partial<Fact> | null): string[] {
+  if (!fact) return [];
+  const list: string[] = [];
+  if (Array.isArray(fact.imageUrls) && fact.imageUrls.length > 0) {
+    list.push(...fact.imageUrls);
+  } else if (Array.isArray(fact.image_urls) && fact.image_urls.length > 0) {
+    list.push(...fact.image_urls);
+  }
+  if (typeof fact.imageUrl === 'string' && fact.imageUrl.trim().length > 0 && !list.includes(fact.imageUrl.trim())) {
+    list.unshift(fact.imageUrl.trim());
+  }
+  return list.map(u => (typeof u === 'string' ? u.trim() : '')).filter(u => u.length > 0);
 }
 
 export interface Ticket {
@@ -4104,6 +4126,19 @@ export const mockDb = {
         if (!error && data && data.length > 0) {
           const mapped: Fact[] = data.map(f => {
             const { reference, meta } = unpackFactMetadata(f.reference);
+            const rawImages: string[] = [];
+            if (Array.isArray((f as any).image_urls) && (f as any).image_urls.length > 0) {
+              rawImages.push(...(f as any).image_urls);
+            } else if (Array.isArray((f as any).imageUrls) && (f as any).imageUrls.length > 0) {
+              rawImages.push(...(f as any).imageUrls);
+            } else if (Array.isArray(meta?.imgs) && meta.imgs.length > 0) {
+              rawImages.push(...meta.imgs);
+            }
+            if (f.image_url && !rawImages.includes(f.image_url)) {
+              rawImages.unshift(f.image_url);
+            }
+            const cleanImages = rawImages.filter(u => typeof u === 'string' && u.trim().length > 0);
+
             return {
               id: f.id,
               category: f.category,
@@ -4111,7 +4146,9 @@ export const mockDb = {
               title: f.title,
               content: f.content,
               reference: reference,
-              imageUrl: f.image_url || undefined,
+              imageUrl: cleanImages[0] || f.image_url || undefined,
+              imageUrls: cleanImages.length > 0 ? cleanImages : undefined,
+              image_urls: cleanImages.length > 0 ? cleanImages : undefined,
               isVerified: f.is_verified === true,
               createdAt: f.created_at || f.createdAt,
               created_at: f.created_at || f.createdAt,
@@ -4135,8 +4172,8 @@ export const mockDb = {
                 category: f.category,
                 title: f.title,
                 content: f.content,
-                reference: f.reference || '',
-                image_url: f.imageUrl || null,
+                reference: packFactMetadata(f),
+                image_url: f.imageUrl || (f.imageUrls && f.imageUrls[0]) || null,
                 is_verified: f.isVerified !== false
               }))
             );
@@ -4161,10 +4198,17 @@ export const mockDb = {
       }
       const mapped = facts.map(f => {
         const { reference, meta } = unpackFactMetadata(f.reference);
+        const images = getFactImageUrls({
+          imageUrl: f.imageUrl || (f as any).image_url,
+          imageUrls: f.imageUrls || (f as any).image_urls || meta?.imgs
+        });
         return {
           ...f,
           subcategory: f.subcategory || meta?.sub || undefined,
           reference,
+          imageUrl: images[0] || f.imageUrl || undefined,
+          imageUrls: images.length > 0 ? images : undefined,
+          image_urls: images.length > 0 ? images : undefined,
           isVerified: f.isVerified === true,
           createdBy: f.createdBy || meta?.cb || undefined,
           createdByName: f.createdByName || meta?.cbn || undefined,
@@ -4222,9 +4266,13 @@ export const mockDb = {
       isVerified = false;
     }
 
+    const images = getFactImageUrls(fact);
     const fullFact: Fact = {
       ...fact,
       id: factId,
+      imageUrl: images[0] || undefined,
+      imageUrls: images.length > 0 ? images : undefined,
+      image_urls: images.length > 0 ? images : undefined,
       isVerified: isVerified,
       createdBy: createdBy,
       createdByName: createdByName,

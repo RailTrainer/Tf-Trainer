@@ -15,7 +15,7 @@ import {
   type ScrollViewInstance,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { mockDb, Question, Category, User, Fact, SignalSubcategory, getFactSignalSubcategory, sortSignalFacts } from '../database/mockDb';
+import { mockDb, Question, Category, User, Fact, SignalSubcategory, getFactSignalSubcategory, sortSignalFacts, getFactImageUrls } from '../database/mockDb';
 import { useAppTheme } from '../context/ThemeContext';
 import * as Icons from 'lucide-react-native';
 import CategoryIcon from '../components/CategoryIcon';
@@ -172,24 +172,73 @@ const FactCardItem = memo(function FactCardItem({
             {cleanText(fact.content)}
           </Text>
 
-          {fact.imageUrl && (
-            <TouchableOpacity
-              delayPressIn={0}
-              onPress={() => onImagePress(fact.imageUrl!)}
-              activeOpacity={0.85}
-              style={{ position: 'relative', marginTop: 8, marginBottom: 12 }}
-              accessibilityRole="button"
-              accessibilityLabel="Bild vergrößern"
-            >
-              <Image source={{ uri: fact.imageUrl }} style={styles.factImage} resizeMode="contain" />
-              <View style={[styles.zoomBadge, { backgroundColor: isDark ? '#000000cc' : '#ffffffdd' }]}>
-                <Maximize2 size={13} color={colors.text} />
-                <Text style={{ fontSize: 11, color: colors.text, fontWeight: '600', marginLeft: 4 }}>
-                  Tippen zum Vergrößern
+          {(() => {
+            const images = getFactImageUrls(fact);
+            if (images.length === 0) return null;
+            if (images.length === 1) {
+              return (
+                <TouchableOpacity
+                  delayPressIn={0}
+                  onPress={() => onImagePress(images[0])}
+                  activeOpacity={0.85}
+                  style={{ position: 'relative', marginTop: 8, marginBottom: 12 }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Bild vergrößern"
+                >
+                  <Image source={{ uri: images[0] }} style={styles.factImage} resizeMode="contain" />
+                  <View style={[styles.zoomBadge, { backgroundColor: isDark ? '#000000cc' : '#ffffffdd' }]}>
+                    <Maximize2 size={13} color={colors.text} />
+                    <Text style={{ fontSize: 11, color: colors.text, fontWeight: '600', marginLeft: 4 }}>
+                      Tippen zum Vergrößern
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            }
+
+            return (
+              <View style={{ marginTop: 10, marginBottom: 12 }}>
+                <Text style={{ fontSize: 11, color: colors.textMuted, marginBottom: 6, fontWeight: '600' }}>
+                  🖼️ {images.length} Bilder (wischen zum Durchsehen):
                 </Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
+                  {images.map((imgUrl, imgIdx) => (
+                    <TouchableOpacity
+                      key={imgIdx}
+                      delayPressIn={0}
+                      onPress={() => onImagePress(imgUrl)}
+                      activeOpacity={0.85}
+                      style={{ 
+                        position: 'relative', 
+                        width: 220, 
+                        height: 150, 
+                        borderRadius: 8, 
+                        overflow: 'hidden', 
+                        backgroundColor: isDark ? '#1f2937' : '#f1f5f9',
+                        borderWidth: 1,
+                        borderColor: colors.border
+                      }}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Bild ${imgIdx + 1} vergrößern`}
+                    >
+                      <Image source={{ uri: imgUrl }} style={{ width: '100%', height: '100%' }} resizeMode="contain" />
+                      <View style={{ position: 'absolute', bottom: 6, left: 6, backgroundColor: '#00000088', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                        <Text style={{ color: '#ffffff', fontSize: 10, fontWeight: 'bold' }}>
+                          {imgIdx + 1} / {images.length}
+                        </Text>
+                      </View>
+                      <View style={[styles.zoomBadge, { backgroundColor: isDark ? '#000000cc' : '#ffffffdd' }]}>
+                        <Maximize2 size={11} color={colors.text} />
+                        <Text style={{ fontSize: 10, color: colors.text, fontWeight: '600', marginLeft: 3 }}>
+                          Vergrößern
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
               </View>
-            </TouchableOpacity>
-          )}
+            );
+          })()}
 
           <View style={[styles.factRefBox, { backgroundColor: isDark ? '#1f293750' : '#f8fafc', borderColor: colors.border }]}>
             <Text style={[styles.factRefLabel, { color: colors.textMuted }]}>
@@ -921,7 +970,7 @@ export default function LernenScreen() {
                           </View>
                         </View>
 
-                        {isLandscapeTablet && currentFact.imageUrl ? (
+                        {isLandscapeTablet && getFactImageUrls(currentFact).length > 0 ? (
                           /* QUERFORMAT TABLET: SPLIT-LAYOUT */
                           <View style={{ flexDirection: 'row', gap: 24, alignItems: 'flex-start', marginTop: 4 }}>
                             <View style={{ flex: 1.15 }}>
@@ -943,26 +992,60 @@ export default function LernenScreen() {
                             </View>
 
                             <View style={{ flex: 0.85 }}>
-                              <TouchableOpacity
-                                delayPressIn={0}
-                                onPress={() => setPreviewImageUrl(currentFact.imageUrl!)}
-                                activeOpacity={0.85}
-                                style={{ position: 'relative' }}
-                                accessibilityRole="button"
-                                accessibilityLabel="Bild vergrößern"
-                              >
-                                <Image 
-                                  source={{ uri: currentFact.imageUrl }} 
-                                  style={[styles.largeCardImage, { height: 280 }]} 
-                                  resizeMode="contain" 
-                                />
-                                <View style={[styles.zoomBadge, { backgroundColor: isDark ? '#000000cc' : '#ffffffdd' }]}>
-                                  <Maximize2 size={13} color={colors.text} />
-                                  <Text style={{ fontSize: 11, color: colors.text, fontWeight: '600', marginLeft: 4 }}>
-                                    Tippen zum Vergrößern
-                                  </Text>
-                                </View>
-                              </TouchableOpacity>
+                              {(() => {
+                                const factImages = getFactImageUrls(currentFact);
+                                if (factImages.length === 1) {
+                                  return (
+                                    <TouchableOpacity
+                                      delayPressIn={0}
+                                      onPress={() => setPreviewImageUrl(factImages[0])}
+                                      activeOpacity={0.85}
+                                      style={{ position: 'relative' }}
+                                      accessibilityRole="button"
+                                      accessibilityLabel="Bild vergrößern"
+                                    >
+                                      <Image 
+                                        source={{ uri: factImages[0] }} 
+                                        style={[styles.largeCardImage, { height: 280 }]} 
+                                        resizeMode="contain" 
+                                      />
+                                      <View style={[styles.zoomBadge, { backgroundColor: isDark ? '#000000cc' : '#ffffffdd' }]}>
+                                        <Maximize2 size={13} color={colors.text} />
+                                        <Text style={{ fontSize: 11, color: colors.text, fontWeight: '600', marginLeft: 4 }}>
+                                          Tippen zum Vergrößern
+                                        </Text>
+                                      </View>
+                                    </TouchableOpacity>
+                                  );
+                                }
+                                return (
+                                  <View>
+                                    <Text style={{ fontSize: 12, color: colors.textMuted, marginBottom: 8, fontWeight: '600' }}>
+                                      🖼️ {factImages.length} Bilder (wischen zum Durchsehen):
+                                    </Text>
+                                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12 }}>
+                                      {factImages.map((img, idx) => (
+                                        <TouchableOpacity
+                                          key={idx}
+                                          delayPressIn={0}
+                                          onPress={() => setPreviewImageUrl(img)}
+                                          activeOpacity={0.85}
+                                          style={{ position: 'relative', width: 280, height: 260, borderRadius: 8, overflow: 'hidden', backgroundColor: isDark ? '#1f2937' : '#f1f5f9', borderWidth: 1, borderColor: colors.border }}
+                                        >
+                                          <Image source={{ uri: img }} style={{ width: '100%', height: '100%' }} resizeMode="contain" />
+                                          <View style={{ position: 'absolute', bottom: 6, left: 6, backgroundColor: '#00000088', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                                            <Text style={{ color: '#ffffff', fontSize: 10, fontWeight: 'bold' }}>{idx + 1} / {factImages.length}</Text>
+                                          </View>
+                                          <View style={[styles.zoomBadge, { backgroundColor: isDark ? '#000000cc' : '#ffffffdd' }]}>
+                                            <Maximize2 size={11} color={colors.text} />
+                                            <Text style={{ fontSize: 10, color: colors.text, fontWeight: '600', marginLeft: 3 }}>Vergrößern</Text>
+                                          </View>
+                                        </TouchableOpacity>
+                                      ))}
+                                    </ScrollView>
+                                  </View>
+                                );
+                              })()}
                             </View>
                           </View>
                         ) : (
@@ -986,28 +1069,71 @@ export default function LernenScreen() {
                               {cleanText(currentFact.content)}
                             </Text>
 
-                            {currentFact.imageUrl && (
-                              <TouchableOpacity
-                                delayPressIn={0}
-                                onPress={() => setPreviewImageUrl(currentFact.imageUrl!)}
-                                activeOpacity={0.85}
-                                style={{ position: 'relative', marginTop: 12, marginBottom: 16 }}
-                                accessibilityRole="button"
-                                accessibilityLabel="Bild vergrößern"
-                              >
-                                <Image 
-                                  source={{ uri: currentFact.imageUrl }} 
-                                  style={[styles.largeCardImage, isTablet && { height: 320 }]} 
-                                  resizeMode="contain" 
-                                />
-                                <View style={[styles.zoomBadge, { backgroundColor: isDark ? '#000000cc' : '#ffffffdd' }]}>
-                                  <Maximize2 size={13} color={colors.text} />
-                                  <Text style={{ fontSize: 11, color: colors.text, fontWeight: '600', marginLeft: 4 }}>
-                                    Tippen zum Vergrößern
+                            {(() => {
+                              const factImages = getFactImageUrls(currentFact);
+                              if (factImages.length === 0) return null;
+                              if (factImages.length === 1) {
+                                return (
+                                  <TouchableOpacity
+                                    delayPressIn={0}
+                                    onPress={() => setPreviewImageUrl(factImages[0])}
+                                    activeOpacity={0.85}
+                                    style={{ position: 'relative', marginTop: 12, marginBottom: 16 }}
+                                    accessibilityRole="button"
+                                    accessibilityLabel="Bild vergrößern"
+                                  >
+                                    <Image 
+                                      source={{ uri: factImages[0] }} 
+                                      style={[styles.largeCardImage, isTablet && { height: 320 }]} 
+                                      resizeMode="contain" 
+                                    />
+                                    <View style={[styles.zoomBadge, { backgroundColor: isDark ? '#000000cc' : '#ffffffdd' }]}>
+                                      <Maximize2 size={13} color={colors.text} />
+                                      <Text style={{ fontSize: 11, color: colors.text, fontWeight: '600', marginLeft: 4 }}>
+                                        Tippen zum Vergrößern
+                                      </Text>
+                                    </View>
+                                  </TouchableOpacity>
+                                );
+                              }
+
+                              return (
+                                <View style={{ marginTop: 14, marginBottom: 16 }}>
+                                  <Text style={{ fontSize: 12, color: colors.textMuted, marginBottom: 8, fontWeight: '600' }}>
+                                    🖼️ {factImages.length} Bilder (wischen zum Durchsehen):
                                   </Text>
+                                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12 }}>
+                                    {factImages.map((img, idx) => (
+                                      <TouchableOpacity
+                                        key={idx}
+                                        delayPressIn={0}
+                                        onPress={() => setPreviewImageUrl(img)}
+                                        activeOpacity={0.85}
+                                        style={{ 
+                                          position: 'relative', 
+                                          width: isTablet ? 340 : 260, 
+                                          height: isTablet ? 260 : 200, 
+                                          borderRadius: 8, 
+                                          overflow: 'hidden', 
+                                          backgroundColor: isDark ? '#1f2937' : '#f1f5f9',
+                                          borderWidth: 1,
+                                          borderColor: colors.border
+                                        }}
+                                      >
+                                        <Image source={{ uri: img }} style={{ width: '100%', height: '100%' }} resizeMode="contain" />
+                                        <View style={{ position: 'absolute', bottom: 6, left: 6, backgroundColor: '#00000088', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                                          <Text style={{ color: '#ffffff', fontSize: 10, fontWeight: 'bold' }}>{idx + 1} / {factImages.length}</Text>
+                                        </View>
+                                        <View style={[styles.zoomBadge, { backgroundColor: isDark ? '#000000cc' : '#ffffffdd' }]}>
+                                          <Maximize2 size={11} color={colors.text} />
+                                          <Text style={{ fontSize: 10, color: colors.text, fontWeight: '600', marginLeft: 3 }}>Vergrößern</Text>
+                                        </View>
+                                      </TouchableOpacity>
+                                    ))}
+                                  </ScrollView>
                                 </View>
-                              </TouchableOpacity>
-                            )}
+                              );
+                            })()}
 
                             <View style={[styles.factRefBox, { backgroundColor: isDark ? '#1f293750' : '#f8fafc', borderColor: colors.border, marginTop: 12 }]}>
                               <Text style={[styles.factRefLabel, { color: colors.textMuted }]}>

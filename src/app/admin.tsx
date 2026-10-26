@@ -26,7 +26,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 }
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { mockDb, Question, Category, User as DbUser, Fact, RoleDefinition, Ticket, ChatMessageReport, getQuestionCorrectIndices, CustomIconItem, ChatBanRecord, SignalSubcategory, getFactSignalSubcategory } from '../database/mockDb';
+import { mockDb, Question, Category, User as DbUser, Fact, RoleDefinition, Ticket, ChatMessageReport, getQuestionCorrectIndices, CustomIconItem, ChatBanRecord, SignalSubcategory, getFactSignalSubcategory, getFactImageUrls } from '../database/mockDb';
 import CategoryIcon, { RAILWAY_ICONS_DEF, POPULAR_LUCIDE_ICONS_DEF } from '../components/CategoryIcon';
 import { useAppTheme } from '../context/ThemeContext';
 import { useDeviceLayout } from '../hooks/useDeviceLayout';
@@ -599,6 +599,8 @@ export default function AdminScreen() {
   const [formFContent, setFormFContent] = useState('');
   const [formFReference, setFormFReference] = useState('');
   const [formFImageUrl, setFormFImageUrl] = useState('');
+  const [formFImageUrls, setFormFImageUrls] = useState<string[]>([]);
+  const [newFactImageUrlInput, setNewFactImageUrlInput] = useState('');
 
   // FORMULAR-STATES: KATEGORIEN
   const [editingCatName, setEditingCatName] = useState<string | null>(null);
@@ -1014,7 +1016,10 @@ export default function AdminScreen() {
     setFormFTitle(f.title);
     setFormFContent(f.content);
     setFormFReference(f.reference || '');
-    setFormFImageUrl(f.imageUrl || '');
+    const imgs = getFactImageUrls(f);
+    setFormFImageUrl(imgs[0] || '');
+    setFormFImageUrls(imgs);
+    setNewFactImageUrlInput('');
     setFormFIsVerified(f.isVerified ?? true);
     setFactSubTab('form');
   };
@@ -1056,6 +1061,8 @@ export default function AdminScreen() {
     setFormFContent('');
     setFormFReference('');
     setFormFImageUrl('');
+    setFormFImageUrls([]);
+    setNewFactImageUrlInput('');
     setFormFIsVerified(currentUser?.role === 'admin');
     if (categories.length > 0) {
       setFormFCategory(categories[0].name);
@@ -1088,6 +1095,8 @@ export default function AdminScreen() {
         : (existingFact?.createdByName || (existingFact?.createdBy && usersMap[existingFact.createdBy]?.name) || currentUser?.name || currentUser?.email);
       const creatorRole = isNew ? currentUser?.role : (existingFact?.creatorRole || currentUser?.role);
 
+      const allImages = formFImageUrls.length > 0 ? formFImageUrls : (formFImageUrl.trim() ? [formFImageUrl.trim()] : []);
+
       await mockDb.saveFact({
         id: editingFactId || undefined,
         category: formFCategory || (categories[0]?.name ?? 'Allgemein'),
@@ -1095,7 +1104,8 @@ export default function AdminScreen() {
         title: formFTitle.trim(),
         content: formFContent.trim(),
         reference: formFReference.trim(),
-        imageUrl: formFImageUrl.trim() || undefined,
+        imageUrl: allImages[0] || undefined,
+        imageUrls: allImages.length > 0 ? allImages : undefined,
         isVerified: shouldVerify,
         createdBy: createdBy,
         createdByName: createdByName,
@@ -1167,7 +1177,7 @@ export default function AdminScreen() {
     );
   };
 
-  // Bild aus Galerie für Lernkarte wählen
+  // Bild(er) aus Galerie für Lernkarte wählen (Mehrfachauswahl möglich)
   const handlePickFactImage = async () => {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -1177,19 +1187,60 @@ export default function AdminScreen() {
       }
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
-        allowsEditing: true,
+        allowsMultipleSelection: true,
         quality: 0.35,
         base64: true,
       });
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        const asset = result.assets[0];
-        const raw = asset.base64 ? `data:image/jpeg;base64,${asset.base64}` : asset.uri;
-        const optimizedUri = await uploadAndOptimizeImage(raw, 'content', 'facts');
-        setFormFImageUrl(optimizedUri);
+        const newUris: string[] = [];
+        for (const asset of result.assets) {
+          const raw = asset.base64 ? `data:image/jpeg;base64,${asset.base64}` : asset.uri;
+          const optimizedUri = await uploadAndOptimizeImage(raw, 'content', 'facts');
+          newUris.push(optimizedUri);
+        }
+        setFormFImageUrls(prev => {
+          const updated = [...prev, ...newUris];
+          setFormFImageUrl(updated[0] || '');
+          return updated;
+        });
       }
     } catch (e: any) {
       Alert.alert('Fehler', 'Konnte Galerie nicht öffnen: ' + (e?.message || e));
     }
+  };
+
+  const handleAddFactImageUrl = () => {
+    const val = newFactImageUrlInput.trim();
+    if (!val) return;
+    if (!val.startsWith('http://') && !val.startsWith('https://') && !val.startsWith('data:image')) {
+      Alert.alert('Ungültige URL', 'Bitte gib eine gültige Bild-URL ein (beginnend mit http:// oder https://).');
+      return;
+    }
+    setFormFImageUrls(prev => {
+      const updated = [...prev, val];
+      setFormFImageUrl(updated[0] || '');
+      return updated;
+    });
+    setNewFactImageUrlInput('');
+  };
+
+  const handleRemoveFactImage = (indexToRemove: number) => {
+    setFormFImageUrls(prev => {
+      const updated = prev.filter((_, idx) => idx !== indexToRemove);
+      setFormFImageUrl(updated[0] || '');
+      return updated;
+    });
+  };
+
+  const handleSetPrimaryFactImage = (indexToPrimary: number) => {
+    setFormFImageUrls(prev => {
+      if (indexToPrimary <= 0 || indexToPrimary >= prev.length) return prev;
+      const copy = [...prev];
+      const [item] = copy.splice(indexToPrimary, 1);
+      copy.unshift(item);
+      setFormFImageUrl(copy[0] || '');
+      return copy;
+    });
   };
 
   // Bild aus Galerie für Frage wählen
@@ -3270,22 +3321,51 @@ export default function AdminScreen() {
                                   {f.content}
                                 </Text>
 
-                                {f.imageUrl && (
-                                  <TouchableOpacity 
-                                    style={{ marginTop: 8, borderRadius: 8, overflow: 'hidden', height: 120, backgroundColor: colors.background }}
-                                    activeOpacity={0.9}
-                                    onPress={() => setAdminPreviewImage(f.imageUrl || null)}
-                                  >
-                                    <Image 
-                                      source={{ uri: f.imageUrl }} 
-                                      style={{ width: '100%', height: '100%' }} 
-                                      resizeMode="cover" 
-                                    />
-                                    <View style={{ position: 'absolute', bottom: 6, right: 6, backgroundColor: '#00000080', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
-                                      <Text style={{ color: '#fff', fontSize: 10 }}>🔍 Vergrößern</Text>
-                                    </View>
-                                  </TouchableOpacity>
-                                )}
+                                {(() => {
+                                   const images = getFactImageUrls(f);
+                                   if (images.length === 0) return null;
+                                   if (images.length === 1) {
+                                     return (
+                                       <TouchableOpacity 
+                                         style={{ marginTop: 8, borderRadius: 8, overflow: 'hidden', height: 120, backgroundColor: colors.background }}
+                                         activeOpacity={0.9}
+                                         onPress={() => setAdminPreviewImage(images[0])}
+                                       >
+                                         <Image 
+                                           source={{ uri: images[0] }} 
+                                           style={{ width: '100%', height: '100%' }} 
+                                           resizeMode="cover" 
+                                         />
+                                         <View style={{ position: 'absolute', bottom: 6, right: 6, backgroundColor: '#00000080', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                                           <Text style={{ color: '#fff', fontSize: 10 }}>🔍 Vergrößern</Text>
+                                         </View>
+                                       </TouchableOpacity>
+                                     );
+                                   }
+
+                                   return (
+                                     <View style={{ marginTop: 8 }}>
+                                       <Text style={{ fontSize: 11, color: colors.textMuted, marginBottom: 4, fontWeight: '600' }}>
+                                         🖼️ {images.length} Bilder (antippen zum Vergrößern):
+                                       </Text>
+                                       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+                                         {images.map((img, idx) => (
+                                           <TouchableOpacity
+                                             key={idx}
+                                             style={{ width: 140, height: 100, borderRadius: 8, overflow: 'hidden', backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border }}
+                                             onPress={() => setAdminPreviewImage(img)}
+                                             activeOpacity={0.85}
+                                           >
+                                             <Image source={{ uri: img }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                                             <View style={{ position: 'absolute', bottom: 4, right: 4, backgroundColor: '#00000088', paddingHorizontal: 5, paddingVertical: 1, borderRadius: 3 }}>
+                                               <Text style={{ color: '#ffffff', fontSize: 9, fontWeight: 'bold' }}>{idx + 1}/{images.length}</Text>
+                                             </View>
+                                           </TouchableOpacity>
+                                         ))}
+                                       </ScrollView>
+                                     </View>
+                                   );
+                                 })()}
 
                                 <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8, gap: 6 }}>
                                   <Bookmark size={13} color={colors.textMuted} />
@@ -3502,40 +3582,131 @@ export default function AdminScreen() {
                 />
               </View>
 
-              {/* Bild (Galerie oder URL) */}
+              {/* Fotos / Abbildungen (mehrere Bilder möglich) */}
               <View onLayout={(e) => handleFFieldLayout('image', e.nativeEvent.layout)}>
-                <Text style={[styles.formLabel, { color: colors.text, marginTop: 14 }]}>Foto / Abbildung (optional)</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 14, marginBottom: 4 }}>
+                  <Text style={[styles.formLabel, { color: colors.text, marginTop: 0, marginBottom: 0 }]}>
+                    Fotos / Abbildungen ({formFImageUrls.length})
+                  </Text>
+                  {formFImageUrls.length > 0 && (
+                    <Text style={{ fontSize: 11, color: colors.textMuted }}>
+                      Mehrere Bilder möglich
+                    </Text>
+                  )}
+                </View>
+
+                {/* AKTIONEN: FOTO AUS GALERIE ODER URL */}
                 <View style={{ flexDirection: 'row', gap: 10, marginBottom: 8 }}>
                   <TouchableOpacity
                     style={[styles.smallActionBtn, { flex: 1, backgroundColor: colors.cardBg, borderColor: colors.border, borderWidth: 1 }]}
                     onPress={handlePickFactImage}
                   >
                     <Camera size={16} color={colors.primary} style={{ marginRight: 6 }} />
-                    <Text style={{ color: colors.primary, fontWeight: 'bold', fontSize: 13 }}>Foto aus Galerie wählen</Text>
+                    <Text style={{ color: colors.primary, fontWeight: 'bold', fontSize: 13 }}>
+                      + Fotos aus Galerie wählen
+                    </Text>
                   </TouchableOpacity>
-                  {formFImageUrl.trim() !== '' && (
+                  {formFImageUrls.length > 0 && (
                     <TouchableOpacity
                       style={[styles.smallActionBtn, { backgroundColor: isDark ? '#7f1d1d' : '#fee2e2', borderColor: '#ef4444', borderWidth: 1 }]}
-                      onPress={() => setFormFImageUrl('')}
+                      onPress={() => {
+                        setFormFImageUrls([]);
+                        setFormFImageUrl('');
+                      }}
                     >
                       <Trash2 size={16} color="#ef4444" style={{ marginRight: 4 }} />
-                      <Text style={{ color: '#ef4444', fontWeight: 'bold', fontSize: 13 }}>Foto löschen</Text>
+                      <Text style={{ color: '#ef4444', fontWeight: 'bold', fontSize: 13 }}>Alle löschen</Text>
                     </TouchableOpacity>
                   )}
                 </View>
-                <TextInput
-                  style={[styles.input, { backgroundColor: colors.cardBg, color: colors.text, borderColor: colors.border }]}
-                  placeholder="Oder Bild-URL eingeben (https://...)"
-                  placeholderTextColor={colors.textMuted}
-                  value={formFImageUrl}
-                  onChangeText={setFormFImageUrl}
-                  onFocus={() => handleFieldFocus('fact', 'image', 700, 50)}
-                />
+
+                {/* URL EINGABE MIT HINZUFÜGEN-BUTTON */}
+                <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center', marginBottom: 6 }}>
+                  <TextInput
+                    style={[styles.input, { flex: 1, backgroundColor: colors.cardBg, color: colors.text, borderColor: colors.border, marginBottom: 0 }]}
+                    placeholder="Oder Bild-URL einfügen (https://...)"
+                    placeholderTextColor={colors.textMuted}
+                    value={newFactImageUrlInput}
+                    onChangeText={setNewFactImageUrlInput}
+                    onSubmitEditing={handleAddFactImageUrl}
+                    onFocus={() => handleFieldFocus('fact', 'image', 700, 50)}
+                  />
+                  {newFactImageUrlInput.trim() !== '' && (
+                    <TouchableOpacity
+                      style={{
+                        backgroundColor: colors.primary,
+                        height: 44,
+                        paddingHorizontal: 14,
+                        borderRadius: RADIUS,
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}
+                      onPress={handleAddFactImageUrl}
+                    >
+                      <Text style={{ color: '#ffffff', fontWeight: 'bold', fontSize: 13 }}>+ Hinzufügen</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
               </View>
 
-              {formFImageUrl.trim() !== '' && (
-                <View style={{ alignItems: 'center', marginTop: 8, padding: 8, backgroundColor: colors.cardBg, borderRadius: 8, borderWidth: 1, borderColor: colors.border }}>
-                  <Image source={{ uri: formFImageUrl }} style={styles.formImgPreview} resizeMode="contain" />
+              {/* BILDER-VORSCHAU / GALERIE IM FORMULAR */}
+              {formFImageUrls.length > 0 && (
+                <View style={{ marginTop: 10, marginBottom: 8 }}>
+                  <Text style={{ fontSize: 12, fontWeight: 'bold', color: colors.text, marginBottom: 8 }}>
+                    Ausgewählte Bilder ({formFImageUrls.length}):
+                  </Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
+                    {formFImageUrls.map((url, idx) => {
+                      const isPrimary = idx === 0;
+                      return (
+                        <View 
+                          key={idx}
+                          style={{
+                            width: 170,
+                            backgroundColor: colors.cardBg,
+                            borderRadius: RADIUS,
+                            borderWidth: 1.5,
+                            borderColor: isPrimary ? colors.primary : colors.border,
+                            overflow: 'hidden',
+                            padding: 6
+                          }}
+                        >
+                          <TouchableOpacity
+                            onPress={() => setAdminPreviewImage(url)}
+                            style={{ width: '100%', height: 110, borderRadius: 4, overflow: 'hidden', backgroundColor: colors.background }}
+                          >
+                            <Image source={{ uri: url }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                            <View style={{ position: 'absolute', top: 4, left: 4, backgroundColor: isPrimary ? colors.primary : '#00000088', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                              <Text style={{ color: '#ffffff', fontSize: 9, fontWeight: 'bold' }}>
+                                {isPrimary ? '★ Hauptbild' : `Bild ${idx + 1}`}
+                              </Text>
+                            </View>
+                          </TouchableOpacity>
+
+                          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 6, gap: 4 }}>
+                            {!isPrimary ? (
+                              <TouchableOpacity
+                                style={{ flex: 1, backgroundColor: colors.primary + '18', paddingVertical: 4, borderRadius: 4, alignItems: 'center' }}
+                                onPress={() => handleSetPrimaryFactImage(idx)}
+                              >
+                                <Text style={{ color: colors.primary, fontSize: 10, fontWeight: 'bold' }}>Als Hauptbild</Text>
+                              </TouchableOpacity>
+                            ) : (
+                              <View style={{ flex: 1 }}>
+                                <Text style={{ fontSize: 10, color: colors.primary, fontWeight: 'bold' }}>Titelbild</Text>
+                              </View>
+                            )}
+                            <TouchableOpacity
+                              style={{ backgroundColor: '#ef444420', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4, alignItems: 'center', justifyContent: 'center' }}
+                              onPress={() => handleRemoveFactImage(idx)}
+                            >
+                              <Trash2 size={12} color="#ef4444" />
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                      );
+                    })}
+                  </ScrollView>
                 </View>
               )}
 
