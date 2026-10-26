@@ -15,7 +15,7 @@ import {
   type ScrollViewInstance,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { mockDb, Question, Category, User, Fact, SignalSubcategory, getFactSignalSubcategory } from '../database/mockDb';
+import { mockDb, Question, Category, User, Fact, SignalSubcategory, getFactSignalSubcategory, sortSignalFacts } from '../database/mockDb';
 import { useAppTheme } from '../context/ThemeContext';
 import * as Icons from 'lucide-react-native';
 import CategoryIcon from '../components/CategoryIcon';
@@ -231,7 +231,7 @@ export default function LernenScreen() {
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [createFactModalVisible, setCreateFactModalVisible] = useState(false);
 
-  const categoryFacts = selectedCategory
+  const rawCategoryFacts = selectedCategory
     ? facts.filter(f => {
         if (f.isVerified !== true || f.category !== selectedCategory) return false;
         if (selectedCategory === 'Signale' && selectedSignalSubcategory && selectedSignalSubcategory !== 'all') {
@@ -240,6 +240,9 @@ export default function LernenScreen() {
         return true;
       })
     : [];
+  const categoryFacts = selectedCategory === 'Signale'
+    ? sortSignalFacts(rawCategoryFacts, selectedSignalSubcategory && selectedSignalSubcategory !== 'all' ? selectedSignalSubcategory : undefined)
+    : rawCategoryFacts;
   const categoryFavorites = categoryFacts.filter(f => favoriteFactIds.includes(f.id));
   const categoryFavCount = categoryFavorites.length;
   const displayedListFacts = favoritesOnly ? categoryFavorites : categoryFacts;

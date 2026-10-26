@@ -530,30 +530,137 @@ export function getFactSignalSubcategory(fact: Partial<Fact>): string {
     return fact.subcategory.trim();
   }
   const t = (fact.title || '').toLowerCase();
-  if (t.includes('hp ') || t.includes('ks ') || t.includes('hl-') || t.includes('sv-') || t.includes('hauptsignal')) {
-    return 'Hauptsignale';
+  if (/\b(ne\s*\d+[a-z]?|nebensignal)\b/i.test(t)) {
+    return 'Nebensignale';
   }
-  if (t.includes('vr ') || t.includes('vorsignal')) {
-    return 'Vorsignale';
-  }
-  if (t.includes('zs ') || t.includes('zusatzsignal')) {
-    return 'Zusatzsignale';
-  }
-  if (t.includes('sh ') || t.includes('ra ') || t.includes('sperrsignal') || t.includes('schutzsignal') || t.includes('rangiersignal')) {
-    return 'Sperr- & Schutzsignale';
-  }
-  if (t.includes('wn ') || t.includes('weichensignal')) {
+  if (/\b(wn\s*\d+[a-z]?|weichensignal)\b/i.test(t)) {
     return 'Weichensignale';
   }
-  if (t.includes('ne ') || t.includes('nebensignal')) {
-    return 'Nebensignale';
+  if (/\b(zs\s*\d+[a-z]?|zusatzsignal)\b/i.test(t)) {
+    return 'Zusatzsignale';
+  }
+  if (/\b(sh\s*\d+[a-z]?|ra\s*\d+[a-z]?|sperrsignal|schutzsignal|rangiersignal)\b/i.test(t)) {
+    return 'Sperr- & Schutzsignale';
+  }
+  if (/\b(hp\s*\d+[a-z]?|ks\s*\d+[a-z]?|hl\s*\d+[a-z]?|hl-|sv\s*\d+[a-z]?|sv-|hauptsignal)\b/i.test(t)) {
+    return 'Hauptsignale';
+  }
+  if (/\b(vr\s*\d+[a-z]?|vorsignal)\b/i.test(t)) {
+    return 'Vorsignale';
   }
   return 'Sonstige Signale';
 }
 
+export interface SignalSortKey {
+  hasCode: boolean;
+  prefix: string;
+  num: number;
+  suffix: string;
+  title: string;
+}
+
+/**
+ * Extrahiert den Sortierschlüssel aus einem Signal-Fakt (z. B. Zs 1 -> { prefix: 'zs', num: 1 }).
+ */
+export function extractSignalSortKey(fact: Partial<Fact>, subcategory?: string): SignalSortKey {
+  const text = (fact.title || '').trim();
+
+  const subMap: Record<string, RegExp> = {
+    'Zusatzsignale': /\b(zs)\s*(\d+)\s*([a-zA-Z]?)/i,
+    'Hauptsignale': /\b(hp|ks|hl|sv)\s*(\d+)\s*([a-zA-Z]?)/i,
+    'Vorsignale': /\b(vr|ks)\s*(\d+)\s*([a-zA-Z]?)/i,
+    'Sperr- & Schutzsignale': /\b(sh|ra)\s*(\d+)\s*([a-zA-Z]?)/i,
+    'Weichensignale': /\b(wn)\s*(\d+)\s*([a-zA-Z]?)/i,
+    'Nebensignale': /\b(ne)\s*(\d+)\s*([a-zA-Z]?)/i,
+    'Sonstige Signale': /\b(b[üu]e?|lf|ts|zg|zp|so)\s*(\d+)\s*([a-zA-Z]?)/i,
+  };
+
+  const specificRegex = subcategory ? subMap[subcategory] : null;
+  if (specificRegex) {
+    const m = text.match(specificRegex);
+    if (m) {
+      return {
+        hasCode: true,
+        prefix: m[1].toLowerCase(),
+        num: parseInt(m[2], 10),
+        suffix: (m[3] || '').toLowerCase(),
+        title: text,
+      };
+    }
+  }
+
+  // Allgemeiner Signalbegriff: z.B. 'Zs 1', 'Hp 0', 'Wn 1'
+  const genMatch = text.match(/\b([A-ZÄÖÜa-zäöü]{1,4})\s*(\d+)\s*([a-zA-Z]?)\b/);
+  if (genMatch) {
+    return {
+      hasCode: true,
+      prefix: genMatch[1].toLowerCase(),
+      num: parseInt(genMatch[2], 10),
+      suffix: (genMatch[3] || '').toLowerCase(),
+      title: text,
+    };
+  }
+
+  // Beliebige Zahl im Titel
+  const anyNumInTitle = text.match(/\b(\d+)\b/);
+  if (anyNumInTitle) {
+    return {
+      hasCode: false,
+      prefix: 'zzz',
+      num: parseInt(anyNumInTitle[1], 10),
+      suffix: '',
+      title: text,
+    };
+  }
+
+  return {
+    hasCode: false,
+    prefix: 'zzz',
+    num: 999999,
+    suffix: '',
+    title: text,
+  };
+}
+
+/**
+ * Vergleicht zwei Signal-Fakten basierend auf ihrer Signalnummerierung (z.B. Zs 1 vor Zs 2 vor Zs 3).
+ */
+export function compareSignalFacts(a: Partial<Fact>, b: Partial<Fact>, subcategory?: string): number {
+  const ka = extractSignalSortKey(a, subcategory);
+  const kb = extractSignalSortKey(b, subcategory);
+
+  // In Sperr- & Schutzsignale: Sh-Signale vor Ra-Signalen
+  if (subcategory === 'Sperr- & Schutzsignale') {
+    if (ka.prefix === 'sh' && kb.prefix === 'ra') return -1;
+    if (ka.prefix === 'ra' && kb.prefix === 'sh') return 1;
+  }
+
+  if (ka.hasCode && kb.hasCode) {
+    if (ka.prefix === kb.prefix) {
+      if (ka.num !== kb.num) return ka.num - kb.num;
+      if (ka.suffix !== kb.suffix) return ka.suffix.localeCompare(kb.suffix, 'de');
+      return ka.title.localeCompare(kb.title, 'de');
+    }
+    return ka.prefix.localeCompare(kb.prefix, 'de');
+  }
+
+  if (ka.hasCode && !kb.hasCode) return -1;
+  if (!ka.hasCode && kb.hasCode) return 1;
+
+  if (ka.num !== kb.num) return ka.num - kb.num;
+  return ka.title.localeCompare(kb.title, 'de');
+}
+
+/**
+ * Sortiert ein Array von Fakten automatisch nach der Zahl der Signalbedeutung.
+ */
+export function sortSignalFacts<T extends Partial<Fact>>(facts: T[], subcategory?: string): T[] {
+  return [...facts].sort((a, b) => compareSignalFacts(a, b, subcategory));
+}
+
 // Initialdaten für Fakten (inkl. VDV-Schrift 757 & Regelwerke)
 const INITIAL_FACTS: Fact[] = [
-  ...(quizletSignals as unknown as Fact[]),
+  ...sortSignalFacts(quizletSignals as unknown as Fact[]),
   ...(anlage5Cards as unknown as Fact[]),
   ...(bremsprobeCards as unknown as Fact[]),
   // --- VDV-SCHRIFT 757: BREMSEN & BREMSPROBEN ---

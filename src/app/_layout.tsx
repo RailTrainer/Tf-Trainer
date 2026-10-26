@@ -38,8 +38,11 @@ import {
   CheckCheck,
   Inbox,
   Archive,
-  GraduationCap
+  GraduationCap,
+  Download
 } from 'lucide-react-native';
+import { ConfirmDialog } from '../components/ui/ConfirmDialog';
+import { checkAppStoreUpdate, openAppStore, type AppStoreUpdateInfo } from '../services/appStoreUpdateService';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { mockDb, User, RoleDefinition, NewsItem } from '../database/mockDb';
 import AuthScreen from '../components/AuthScreen';
@@ -1075,6 +1078,7 @@ function MainAppLayout() {
   const [readNewsIds, setReadNewsIds] = useState<string[]>([]);
   const [newsModalVisible, setNewsModalVisible] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [storeUpdateInfo, setStoreUpdateInfo] = useState<AppStoreUpdateInfo | null>(null);
 
   // Farben konfigurieren
   const activeColor = themeColors.primary;
@@ -1225,10 +1229,47 @@ function MainAppLayout() {
 
     requestNotificationPermissions();
     checkData();
+    // Automatische Prüfung auf App Store / Google Play Store Update beim Start
+    async function checkStoreUpdate() {
+      try {
+        const update = await checkAppStoreUpdate();
+        if (update?.isAvailable) {
+          setStoreUpdateInfo(update);
+        }
+      } catch (e) {
+        console.log('[StoreUpdate] Check error:', e);
+      }
+    }
+
     checkOtaUpdate();
+    checkStoreUpdate();
     const interval = setInterval(checkData, 30000);
     return () => clearInterval(interval);
   }, []);
+
+  const renderUpdateDialog = () => (
+    <ConfirmDialog
+      visible={!!storeUpdateInfo}
+      title="Update verfügbar"
+      message={
+        storeUpdateInfo
+          ? `Eine neue Version (${storeUpdateInfo.storeVersion}) von Tf-Trainer ist im ${storeUpdateInfo.storeName} verfügbar.\n\nDeine installierte Version: ${storeUpdateInfo.currentVersion}\n\nMöchtest du die App jetzt aktualisieren?`
+          : ''
+      }
+      confirmTitle="Jetzt aktualisieren"
+      confirmIcon={Download}
+      cancelTitle="Später"
+      onConfirm={async () => {
+        if (storeUpdateInfo?.storeUrl) {
+          await openAppStore(storeUpdateInfo.storeUrl);
+        }
+        setStoreUpdateInfo(null);
+      }}
+      onCancel={() => {
+        setStoreUpdateInfo(null);
+      }}
+    />
+  );
 
   if (loading) {
     return (
@@ -1241,18 +1282,21 @@ function MainAppLayout() {
   // Falls nicht eingeloggt, Login/Registrierung vorschalten
   if (!currentUser) {
     return (
-      <AuthScreen 
-        onLoginSuccess={async (loggedInUser) => {
-          if (loggedInUser && typeof loggedInUser === 'object') {
-            if (Platform.OS === 'web') {
-              const validated = await mockDb.validateWebAccessAuthoritative(loggedInUser);
-              setCurrentUser(validated || loggedInUser);
-            } else {
-              setCurrentUser(loggedInUser);
+      <>
+        <AuthScreen 
+          onLoginSuccess={async (loggedInUser) => {
+            if (loggedInUser && typeof loggedInUser === 'object') {
+              if (Platform.OS === 'web') {
+                const validated = await mockDb.validateWebAccessAuthoritative(loggedInUser);
+                setCurrentUser(validated || loggedInUser);
+              } else {
+                setCurrentUser(loggedInUser);
+              }
             }
-          }
-        }} 
-      />
+          }} 
+        />
+        {renderUpdateDialog()}
+      </>
     );
   }
 
