@@ -260,7 +260,7 @@ export default function QuizScreen() {
   const [quizQuestions, setQuizQuestions] = useState<Question[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [userAnswers, setUserAnswers] = useState<{ [questionIndex: number]: number[] }>({});
-  const [pendingMultiSelection, setPendingMultiSelection] = useState<number[]>([]);
+  const [selectedAnswersByQuestion, setSelectedAnswersByQuestion] = useState<{ [questionIndex: number]: number[] }>({});
   const [orderSelections, setOrderSelections] = useState<{ [questionIndex: number]: number[] }>({});
   const [timeLeft, setTimeLeft] = useState(0); // in seconds
   const [isDragging, setIsDragging] = useState(false);
@@ -277,7 +277,7 @@ export default function QuizScreen() {
         if (timerRef.current) clearInterval(timerRef.current);
         setQuizStatus('setup');
         setUserAnswers({});
-        setPendingMultiSelection([]);
+        setSelectedAnswersByQuestion({});
         setOrderSelections({});
         setCurrentQuestionIndex(0);
       }
@@ -315,10 +315,7 @@ export default function QuizScreen() {
     }
   }, [quizStatus]);
 
-  useEffect(() => {
-    const current = userAnswers[currentQuestionIndex] || [];
-    setPendingMultiSelection(prev => (prev === current || (prev.length === 0 && current.length === 0) ? prev : current));
-  }, [currentQuestionIndex, userAnswers]);
+
 
   useEffect(() => {
     const currentQ = quizQuestions[currentQuestionIndex];
@@ -377,7 +374,7 @@ export default function QuizScreen() {
     setQuizQuestions(pool);
     setCurrentQuestionIndex(0);
     setUserAnswers({});
-    setPendingMultiSelection([]);
+    setSelectedAnswersByQuestion({});
     setOrderSelections({});
     setTimeLeft(timeLimitMinutes * 60);
     setQuizStatus('active');
@@ -385,21 +382,34 @@ export default function QuizScreen() {
 
   const handleSelectOption = (index: number) => {
     if (userAnswers[currentQuestionIndex] !== undefined) return;
-    
-    setPendingMultiSelection(prev => {
-      if (prev.includes(index)) {
-        return prev.filter(i => i !== index);
+
+    const currentQ = quizQuestions[currentQuestionIndex];
+    const correctIndices = getQuestionCorrectIndices(currentQ);
+    const isMulti = correctIndices.length > 1;
+
+    setSelectedAnswersByQuestion(prev => {
+      const existing = prev[currentQuestionIndex] || [];
+      let updated: number[];
+      if (!isMulti) {
+        updated = [index];
+      } else if (existing.includes(index)) {
+        updated = existing.filter(i => i !== index);
       } else {
-        return [...prev, index];
+        updated = [...existing, index];
       }
+      return {
+        ...prev,
+        [currentQuestionIndex]: updated
+      };
     });
   };
 
   const handleConfirmSelection = () => {
-    if (pendingMultiSelection.length === 0) return;
+    const currentSelections = selectedAnswersByQuestion[currentQuestionIndex] || [];
+    if (currentSelections.length === 0) return;
     setUserAnswers(prev => ({
       ...prev,
-      [currentQuestionIndex]: pendingMultiSelection
+      [currentQuestionIndex]: currentSelections
     }));
   };
 
@@ -478,18 +488,14 @@ export default function QuizScreen() {
 
   const handleNextQuestion = () => {
     if (currentQuestionIndex < quizQuestions.length - 1) {
-      const nextIdx = currentQuestionIndex + 1;
-      setCurrentQuestionIndex(nextIdx);
-      setPendingMultiSelection(userAnswers[nextIdx] || []);
+      setCurrentQuestionIndex(prev => prev + 1);
       quizScrollRef.current?.scrollTo({ y: 0, animated: false });
     }
   };
 
   const handlePrevQuestion = () => {
     if (currentQuestionIndex > 0) {
-      const prevIdx = currentQuestionIndex - 1;
-      setCurrentQuestionIndex(prevIdx);
-      setPendingMultiSelection(userAnswers[prevIdx] || []);
+      setCurrentQuestionIndex(prev => prev - 1);
       quizScrollRef.current?.scrollTo({ y: 0, animated: false });
     }
   };
@@ -941,9 +947,9 @@ export default function QuizScreen() {
                             <View style={styles.optionsContainer}>
                               {currentQ?.options.map((option, oIndex) => {
                                 const hasAnswered = userAnswers[currentQuestionIndex] !== undefined;
-                                const selectedAnswers = hasAnswered 
-                                  ? (userAnswers[currentQuestionIndex] || []) 
-                                  : pendingMultiSelection;
+                                const selectedAnswers = (hasAnswered 
+                                  ? userAnswers[currentQuestionIndex] 
+                                  : selectedAnswersByQuestion[currentQuestionIndex]) || [];
 
                                 const isSelected = selectedAnswers.includes(oIndex);
                                 const isCorrectAnswer = correctIndices.includes(oIndex);
@@ -1030,6 +1036,11 @@ export default function QuizScreen() {
                                     ]}>
                                       {cleanText(option)}
                                     </Text>
+                                    {hasAnswered && isSelected && (
+                                      <View style={{ backgroundColor: isCorrectAnswer ? '#10b98125' : '#ef444425', borderColor: isCorrectAnswer ? '#10b981' : '#ef4444', borderWidth: 1, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginRight: 4 }}>
+                                        <Text style={{ fontSize: 10, fontWeight: '700', color: isCorrectAnswer ? '#10b981' : '#ef4444' }}>Eingeloggt</Text>
+                                      </View>
+                                    )}
                                     {hasAnswered && isDangerOption && (
                                       <View style={{ backgroundColor: '#ef444420', borderColor: '#ef4444', borderWidth: 1, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginRight: 4, flexDirection: 'row', alignItems: 'center', gap: 2 }}>
                                         <AlertTriangle size={11} color="#ef4444" />
@@ -1042,21 +1053,24 @@ export default function QuizScreen() {
                               })}
                             </View>
 
-                            {/* ANTWORT BESTÄTIGEN BUTTON */}
-                            {userAnswers[currentQuestionIndex] === undefined && (
-                              <Button
-                                variant="primary"
-                                icon={CheckCircle2}
-                                title={
-                                  pendingMultiSelection.length > 0 
-                                    ? (pendingMultiSelection.length === 1 ? 'Antwort bestätigen' : `Antworten bestätigen (${pendingMultiSelection.length} gewählt)`) 
-                                    : 'Antwort(en) auswählen'
-                                }
-                                disabled={pendingMultiSelection.length === 0}
-                                onPress={handleConfirmSelection}
-                                style={{ marginTop: 14 }}
-                              />
-                            )}
+                            {/* ANTWORT BESTÄTIGEN / EINLOGGEN BUTTON */}
+                            {userAnswers[currentQuestionIndex] === undefined && (() => {
+                              const currentPending = selectedAnswersByQuestion[currentQuestionIndex] || [];
+                              return (
+                                <Button
+                                  variant="primary"
+                                  icon={CheckCircle2}
+                                  title={
+                                    currentPending.length > 0 
+                                      ? (currentPending.length === 1 ? 'Antwort einloggen' : `Antworten einloggen (${currentPending.length} gewählt)`) 
+                                      : 'Antwort(en) auswählen'
+                                  }
+                                  disabled={currentPending.length === 0}
+                                  onPress={handleConfirmSelection}
+                                  style={{ marginTop: 14 }}
+                                />
+                              );
+                            })()}
                           </>
                         )}
 
