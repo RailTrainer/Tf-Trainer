@@ -5636,15 +5636,47 @@ export default function AdminScreen() {
                             ]}
                           >
                             {/* SCORE HEADER */}
-                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: colors.border }}>
-                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
-                                <AlertTriangle size={16} color={p.score >= 90 ? '#ef4444' : '#f59e0b'} />
-                                <Text style={{ fontWeight: 'bold', color: p.score >= 90 ? '#ef4444' : '#f59e0b', fontSize: 12, flex: 1 }}>
-                                  {p.score}% Ähnlichkeit • {p.reason}
-                                </Text>
+                            <View style={{ marginBottom: 10, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+                              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+                                  <AlertTriangle size={16} color={p.score >= 90 ? '#ef4444' : '#f59e0b'} />
+                                  <Text style={{ fontWeight: 'bold', color: p.score >= 90 ? '#ef4444' : '#f59e0b', fontSize: 13, flex: 1 }}>
+                                    {p.score}% Ähnlichkeit • {p.reason}
+                                  </Text>
+                                </View>
+                                <View style={[styles.badge, { backgroundColor: colors.background }]}>
+                                  <Text style={{ color: colors.primary, fontSize: 11, fontWeight: 'bold' }}>{p.question1.category}</Text>
+                                </View>
                               </View>
-                              <View style={[styles.badge, { backgroundColor: colors.background }]}>
-                                <Text style={{ color: colors.primary, fontSize: 11, fontWeight: 'bold' }}>{p.question1.category}</Text>
+
+                              {/* DETAIL-METRIKEN: FRAGENTEXT VS ANTWORTEN VS LÖSUNG */}
+                              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 2 }}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.background, paddingHorizontal: 7, paddingVertical: 3, borderRadius: 4, borderWidth: 1, borderColor: colors.border }}>
+                                  <Text style={{ fontSize: 10, color: colors.textMuted }}>Fragentext:</Text>
+                                  <Text style={{ fontSize: 10, fontWeight: 'bold', color: colors.text }}>{p.textScore}%</Text>
+                                </View>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.background, paddingHorizontal: 7, paddingVertical: 3, borderRadius: 4, borderWidth: 1, borderColor: colors.border }}>
+                                  <Text style={{ fontSize: 10, color: colors.textMuted }}>Antworten:</Text>
+                                  <Text style={{ fontSize: 10, fontWeight: 'bold', color: colors.text }}>{p.optionsScore}%</Text>
+                                </View>
+                                {p.correctAnswerScore !== undefined && (
+                                  <View style={{ 
+                                    flexDirection: 'row', 
+                                    alignItems: 'center', 
+                                    gap: 4, 
+                                    backgroundColor: p.sameCorrectAnswer ? '#10b98115' : '#ef444415', 
+                                    paddingHorizontal: 7, 
+                                    paddingVertical: 3, 
+                                    borderRadius: 4, 
+                                    borderWidth: 1, 
+                                    borderColor: p.sameCorrectAnswer ? '#10b98150' : '#ef444450' 
+                                  }}>
+                                    <Text style={{ fontSize: 10, color: p.sameCorrectAnswer ? '#10b981' : '#ef4444' }}>Lösung:</Text>
+                                    <Text style={{ fontSize: 10, fontWeight: 'bold', color: p.sameCorrectAnswer ? '#10b981' : '#ef4444' }}>
+                                      {p.sameCorrectAnswer ? 'Gleiche Lösung ✓' : `${p.correctAnswerScore}%`}
+                                    </Text>
+                                  </View>
+                                )}
                               </View>
                             </View>
 

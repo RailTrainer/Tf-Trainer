@@ -202,54 +202,176 @@ export function computeTextSimilarity(a: string, b: string): number {
  * Prüft zwei Mengen von Antwortoptionen auf Ähnlichkeit.
  * Berücksichtigt permutierte Reihenfolgen und leicht abweichende Formulierungen.
  */
-export function computeOptionsSimilarity(optionsA?: string[], optionsB?: string[]): number {
+/**
+ * Extrahiert den bereinigten Text aller als richtig markierten Antworten einer Frage.
+ */
+export function getCorrectAnswerTexts(q: Partial<Question>): string[] {
+  const options = q.options || [];
+  if (options.length === 0) return [];
+
+  const rawIndices: number[] = [];
+  if (Array.isArray(q.correctIndices) && q.correctIndices.length > 0) {
+    rawIndices.push(...q.correctIndices);
+  } else if (Array.isArray(q.correct_indices) && q.correct_indices.length > 0) {
+    rawIndices.push(...q.correct_indices);
+  } else if (typeof q.correctIndex === 'number' && q.correctIndex >= 0) {
+    rawIndices.push(q.correctIndex);
+  }
+
+  const validIndices = Array.from(new Set(rawIndices)).filter(i => i >= 0 && i < options.length);
+  return validIndices.map(i => (options[i] || '').trim()).filter(t => t.length > 0);
+}
+
+/**
+ * Vergleicht die korrekten Antworten zweier Fragen (Reihenfolge-unabhängig).
+ * Gibt 1.0 bei identischer Lösung, ~0.8 bei fast identischer Formulierung
+ * und 0.0 bis 0.3 bei grundverschiedenen Lösungen zurück.
+ * Gibt null zurück, wenn mindestens eine Frage noch keine festgelegte Lösung hat.
+ */
+export function computeCorrectAnswersSimilarity(q1: Partial<Question>, q2: Partial<Question>): number | null {
+  const correct1 = getCorrectAnswerTexts(q1);
+  const correct2 = getCorrectAnswerTexts(q2);
+
+  if (correct1.length === 0 || correct2.length === 0) {
+    return null;
+  }
+
+  const norm1 = correct1.map(c => normalizeText(c)).filter(Boolean);
+  const norm2 = correct2.map(c => normalizeText(c)).filter(Boolean);
+  if (norm1.length === 0 || norm2.length === 0) return null;
+
+  // 1. Exakt-Mengenvergleich
+  const set2 = new Set(norm2);
+  let exactCount = 0;
+  for (const c of norm1) {
+    if (set2.has(c)) exactCount++;
+  }
+  if (exactCount === norm1.length && norm1.length === norm2.length) {
+    return 1.0;
+  }
+
+  // 2. Beidseitiger Ähnlichkeitsvergleich (Bidirektional)
+  let sum1to2 = 0;
+  for (const c1 of norm1) {
+    let best = 0;
+    for (const c2 of norm2) {
+      const s = computeTextSimilarity(c1, c2);
+      if (s > best) best = s;
+      if (best >= 0.95) break;
+    }
+    sum1to2 += best;
+  }
+
+  let sum2to1 = 0;
+  for (const c2 of norm2) {
+    let best = 0;
+    for (const c1 of norm1) {
+      const s = computeTextSimilarity(c2, c1);
+      if (s > best) best = s;
+      if (best >= 0.95) break;
+    }
+    sum2to1 += best;
+  }
+
+  const score1 = sum1to2 / norm1.length;
+  const score2 = sum2to1 / norm2.length;
+  return (score1 + score2) / 2;
+}
+
+export interface OptionsComparisonDetail {
+  score: number;
+  exactMatchesCount: number;
+  strongMatchesCount: number;
+  isTrivial: boolean;
+}
+
+/**
+ * Detaillierter Vergleich zweier Mengen von Antwortoptionen.
+ */
+export function compareOptionsDetail(optionsA?: string[], optionsB?: string[]): OptionsComparisonDetail {
   const cleanA = (optionsA || []).map(o => normalizeText(o)).filter(o => o.length > 0);
   const cleanB = (optionsB || []).map(o => normalizeText(o)).filter(o => o.length > 0);
 
-  if (cleanA.length === 0 || cleanB.length === 0) return 0.0;
-
-  // Trivial-Check: Sind es nur Standard-Optionen wie "Ja" / "Nein" oder "Wahr" / "Falsch"?
-  const isTrivial = (opts: string[]) => {
-    return opts.length <= 2 && opts.every(o => ['ja', 'nein', 'wahr', 'falsch', 'richtig'].includes(o));
-  };
-  if (isTrivial(cleanA) && isTrivial(cleanB)) {
-    return 0.1; // Nicht als Duplikatkriterium werten
+  if (cleanA.length === 0 || cleanB.length === 0) {
+    return { score: 0, exactMatchesCount: 0, strongMatchesCount: 0, isTrivial: false };
   }
 
-  // 1. Blitzschneller Exakt-Vergleich (Spart bis zu 16 Textvergleiche bei identischen Optionen)
+  // Trivial-Check: Sind es nur Standard-Optionen wie "Ja" / "Nein" oder "Wahr" / "Falsch"?
+  const checkTrivial = (opts: string[]) => {
+    return opts.length <= 2 && opts.every(o => ['ja', 'nein', 'wahr', 'falsch', 'richtig'].includes(o));
+  };
+  const isTrivial = checkTrivial(cleanA) && checkTrivial(cleanB);
+  if (isTrivial) {
+    return { score: 0.1, exactMatchesCount: 0, strongMatchesCount: 0, isTrivial: true };
+  }
+
+  // 1. Blitzschneller Exakt-Vergleich (Reihenfolge-unabhängig)
   const setB = new Set(cleanB);
   let exactMatches = 0;
   for (const optA of cleanA) {
     if (setB.has(optA)) exactMatches++;
   }
   if (exactMatches === cleanA.length && cleanA.length === cleanB.length) {
-    return 1.0;
+    return { score: 1.0, exactMatchesCount: exactMatches, strongMatchesCount: exactMatches, isTrivial: false };
   }
 
-  // Finde für jede Option in A die ähnlichste Option in B
-  let totalMatchScore = 0;
-  let strongMatches = 0;
-
+  // 2. Beidseitiger Ähnlichkeitsvergleich (Bidirektional: A -> B und B -> A)
+  let sumA = 0;
+  let strongA = 0;
   for (const optA of cleanA) {
     if (setB.has(optA)) {
-      totalMatchScore += 1.0;
-      strongMatches++;
+      sumA += 1.0;
+      strongA++;
       continue;
     }
-    let bestMatch = 0;
+    let best = 0;
     for (const optB of cleanB) {
       const sim = computeTextSimilarity(optA, optB);
-      if (sim > bestMatch) bestMatch = sim;
-      if (bestMatch >= 0.95) break; // Frühzeitiger Abbruch bei Fast-Identität
+      if (sim > best) best = sim;
+      if (best >= 0.95) break;
     }
-    totalMatchScore += bestMatch;
-    if (bestMatch >= 0.8) strongMatches++;
+    sumA += best;
+    if (best >= 0.8) strongA++;
   }
 
-  const avgMatch = totalMatchScore / cleanA.length;
-  const matchRatio = strongMatches / Math.max(cleanA.length, cleanB.length);
+  const setA = new Set(cleanA);
+  let sumB = 0;
+  let strongB = 0;
+  for (const optB of cleanB) {
+    if (setA.has(optB)) {
+      sumB += 1.0;
+      strongB++;
+      continue;
+    }
+    let best = 0;
+    for (const optA of cleanA) {
+      const sim = computeTextSimilarity(optB, optA);
+      if (sim > best) best = sim;
+      if (best >= 0.95) break;
+    }
+    sumB += best;
+    if (best >= 0.8) strongB++;
+  }
 
-  return (avgMatch * 0.6) + (matchRatio * 0.4);
+  const avgMatchA = sumA / cleanA.length;
+  const avgMatchB = sumB / cleanB.length;
+  const matchRatio = Math.min(strongA, strongB) / Math.max(cleanA.length, cleanB.length);
+  const rawScore = ((avgMatchA + avgMatchB) / 2) * 0.65 + (matchRatio * 0.35);
+
+  return {
+    score: Math.min(1.0, Math.max(0, rawScore)),
+    exactMatchesCount: exactMatches,
+    strongMatchesCount: Math.min(strongA, strongB),
+    isTrivial: false
+  };
+}
+
+/**
+ * Prüft zwei Mengen von Antwortoptionen auf Ähnlichkeit (0.0 bis 1.0).
+ * Berücksichtigt permutierte Reihenfolgen und leicht abweichende Formulierungen.
+ */
+export function computeOptionsSimilarity(optionsA?: string[], optionsB?: string[]): number {
+  return compareOptionsDetail(optionsA, optionsB).score;
 }
 
 export interface DuplicateQuestionPair {
@@ -261,6 +383,8 @@ export interface DuplicateQuestionPair {
   reason: string;
   textScore: number;
   optionsScore: number;
+  correctAnswerScore?: number;
+  sameCorrectAnswer?: boolean;
   categoryMatch: boolean;
 }
 
@@ -284,57 +408,97 @@ export function getPairKey(idA: string, idB: string): string {
 }
 
 /**
- * Prüft zwei Fragen im Detail auf Ähnlichkeit.
+ * Prüft zwei Fragen im Detail auf Ähnlichkeit unter genauer Berücksichtigung von
+ * Fragentext, Antwortoptionen und Lösungsübereinstimmung.
  */
 export function checkQuestionSimilarity(
   q1: Partial<Question>,
   q2: Partial<Question>
-): { isSimilar: boolean; score: number; reason: string; textScore: number; optionsScore: number } {
-  const textScore = computeTextSimilarity(q1.text || '', q2.text || '');
-  const optionsScore = computeOptionsSimilarity(q1.options, q2.options);
+): { 
+  isSimilar: boolean; 
+  score: number; 
+  reason: string; 
+  textScore: number; 
+  optionsScore: number;
+  correctAnswerScore?: number;
+  sameCorrectAnswer?: boolean;
+} {
+  const textScoreNum = computeTextSimilarity(q1.text || '', q2.text || '');
+  const optDetail = compareOptionsDetail(q1.options, q2.options);
+  const optionsScoreNum = optDetail.score;
+  const correctSim = computeCorrectAnswersSimilarity(q1, q2);
   const categoryMatch = Boolean(q1.category && q2.category && q1.category.toLowerCase() === q2.category.toLowerCase());
+
+  const textScore = Math.round(textScoreNum * 100);
+  const optionsScore = Math.round(optionsScoreNum * 100);
+  const correctAnswerScore = correctSim !== null ? Math.round(correctSim * 100) : undefined;
+  const sameCorrectAnswer = correctSim !== null ? (correctSim >= 0.85) : undefined;
 
   let isSimilar = false;
   let reason = '';
   let finalScore = 0;
 
-  // Fall 1: Exakter oder nahezu identischer Fragentext
-  if (textScore >= 0.82) {
+  // Schutz vor Falsch-Positiven (z.B. Zs 1 vs Zs 2):
+  // Wenn Fragentext zwar ähnlich klingt, aber die Antwortoptionen und Lösungen komplett verschieden sind (< 20%)
+  const hasSubstantialOptions = (q1.options || []).length >= 2 && (q2.options || []).length >= 2 && !optDetail.isTrivial;
+  const conflictingAnswers = hasSubstantialOptions && optionsScoreNum < 0.20 && (correctSim === null || correctSim < 0.25);
+
+  // Fall 1: Perfektes oder fast perfektes Duplikat (Fragentext & Antworten stimmen stark überein)
+  if (textScoreNum >= 0.85 && optionsScoreNum >= 0.80) {
     isSimilar = true;
-    finalScore = Math.round(textScore * 100);
-    reason = `Fragentext zu ${finalScore}% übereinstimmend`;
+    finalScore = Math.round((textScoreNum * 0.45 + optionsScoreNum * 0.45 + (correctSim ?? 1.0) * 0.10) * 100);
+    reason = `Frage (${textScore}%) & Antworten (${optionsScore}%) nahezu identisch${sameCorrectAnswer ? ' (gleiche Lösung)' : ''}`;
   }
-  // Fall 2: Hohe Text-Ähnlichkeit mit gleicher Kategorie
-  else if (textScore >= 0.70 && categoryMatch) {
+  // Fall 2: Sehr hoher Fragentext (ab 82%) bei passenden oder neutralen Antworten
+  else if (textScoreNum >= 0.82 && !conflictingAnswers) {
     isSimilar = true;
-    finalScore = Math.round(textScore * 100);
-    reason = `Fragentext zu ${finalScore}% ähnlich in gleicher Kategorie (${q1.category})`;
+    if (optionsScoreNum >= 0.55) {
+      finalScore = Math.round((textScoreNum * 0.60 + optionsScoreNum * 0.40) * 100);
+      reason = `Fragentext zu ${textScore}% und Antworten zu ${optionsScore}% übereinstimmend`;
+    } else {
+      finalScore = textScore;
+      reason = `Fragentext zu ${textScore}% übereinstimmend`;
+    }
   }
-  // Fall 3: Ähnliche Antworten kombiniert mit mäßiger bis hoher Text-Ähnlichkeit
-  else if (optionsScore >= 0.85 && textScore >= 0.45) {
+  // Fall 3: Paraphrasierte Frage (Unterschiedliche Fragestellung, aber identische / sehr ähnliche Antworten & Lösung!)
+  else if (optionsScoreNum >= 0.85 && (sameCorrectAnswer || correctSim === null) && textScoreNum >= 0.35) {
     isSimilar = true;
-    finalScore = Math.round((optionsScore * 0.65 + textScore * 0.35) * 100);
-    reason = `Antwortoptionen fast identisch (${Math.round(optionsScore * 100)}%) und ähnliche Fragestellung`;
+    finalScore = Math.round((optionsScoreNum * 0.60 + textScoreNum * 0.25 + (correctSim ?? 0.85) * 0.15) * 100);
+    reason = `Antwortoptionen (${optionsScore}%) identisch${sameCorrectAnswer ? ' (gleiche Lösung)' : ''} bei ähnlicher Fragestellung (${textScore}%)`;
   }
-  // Fall 4: Sehr hohe Antwort-Übereinstimmung (z.B. gleiche Fachbegriffe/Auswahl)
-  else if (optionsScore >= 0.95 && textScore >= 0.35) {
+  // Fall 4: Sehr hohe Antwort-Übereinstimmung (ab 92%) auch bei kürzeren Fragen
+  else if (optionsScoreNum >= 0.92 && textScoreNum >= 0.25 && !optDetail.isTrivial) {
     isSimilar = true;
-    finalScore = Math.round((optionsScore * 0.7 + textScore * 0.3) * 100);
-    reason = `Antwortoptionen zu ${Math.round(optionsScore * 100)}% identisch`;
+    finalScore = Math.round((optionsScoreNum * 0.70 + textScoreNum * 0.30) * 100);
+    reason = `Antwortoptionen zu ${optionsScore}% identisch (Frage: ${textScore}%)`;
   }
-  // Fall 5: Text-Ähnlichkeit ab 72% auch kategorieübergreifend
-  else if (textScore >= 0.72) {
+  // Fall 5: Hohe Text-Ähnlichkeit in gleicher Kategorie mit nicht-widersprüchlichen Antworten
+  else if (textScoreNum >= 0.70 && categoryMatch && !conflictingAnswers) {
     isSimilar = true;
-    finalScore = Math.round(textScore * 100);
-    reason = `Fragentext zu ${finalScore}% ähnlich`;
+    const optWeight = hasSubstantialOptions ? (optionsScoreNum >= 0.40 ? 0.30 : 0.10) : 0;
+    finalScore = Math.round((textScoreNum * (1 - optWeight) + optionsScoreNum * optWeight) * 100);
+    reason = `Fragentext zu ${textScore}% ähnlich in gleicher Kategorie (${q1.category})${optionsScore >= 45 ? ` (Antworten: ${optionsScore}%)` : ''}`;
+  }
+  // Fall 6: Allgemeine Text-Ähnlichkeit ab 75% (ohne widersprüchliche Antworten)
+  else if (textScoreNum >= 0.75 && !conflictingAnswers) {
+    isSimilar = true;
+    finalScore = textScore;
+    reason = `Fragentext zu ${textScore}% ähnlich${optionsScore >= 40 ? ` (Antworten: ${optionsScore}%)` : ''}`;
+  }
+
+  // Bonus basierend auf gleicher Lösung
+  if (isSimilar && sameCorrectAnswer && finalScore < 95) {
+    finalScore = Math.min(100, finalScore + 3);
   }
 
   return {
     isSimilar,
-    score: finalScore,
+    score: Math.min(100, Math.max(0, finalScore)),
     reason,
-    textScore: Math.round(textScore * 100),
-    optionsScore: Math.round(optionsScore * 100)
+    textScore,
+    optionsScore,
+    correctAnswerScore,
+    sameCorrectAnswer
   };
 }
 
@@ -389,6 +553,7 @@ export function checkFactSimilarity(
 
 /**
  * Durchsucht alle Fragen nach Duplikaten asynchron in Chunks (verhindert UI-Freezes).
+ * Vergleicht sowohl Fragentext als auch Antwortoptionen und Lösungsübereinstimmung.
  * Gibt nach jedem Chunk die Kontrolle an den JS-Event-Loop ab.
  */
 export async function findDuplicateQuestionsAsync(
@@ -397,12 +562,13 @@ export async function findDuplicateQuestionsAsync(
   reviewedIds: Set<string> = new Set(),
   onProgress?: (current: number, total: number) => void
 ): Promise<DuplicateQuestionPair[]> {
-  // 1. Relevante Fragen filtern & Token vorberechnen
+  // 1. Relevante Fragen filtern & Token für Text und Optionen vorberechnen
   const activeItems: {
     original: Question;
     id: string;
-    tokens: string[];
-    tokenSet: Set<string>;
+    textTokens: string[];
+    textTokenSet: Set<string>;
+    optTokens: string[];
     optTokenSet: Set<string>;
     category: string;
   }[] = [];
@@ -411,16 +577,20 @@ export async function findDuplicateQuestionsAsync(
     const q = questions[i];
     if (!q?.id || !q?.text || reviewedIds.has(q.id)) continue;
     
-    const tokens = extractTokens(q.text);
-    const tokenSet = new Set(tokens);
-    const optTokens = (q.options || []).flatMap(o => extractTokens(o));
+    const textTokens = extractTokens(q.text);
+    const textTokenSet = new Set(textTokens);
+    
+    // Signifikante Wörter aus den Antwortoptionen (mind. 4 Zeichen)
+    const rawOptTokens = (q.options || []).flatMap(o => extractTokens(o));
+    const optTokens = rawOptTokens.filter(w => w.length >= 4);
     const optTokenSet = new Set(optTokens);
 
     activeItems.push({
       original: q,
       id: q.id,
-      tokens,
-      tokenSet,
+      textTokens,
+      textTokenSet,
+      optTokens,
       optTokenSet,
       category: (q.category || '').toLowerCase()
     });
@@ -429,32 +599,66 @@ export async function findDuplicateQuestionsAsync(
   const n = activeItems.length;
   if (n < 2) return [];
 
-  // 2. Invertierten Token-Index aufbauen: Wort -> Fragen-Indizes
-  const tokenToIndices = new Map<string, number[]>();
+  // 2. Invertierten Token-Index für Text und Antwortoptionen aufbauen
+  const textTokenToIndices = new Map<string, number[]>();
+  const optTokenToIndices = new Map<string, number[]>();
+
   for (let i = 0; i < n; i++) {
-    for (const t of activeItems[i].tokenSet) {
-      let list = tokenToIndices.get(t);
+    for (const t of activeItems[i].textTokenSet) {
+      let list = textTokenToIndices.get(t);
       if (!list) {
         list = [];
-        tokenToIndices.set(t, list);
+        textTokenToIndices.set(t, list);
+      }
+      list.push(i);
+    }
+    for (const t of activeItems[i].optTokenSet) {
+      let list = optTokenToIndices.get(t);
+      if (!list) {
+        list = [];
+        optTokenToIndices.set(t, list);
       }
       list.push(i);
     }
   }
 
-  // 3. Kandidatenpaare anhand gemeinsamer Token ermitteln
-  const candidateMap = new Map<number, number>(); // Hash -> Anzahl gemeinsamer Tokens
-  for (const [token, indices] of tokenToIndices.entries()) {
+  // 3. Kandidatenpaare anhand gemeinsamer Text- oder Antwort-Token ermitteln
+  const candidateMap = new Map<number, { sharedText: number; sharedOpt: number }>();
+
+  for (const [token, indices] of textTokenToIndices.entries()) {
     if (indices.length < 2) continue;
-    // Zu häufige Allerweltswörter (in >22% aller Fragen) ignorieren
-    if (indices.length > n * 0.22) continue;
+    if (indices.length > n * 0.25) continue; // Allerweltswörter überspringen
 
     for (let i = 0; i < indices.length; i++) {
       const idxA = indices[i];
       for (let j = i + 1; j < indices.length; j++) {
         const idxB = indices[j];
         const hash = idxA < idxB ? idxA * 1000000 + idxB : idxB * 1000000 + idxA;
-        candidateMap.set(hash, (candidateMap.get(hash) || 0) + 1);
+        let entry = candidateMap.get(hash);
+        if (!entry) {
+          entry = { sharedText: 0, sharedOpt: 0 };
+          candidateMap.set(hash, entry);
+        }
+        entry.sharedText++;
+      }
+    }
+  }
+
+  for (const [token, indices] of optTokenToIndices.entries()) {
+    if (indices.length < 2) continue;
+    if (indices.length > n * 0.25) continue;
+
+    for (let i = 0; i < indices.length; i++) {
+      const idxA = indices[i];
+      for (let j = i + 1; j < indices.length; j++) {
+        const idxB = indices[j];
+        const hash = idxA < idxB ? idxA * 1000000 + idxB : idxB * 1000000 + idxA;
+        let entry = candidateMap.get(hash);
+        if (!entry) {
+          entry = { sharedText: 0, sharedOpt: 0 };
+          candidateMap.set(hash, entry);
+        }
+        entry.sharedOpt++;
       }
     }
   }
@@ -469,15 +673,23 @@ export async function findDuplicateQuestionsAsync(
       await new Promise(r => setTimeout(r, 6));
     }
 
-    const [hash, sharedCount] = entries[c];
+    const [hash, entry] = entries[c];
     const idxA = Math.floor(hash / 1000000);
     const idxB = hash % 1000000;
     const itemA = activeItems[idxA];
     const itemB = activeItems[idxB];
 
-    // Bei längeren Fragen müssen mindestens 2 signifikante Wörter übereinstimmen
-    const minTokens = Math.min(itemA.tokens.length, itemB.tokens.length);
-    if (minTokens >= 3 && sharedCount < 2) continue;
+    // Kandidaten-Kriterium:
+    // Mind. 2 geteilte Textwörter ODER mind. 2 geteilte Antwortwörter ODER (1 Text + 1 Antwort)
+    // ODER gleiche Kategorie + mind. 1 signifikantes Text- oder Antwortwort
+    const categoryMatch = itemA.category === itemB.category;
+    const isCandidate = 
+      (entry.sharedText >= 2) ||
+      (entry.sharedOpt >= 2) ||
+      (entry.sharedText >= 1 && entry.sharedOpt >= 1) ||
+      (categoryMatch && (entry.sharedText >= 1 || entry.sharedOpt >= 1));
+
+    if (!isCandidate) continue;
 
     const pKey = getPairKey(itemA.id, itemB.id);
     if (reviewedKeys.has(pKey) || reviewedKeys.has(`${itemA.id}___${itemB.id}`) || reviewedKeys.has(`${itemB.id}___${itemA.id}`)) continue;
@@ -493,7 +705,9 @@ export async function findDuplicateQuestionsAsync(
         reason: res.reason,
         textScore: res.textScore,
         optionsScore: res.optionsScore,
-        categoryMatch: itemA.category === itemB.category
+        correctAnswerScore: res.correctAnswerScore,
+        sameCorrectAnswer: res.sameCorrectAnswer,
+        categoryMatch
       });
     }
   }
@@ -513,8 +727,9 @@ export function findDuplicateQuestions(
   const activeItems: {
     original: Question;
     id: string;
-    tokens: string[];
-    tokenSet: Set<string>;
+    textTokens: string[];
+    textTokenSet: Set<string>;
+    optTokens: string[];
     optTokenSet: Set<string>;
     category: string;
   }[] = [];
@@ -523,16 +738,18 @@ export function findDuplicateQuestions(
     const q = questions[i];
     if (!q?.id || !q?.text || reviewedIds.has(q.id)) continue;
     
-    const tokens = extractTokens(q.text);
-    const tokenSet = new Set(tokens);
-    const optTokens = (q.options || []).flatMap(o => extractTokens(o));
+    const textTokens = extractTokens(q.text);
+    const textTokenSet = new Set(textTokens);
+    const rawOptTokens = (q.options || []).flatMap(o => extractTokens(o));
+    const optTokens = rawOptTokens.filter(w => w.length >= 4);
     const optTokenSet = new Set(optTokens);
 
     activeItems.push({
       original: q,
       id: q.id,
-      tokens,
-      tokenSet,
+      textTokens,
+      textTokenSet,
+      optTokens,
       optTokenSet,
       category: (q.category || '').toLowerCase()
     });
@@ -541,42 +758,83 @@ export function findDuplicateQuestions(
   const n = activeItems.length;
   if (n < 2) return [];
 
-  const tokenToIndices = new Map<string, number[]>();
+  const textTokenToIndices = new Map<string, number[]>();
+  const optTokenToIndices = new Map<string, number[]>();
+
   for (let i = 0; i < n; i++) {
-    for (const t of activeItems[i].tokenSet) {
-      let list = tokenToIndices.get(t);
+    for (const t of activeItems[i].textTokenSet) {
+      let list = textTokenToIndices.get(t);
       if (!list) {
         list = [];
-        tokenToIndices.set(t, list);
+        textTokenToIndices.set(t, list);
+      }
+      list.push(i);
+    }
+    for (const t of activeItems[i].optTokenSet) {
+      let list = optTokenToIndices.get(t);
+      if (!list) {
+        list = [];
+        optTokenToIndices.set(t, list);
       }
       list.push(i);
     }
   }
 
-  const candidateMap = new Map<number, number>();
-  for (const [token, indices] of tokenToIndices.entries()) {
+  const candidateMap = new Map<number, { sharedText: number; sharedOpt: number }>();
+
+  for (const [token, indices] of textTokenToIndices.entries()) {
     if (indices.length < 2) continue;
-    if (indices.length > n * 0.22) continue;
+    if (indices.length > n * 0.25) continue;
 
     for (let i = 0; i < indices.length; i++) {
       const idxA = indices[i];
       for (let j = i + 1; j < indices.length; j++) {
         const idxB = indices[j];
         const hash = idxA < idxB ? idxA * 1000000 + idxB : idxB * 1000000 + idxA;
-        candidateMap.set(hash, (candidateMap.get(hash) || 0) + 1);
+        let entry = candidateMap.get(hash);
+        if (!entry) {
+          entry = { sharedText: 0, sharedOpt: 0 };
+          candidateMap.set(hash, entry);
+        }
+        entry.sharedText++;
+      }
+    }
+  }
+
+  for (const [token, indices] of optTokenToIndices.entries()) {
+    if (indices.length < 2) continue;
+    if (indices.length > n * 0.25) continue;
+
+    for (let i = 0; i < indices.length; i++) {
+      const idxA = indices[i];
+      for (let j = i + 1; j < indices.length; j++) {
+        const idxB = indices[j];
+        const hash = idxA < idxB ? idxA * 1000000 + idxB : idxB * 1000000 + idxA;
+        let entry = candidateMap.get(hash);
+        if (!entry) {
+          entry = { sharedText: 0, sharedOpt: 0 };
+          candidateMap.set(hash, entry);
+        }
+        entry.sharedOpt++;
       }
     }
   }
 
   const pairs: DuplicateQuestionPair[] = [];
-  for (const [hash, sharedCount] of candidateMap.entries()) {
+  for (const [hash, entry] of candidateMap.entries()) {
     const idxA = Math.floor(hash / 1000000);
     const idxB = hash % 1000000;
     const itemA = activeItems[idxA];
     const itemB = activeItems[idxB];
 
-    const minTokens = Math.min(itemA.tokens.length, itemB.tokens.length);
-    if (minTokens >= 3 && sharedCount < 2) continue;
+    const categoryMatch = itemA.category === itemB.category;
+    const isCandidate = 
+      (entry.sharedText >= 2) ||
+      (entry.sharedOpt >= 2) ||
+      (entry.sharedText >= 1 && entry.sharedOpt >= 1) ||
+      (categoryMatch && (entry.sharedText >= 1 || entry.sharedOpt >= 1));
+
+    if (!isCandidate) continue;
 
     const pKey = getPairKey(itemA.id, itemB.id);
     if (reviewedKeys.has(pKey) || reviewedKeys.has(`${itemA.id}___${itemB.id}`) || reviewedKeys.has(`${itemB.id}___${itemA.id}`)) continue;
@@ -592,7 +850,9 @@ export function findDuplicateQuestions(
         reason: res.reason,
         textScore: res.textScore,
         optionsScore: res.optionsScore,
-        categoryMatch: itemA.category === itemB.category
+        correctAnswerScore: res.correctAnswerScore,
+        sameCorrectAnswer: res.sameCorrectAnswer,
+        categoryMatch
       });
     }
   }
@@ -835,7 +1095,7 @@ export function findDuplicateFacts(
 /**
  * Für Live-Prüfung im Fragen-Formular:
  * Sucht die ähnlichste bestehende Frage zur aktuellen Benutzereingabe.
- * Überspringt irrelevante Fragen via Token-Matching blitzschnell.
+ * Vergleicht sowohl Fragentext als auch Antwortoptionen blitzschnell.
  */
 export function findSimilarQuestionForInput(
   text: string,
@@ -844,32 +1104,47 @@ export function findSimilarQuestionForInput(
   excludeId?: string | null
 ): { question: Question; score: number; reason: string } | null {
   const cleanText = text.trim();
-  if (cleanText.length < 5) return null;
+  const validOptions = (options || []).filter(o => o.trim().length > 0);
+  if (cleanText.length < 5 && validOptions.length === 0) return null;
 
   const inputTokens = extractTokens(cleanText);
-  if (inputTokens.length === 0) return null;
   const inputTokenSet = new Set(inputTokens);
+  const optTokens = validOptions.flatMap(o => extractTokens(o)).filter(t => t.length >= 4);
+  const optTokenSet = new Set(optTokens);
 
   let bestMatch: { question: Question; score: number; reason: string } | null = null;
   const draft: Partial<Question> = {
     text: cleanText,
-    options: options.filter(o => o.trim().length > 0)
+    options: validOptions
   };
 
   for (const existing of existingQuestions) {
     if (excludeId && existing.id === excludeId) continue;
     if (!existing?.text) continue;
 
-    // Vorfilter: Hat die bestehende Frage überhaupt gemeinsame Wörter?
-    const existTokens = extractTokens(existing.text);
-    let hasSharedToken = false;
-    for (const t of existTokens) {
-      if (inputTokenSet.has(t)) {
-        hasSharedToken = true;
-        break;
+    // Vorfilter: Gemeinsame Wörter im Fragentext ODER in den Antwortoptionen?
+    let hasShared = false;
+    if (inputTokenSet.size > 0) {
+      const existTextTokens = extractTokens(existing.text);
+      for (const t of existTextTokens) {
+        if (inputTokenSet.has(t)) {
+          hasShared = true;
+          break;
+        }
       }
     }
-    if (!hasSharedToken && cleanText.length > 15) continue;
+
+    if (!hasShared && optTokenSet.size > 0) {
+      const existOptTokens = (existing.options || []).flatMap(o => extractTokens(o));
+      for (const t of existOptTokens) {
+        if (optTokenSet.has(t)) {
+          hasShared = true;
+          break;
+        }
+      }
+    }
+
+    if (!hasShared && (cleanText.length > 15 || validOptions.length >= 2)) continue;
 
     const res = checkQuestionSimilarity(draft, existing);
     if (res.isSimilar && (!bestMatch || res.score > bestMatch.score)) {
