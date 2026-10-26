@@ -41,7 +41,7 @@ export async function setupAndroidNotificationChannel() {
       });
 
       await Notifications.setNotificationChannelAsync('chat-messages', {
-        name: 'RailTrainer Chat & Ausbilder',
+        name: 'Tf-Trainer Chat & Ausbilder',
         importance: Notifications.AndroidImportance.MAX,
         vibrationPattern: [0, 250, 250, 250],
         lightColor: '#22c55e',
@@ -164,7 +164,7 @@ export async function scheduleTestLockscreenNotification(): Promise<boolean> {
     await setupAndroidNotificationChannel();
     await Notifications.scheduleNotificationAsync({
       content: {
-        title: '🚂 RailTrainer Test-Nachricht',
+        title: '🚂 Tf-Trainer Test-Nachricht',
         body: 'Dies ist eine Test-Benachrichtigung für deinen Sperrbildschirm.',
         data: { type: 'test' },
         channelId: 'chat-messages',

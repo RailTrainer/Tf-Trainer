@@ -2,7 +2,7 @@
   "expo": {
     "name": "Tf-Trainer",
     "slug": "lernapp",
-    "version": "1.2.0",
+    "version": "1.2.3",
     "orientation": "default",
     "icon": "./assets/images/icon.png",
     "scheme": "railtrainer",
@@ -13,7 +13,7 @@
     },
     "android": {
       "package": "com.railtrainer",
-      "versionCode": 23,
+      "versionCode": 26,
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#0b1a13",
@@ -47,9 +47,11 @@
       ]
     ],
     "updates": {
-      "url": "https://u.expo.dev/a2b87163-fd25-4e06-a94b-0b3e9ac0f803"
+      "url": "https://u.expo.dev/a2b87163-fd25-4e06-a94b-0b3e9ac0f803",
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
     },
-    "runtimeVersion": "1.0.11",
+    "runtimeVersion": "1.0.12",
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true

@@ -291,7 +291,11 @@ export default function ChatScreen() {
   const effectiveStudentId = selectedStudentId ?? autoThread?.studentId ?? null;
   const effectiveStudentName = selectedStudentId ? selectedStudentName : (autoThread?.studentName ?? '');
 
-  const myRestriction = useMemo(() => findRestriction(chatBans, currentUser?.id, now), [chatBans, currentUser?.id, now]);
+  // Admins und Moderatoren können nicht gesperrt werden
+  const myRestriction = useMemo(() => {
+    if (isModOrAdmin) return null;
+    return findRestriction(chatBans, currentUser?.id, now);
+  }, [isModOrAdmin, chatBans, currentUser?.id, now]);
 
   // Aktuelle Werte für den Hintergrund-Abgleich (Intervall), ohne ihn bei jeder Änderung neu zu starten
   const liveRef = useRef({

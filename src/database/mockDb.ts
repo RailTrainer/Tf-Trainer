@@ -268,6 +268,7 @@ export function packFactMetadata(f: {
   verifiedBy?: string;
   verifiedByName?: string;
   duplicateReviewed?: boolean;
+  imageUrls?: string[];
 }): string {
   const meta: Record<string, any> = {};
   if (f.subcategory) meta.sub = f.subcategory;
@@ -277,6 +278,7 @@ export function packFactMetadata(f: {
   if (f.verifiedBy) meta.vb = f.verifiedBy;
   if (f.verifiedByName) meta.vbn = f.verifiedByName;
   if (f.duplicateReviewed) meta.dr = true;
+  if (Array.isArray(f.imageUrls) && f.imageUrls.length > 0) meta.imgs = f.imageUrls;
 
   const clean = (f.reference || '').replace(/\s*<!--RT_META:.*?-->/gs, '').trim();
   if (Object.keys(meta).length === 0) return clean;
@@ -285,7 +287,7 @@ export function packFactMetadata(f: {
 
 export function unpackFactMetadata(rawReference?: string): {
   reference: string;
-  meta: { sub?: string; cb?: string; cbn?: string; cr?: string; vb?: string; vbn?: string; dr?: boolean; duplicateReviewed?: boolean } | null;
+  meta: { sub?: string; cb?: string; cbn?: string; cr?: string; vb?: string; vbn?: string; dr?: boolean; duplicateReviewed?: boolean; imgs?: string[] } | null;
 } {
   let reference = rawReference || '';
   let meta: any = null;
@@ -325,6 +327,8 @@ export interface Fact {
   content: string;
   reference: string;
   imageUrl?: string;
+  imageUrls?: string[];
+  image_urls?: string[];
   isVerified?: boolean;
   createdBy?: string;
   createdByName?: string;
@@ -334,6 +338,24 @@ export interface Fact {
   verifiedBy?: string;
   verifiedByName?: string;
   duplicateReviewed?: boolean;
+}
+
+/**
+ * Gibt alle Bild-URLs einer Lernkarte als bereinigtes Array zurück.
+ * Unterstützt imageUrls, image_urls und abwärtskompatibles imageUrl.
+ */
+export function getFactImageUrls(fact?: Partial<Fact> | null): string[] {
+  if (!fact) return [];
+  const list: string[] = [];
+  if (Array.isArray(fact.imageUrls) && fact.imageUrls.length > 0) {
+    list.push(...fact.imageUrls);
+  } else if (Array.isArray(fact.image_urls) && fact.image_urls.length > 0) {
+    list.push(...fact.image_urls);
+  }
+  if (typeof fact.imageUrl === 'string' && fact.imageUrl.trim().length > 0 && !list.includes(fact.imageUrl.trim())) {
+    list.unshift(fact.imageUrl.trim());
+  }
+  return list.map(u => (typeof u === 'string' ? u.trim() : '')).filter(u => u.length > 0);
 }
 
 export interface Ticket {
@@ -530,30 +552,137 @@ export function getFactSignalSubcategory(fact: Partial<Fact>): string {
     return fact.subcategory.trim();
   }
   const t = (fact.title || '').toLowerCase();
-  if (t.includes('hp ') || t.includes('ks ') || t.includes('hl-') || t.includes('sv-') || t.includes('hauptsignal')) {
-    return 'Hauptsignale';
+  if (/\b(ne\s*\d+[a-z]?|nebensignal)\b/i.test(t)) {
+    return 'Nebensignale';
   }
-  if (t.includes('vr ') || t.includes('vorsignal')) {
-    return 'Vorsignale';
-  }
-  if (t.includes('zs ') || t.includes('zusatzsignal')) {
-    return 'Zusatzsignale';
-  }
-  if (t.includes('sh ') || t.includes('ra ') || t.includes('sperrsignal') || t.includes('schutzsignal') || t.includes('rangiersignal')) {
-    return 'Sperr- & Schutzsignale';
-  }
-  if (t.includes('wn ') || t.includes('weichensignal')) {
+  if (/\b(wn\s*\d+[a-z]?|weichensignal)\b/i.test(t)) {
     return 'Weichensignale';
   }
-  if (t.includes('ne ') || t.includes('nebensignal')) {
-    return 'Nebensignale';
+  if (/\b(zs\s*\d+[a-z]?|zusatzsignal)\b/i.test(t)) {
+    return 'Zusatzsignale';
+  }
+  if (/\b(sh\s*\d+[a-z]?|ra\s*\d+[a-z]?|sperrsignal|schutzsignal|rangiersignal)\b/i.test(t)) {
+    return 'Sperr- & Schutzsignale';
+  }
+  if (/\b(hp\s*\d+[a-z]?|ks\s*\d+[a-z]?|hl\s*\d+[a-z]?|hl-|sv\s*\d+[a-z]?|sv-|hauptsignal)\b/i.test(t)) {
+    return 'Hauptsignale';
+  }
+  if (/\b(vr\s*\d+[a-z]?|vorsignal)\b/i.test(t)) {
+    return 'Vorsignale';
   }
   return 'Sonstige Signale';
 }
 
+export interface SignalSortKey {
+  hasCode: boolean;
+  prefix: string;
+  num: number;
+  suffix: string;
+  title: string;
+}
+
+/**
+ * Extrahiert den Sortierschlüssel aus einem Signal-Fakt (z. B. Zs 1 -> { prefix: 'zs', num: 1 }).
+ */
+export function extractSignalSortKey(fact: Partial<Fact>, subcategory?: string): SignalSortKey {
+  const text = (fact.title || '').trim();
+
+  const subMap: Record<string, RegExp> = {
+    'Zusatzsignale': /\b(zs)\s*(\d+)\s*([a-zA-Z]?)/i,
+    'Hauptsignale': /\b(hp|ks|hl|sv)\s*(\d+)\s*([a-zA-Z]?)/i,
+    'Vorsignale': /\b(vr|ks)\s*(\d+)\s*([a-zA-Z]?)/i,
+    'Sperr- & Schutzsignale': /\b(sh|ra)\s*(\d+)\s*([a-zA-Z]?)/i,
+    'Weichensignale': /\b(wn)\s*(\d+)\s*([a-zA-Z]?)/i,
+    'Nebensignale': /\b(ne)\s*(\d+)\s*([a-zA-Z]?)/i,
+    'Sonstige Signale': /\b(b[üu]e?|lf|ts|zg|zp|so)\s*(\d+)\s*([a-zA-Z]?)/i,
+  };
+
+  const specificRegex = subcategory ? subMap[subcategory] : null;
+  if (specificRegex) {
+    const m = text.match(specificRegex);
+    if (m) {
+      return {
+        hasCode: true,
+        prefix: m[1].toLowerCase(),
+        num: parseInt(m[2], 10),
+        suffix: (m[3] || '').toLowerCase(),
+        title: text,
+      };
+    }
+  }
+
+  // Allgemeiner Signalbegriff: z.B. 'Zs 1', 'Hp 0', 'Wn 1'
+  const genMatch = text.match(/\b([A-ZÄÖÜa-zäöü]{1,4})\s*(\d+)\s*([a-zA-Z]?)\b/);
+  if (genMatch) {
+    return {
+      hasCode: true,
+      prefix: genMatch[1].toLowerCase(),
+      num: parseInt(genMatch[2], 10),
+      suffix: (genMatch[3] || '').toLowerCase(),
+      title: text,
+    };
+  }
+
+  // Beliebige Zahl im Titel
+  const anyNumInTitle = text.match(/\b(\d+)\b/);
+  if (anyNumInTitle) {
+    return {
+      hasCode: false,
+      prefix: 'zzz',
+      num: parseInt(anyNumInTitle[1], 10),
+      suffix: '',
+      title: text,
+    };
+  }
+
+  return {
+    hasCode: false,
+    prefix: 'zzz',
+    num: 999999,
+    suffix: '',
+    title: text,
+  };
+}
+
+/**
+ * Vergleicht zwei Signal-Fakten basierend auf ihrer Signalnummerierung (z.B. Zs 1 vor Zs 2 vor Zs 3).
+ */
+export function compareSignalFacts(a: Partial<Fact>, b: Partial<Fact>, subcategory?: string): number {
+  const ka = extractSignalSortKey(a, subcategory);
+  const kb = extractSignalSortKey(b, subcategory);
+
+  // In Sperr- & Schutzsignale: Sh-Signale vor Ra-Signalen
+  if (subcategory === 'Sperr- & Schutzsignale') {
+    if (ka.prefix === 'sh' && kb.prefix === 'ra') return -1;
+    if (ka.prefix === 'ra' && kb.prefix === 'sh') return 1;
+  }
+
+  if (ka.hasCode && kb.hasCode) {
+    if (ka.prefix === kb.prefix) {
+      if (ka.num !== kb.num) return ka.num - kb.num;
+      if (ka.suffix !== kb.suffix) return ka.suffix.localeCompare(kb.suffix, 'de');
+      return ka.title.localeCompare(kb.title, 'de');
+    }
+    return ka.prefix.localeCompare(kb.prefix, 'de');
+  }
+
+  if (ka.hasCode && !kb.hasCode) return -1;
+  if (!ka.hasCode && kb.hasCode) return 1;
+
+  if (ka.num !== kb.num) return ka.num - kb.num;
+  return ka.title.localeCompare(kb.title, 'de');
+}
+
+/**
+ * Sortiert ein Array von Fakten automatisch nach der Zahl der Signalbedeutung.
+ */
+export function sortSignalFacts<T extends Partial<Fact>>(facts: T[], subcategory?: string): T[] {
+  return [...facts].sort((a, b) => compareSignalFacts(a, b, subcategory));
+}
+
 // Initialdaten für Fakten (inkl. VDV-Schrift 757 & Regelwerke)
 const INITIAL_FACTS: Fact[] = [
-  ...(quizletSignals as unknown as Fact[]),
+  ...sortSignalFacts(quizletSignals as unknown as Fact[]),
   ...(anlage5Cards as unknown as Fact[]),
   ...(bremsprobeCards as unknown as Fact[]),
   // --- VDV-SCHRIFT 757: BREMSEN & BREMSPROBEN ---
@@ -2769,7 +2898,7 @@ export const mockDb = {
 
     // 1. Admins & Moderatoren
     if (user.role === 'admin' || user.role === 'moderator') return true;
-    const userRoleDef = roles.find(r => r.id === user.role);
+    const userRoleDef = Array.isArray(roles) ? roles.find(r => r && r.id === user.role) : undefined;
     if (userRoleDef?.canAccessAdmin) return true;
 
     // 2. Ausbilder, Dozenten, Prüfer
@@ -3997,6 +4126,19 @@ export const mockDb = {
         if (!error && data && data.length > 0) {
           const mapped: Fact[] = data.map(f => {
             const { reference, meta } = unpackFactMetadata(f.reference);
+            const rawImages: string[] = [];
+            if (Array.isArray((f as any).image_urls) && (f as any).image_urls.length > 0) {
+              rawImages.push(...(f as any).image_urls);
+            } else if (Array.isArray((f as any).imageUrls) && (f as any).imageUrls.length > 0) {
+              rawImages.push(...(f as any).imageUrls);
+            } else if (Array.isArray(meta?.imgs) && meta.imgs.length > 0) {
+              rawImages.push(...meta.imgs);
+            }
+            if (f.image_url && !rawImages.includes(f.image_url)) {
+              rawImages.unshift(f.image_url);
+            }
+            const cleanImages = rawImages.filter(u => typeof u === 'string' && u.trim().length > 0);
+
             return {
               id: f.id,
               category: f.category,
@@ -4004,7 +4146,9 @@ export const mockDb = {
               title: f.title,
               content: f.content,
               reference: reference,
-              imageUrl: f.image_url || undefined,
+              imageUrl: cleanImages[0] || f.image_url || undefined,
+              imageUrls: cleanImages.length > 0 ? cleanImages : undefined,
+              image_urls: cleanImages.length > 0 ? cleanImages : undefined,
               isVerified: f.is_verified === true,
               createdAt: f.created_at || f.createdAt,
               created_at: f.created_at || f.createdAt,
@@ -4028,8 +4172,8 @@ export const mockDb = {
                 category: f.category,
                 title: f.title,
                 content: f.content,
-                reference: f.reference || '',
-                image_url: f.imageUrl || null,
+                reference: packFactMetadata(f),
+                image_url: f.imageUrl || (f.imageUrls && f.imageUrls[0]) || null,
                 is_verified: f.isVerified !== false
               }))
             );
@@ -4054,10 +4198,17 @@ export const mockDb = {
       }
       const mapped = facts.map(f => {
         const { reference, meta } = unpackFactMetadata(f.reference);
+        const images = getFactImageUrls({
+          imageUrl: f.imageUrl || (f as any).image_url,
+          imageUrls: f.imageUrls || (f as any).image_urls || meta?.imgs
+        });
         return {
           ...f,
           subcategory: f.subcategory || meta?.sub || undefined,
           reference,
+          imageUrl: images[0] || f.imageUrl || undefined,
+          imageUrls: images.length > 0 ? images : undefined,
+          image_urls: images.length > 0 ? images : undefined,
           isVerified: f.isVerified === true,
           createdBy: f.createdBy || meta?.cb || undefined,
           createdByName: f.createdByName || meta?.cbn || undefined,
@@ -4115,9 +4266,13 @@ export const mockDb = {
       isVerified = false;
     }
 
+    const images = getFactImageUrls(fact);
     const fullFact: Fact = {
       ...fact,
       id: factId,
+      imageUrl: images[0] || undefined,
+      imageUrls: images.length > 0 ? images : undefined,
+      image_urls: images.length > 0 ? images : undefined,
       isVerified: isVerified,
       createdBy: createdBy,
       createdByName: createdByName,
@@ -4231,7 +4386,7 @@ export const mockDb = {
   async deleteRole(id: string): Promise<boolean> {
     try {
       const roles = await this.getRoles();
-      const target = roles.find(r => r.id === id);
+      const target = Array.isArray(roles) ? roles.find(r => r && r.id === id) : undefined;
       if (target?.isSystem || id === 'admin' || id === 'moderator' || id === 'user') {
         return false;
       }
