@@ -1,7 +1,7 @@
 import { supabase, isSupabaseConfigured } from '../services/supabaseClient';
 
 export type ImageOptimizationType = 'avatar' | 'content';
-export type ImageFolder = 'avatars' | 'questions' | 'facts' | 'tickets' | 'chat';
+export type ImageFolder = 'avatars' | 'questions' | 'facts' | 'tickets' | 'chat' | 'categories';
 
 interface OptimizeOptions {
   maxWidth?: number;

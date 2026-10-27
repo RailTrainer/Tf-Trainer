@@ -572,7 +572,7 @@ export default function LernenScreen() {
                       <>
                         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
                           <View style={[styles.rowIconBg, { backgroundColor: cat.color + '20' }]}>
-                            <CategoryIcon icon={cat.icon} size={22} color={cat.color} />
+                            <CategoryIcon icon={cat.icon} imageUrl={cat.imageUrl} size={22} color={cat.color} />
                           </View>
                           <View style={{
                             backgroundColor: colors.primary + '18',
@@ -600,7 +600,7 @@ export default function LernenScreen() {
                       <>
                         <View style={styles.rowLeft}>
                           <View style={[styles.rowIconBg, { backgroundColor: cat.color + '20' }]}>
-                            <CategoryIcon icon={cat.icon} size={20} color={cat.color} />
+                            <CategoryIcon icon={cat.icon} imageUrl={cat.imageUrl} size={20} color={cat.color} />
                           </View>
                           <View style={{ flex: 1 }}>
                             <Text style={[styles.rowTitle, { color: colors.text }]}>{cat.name}</Text>
@@ -743,7 +743,7 @@ export default function LernenScreen() {
                   >
                     <View style={styles.rowLeft}>
                       <View style={[styles.rowIconBg, { backgroundColor: (subcat.color || colors.primary) + '20' }]}>
-                        <CategoryIcon icon={subcat.icon || 'Bookmark'} size={20} color={subcat.color || colors.primary} />
+                        <CategoryIcon icon={subcat.icon || 'Bookmark'} imageUrl={subcat.imageUrl} size={20} color={subcat.color || colors.primary} />
                       </View>
                       <View style={{ flex: 1 }}>
                         <Text style={[styles.rowTitle, { color: colors.text }]}>{subcat.name}</Text>

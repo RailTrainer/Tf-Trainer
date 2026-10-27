@@ -1,4 +1,4 @@
-import { Platform } from 'react-native';
+﻿import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase, isSupabaseConfigured } from '../services/supabaseClient';
 import { broadcastChatPushNotification, sendDirectSupportPushNotification, registerForPushNotificationsAsync } from '../services/notificationService';
@@ -47,6 +47,7 @@ export interface Category {
   desc: string;
   color: string;
   icon: string; // Name des Eisenbahn- oder Lucide-Icons
+  imageUrl?: string;
 }
 
 export interface SignalSubcategory {
@@ -55,6 +56,7 @@ export interface SignalSubcategory {
   desc?: string;
   color?: string;
   icon?: string;
+  imageUrl?: string;
 }
 
 export interface CustomIconItem {
@@ -527,13 +529,16 @@ export const INITIAL_ROLES: RoleDefinition[] = [
 
 // Initialdaten für Kategorien
 const INITIAL_CATEGORIES: Category[] = [
-  { name: 'Anlage 5', icon: 'Compass', color: '#f59e0b', desc: 'Zugleitbetrieb und Betriebsvorschriften für Nebenbahnen' },
-  { name: 'Bahnbetrieb', icon: 'Gleise', color: '#3b82f6', desc: 'Grundlagen, Zug- und Rangierfahrten im Detail' },
-  { name: 'Zugfahrt', icon: 'Lokomotive', color: '#10b981', desc: 'Regelbetrieb, Abweichungen und Unregelmäßigkeiten' },
-  { name: 'Bremsprobe', icon: 'Manometer', color: '#ec4899', desc: 'Ablauf, Signale und Regeln der Bremsproben nach VDV 757' },
-  { name: 'Wagenprüfung', icon: 'Schraubenschlüssel', color: '#8b5cf6', desc: 'Schadensfälle, Fahrzeugprüfung und Betriebssicherheit' },
-  { name: 'Wagenmeister', icon: 'Güterwagen', color: '#0284c7', desc: 'Wagenprüfer Stufe 3 & 4 im Güter- und Kombinierten Verkehr (KV)' },
-  { name: 'Signale', icon: 'Eisenbahnsignal', color: '#ef4444', desc: 'Haupt-, Vor- und Zusatzsignale erkennen und verstehen' },
+  { name: 'Anlage 5', icon: 'asset:anlage5', color: '#f59e0b', desc: 'Zugleitbetrieb und Betriebsvorschriften fÃ¼r Nebenbahnen', imageUrl: 'asset:anlage5' },
+  { name: 'Bahnbetrieb', icon: 'asset:bahnbetrieb', color: '#3b82f6', desc: 'Grundlagen, Zug- und Rangierfahrten im Detail', imageUrl: 'asset:bahnbetrieb' },
+  { name: 'Zugfahrt', icon: 'Lokomotive', color: '#10b981', desc: 'Regelbetrieb, Abweichungen und UnregelmÃ¤ÃŸigkeiten' },
+  { name: 'Bremsprobe', icon: 'asset:bremsprobe', color: '#ec4899', desc: 'Ablauf, Signale und Regeln der Bremsproben nach VDV 757', imageUrl: 'asset:bremsprobe' },
+  { name: 'WagenprÃ¼fung', icon: 'asset:wagenpruefung', color: '#8b5cf6', desc: 'SchadensfÃ¤lle, FahrzeugprÃ¼fung und Betriebssicherheit', imageUrl: 'asset:wagenpruefung' },
+  { name: 'Wagenmeister', icon: 'asset:wagenmeister', color: '#0284c7', desc: 'WagenprÃ¼fer Stufe 3 & 4 im GÃ¼ter- und Kombinierten Verkehr (KV)', imageUrl: 'asset:wagenmeister' },
+  { name: 'Signale', icon: 'asset:signale', color: '#ef4444', desc: 'Haupt-, Vor- und Zusatzsignale erkennen und verstehen', imageUrl: 'asset:signale' },
+  { name: 'UVV', icon: 'asset:uvv', color: '#eab308', desc: 'UnfallverhÃ¼tungsvorschriften und Arbeitssicherheit', imageUrl: 'asset:uvv' },
+  { name: 'Dieselgrundkurs', icon: 'asset:dieselgrundkurs', color: '#f97316', desc: 'Grundlagen Dieselmotoren, KraftÃ¼bertragung und StÃ¶rungssuche', imageUrl: 'asset:dieselgrundkurs' },
+  { name: 'Rangieren', icon: 'asset:rangieren', color: '#06b6d4', desc: 'Rangierarbeiten, Signale, Fahrwege und Funkkommunikation', imageUrl: 'asset:rangieren' },
 ];
 
 // Initialdaten für Signal-Unterkategorien
@@ -3202,6 +3207,35 @@ export const mockDb = {
     const cached = getFromMemoryCache<Category[]>('categories', 30000);
     if (cached) return cached;
 
+    const defaultAssetsMap: Record<string, string> = {
+      'anlage 5': 'asset:anlage5',
+      'bahnbetrieb': 'asset:bahnbetrieb',
+      'bremsprobe': 'asset:bremsprobe',
+      'wagenprÃ¼fung': 'asset:wagenpruefung',
+      'wagenmeister': 'asset:wagenmeister',
+      'signale': 'asset:signale',
+      'uvv': 'asset:uvv',
+      'dieselgrundkurs': 'asset:dieselgrundkurs',
+      'rangieren': 'asset:rangieren',
+    };
+
+    const enhanceCategories = (list: Category[]): Category[] => {
+      const existingNames = new Set(list.map(c => c.name.toLowerCase()));
+      const result = list.map(c => {
+        const k = c.name.toLowerCase();
+        if (!c.imageUrl && defaultAssetsMap[k]) {
+          return { ...c, imageUrl: defaultAssetsMap[k] };
+        }
+        return c;
+      });
+      for (const initCat of INITIAL_CATEGORIES) {
+        if (!existingNames.has(initCat.name.toLowerCase())) {
+          result.push(initCat);
+        }
+      }
+      return result;
+    };
+
     if (isSupabaseConfigured() && supabase) {
       try {
         const { data, error } = await supabase.from('categories').select('*');
@@ -3210,10 +3244,12 @@ export const mockDb = {
             name: c.name,
             desc: c.description || '',
             color: c.color || '#22c55e',
-            icon: c.icon || 'BookOpen'
+            icon: c.icon || 'BookOpen',
+            imageUrl: c.image_url || c.imageUrl || defaultAssetsMap[c.name?.toLowerCase()]
           }));
-          await AsyncStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(mapped));
-          return setToMemoryCache('categories', mapped);
+          const enhanced = enhanceCategories(mapped);
+          await AsyncStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(enhanced));
+          return setToMemoryCache('categories', enhanced);
         } else if (!error && data && data.length === 0) {
           // Einmalig Initialdaten nach Supabase hochladen
           try {
@@ -3222,7 +3258,8 @@ export const mockDb = {
                 name: c.name,
                 description: c.desc,
                 color: c.color,
-                icon: c.icon
+                icon: c.icon,
+                image_url: c.imageUrl
               }))
             );
           } catch {}
@@ -3237,7 +3274,8 @@ export const mockDb = {
       const data = await AsyncStorage.getItem(STORAGE_KEYS.CATEGORIES);
       if (data) {
         const parsed = JSON.parse(data);
-        return setToMemoryCache('categories', parsed);
+        const enhanced = enhanceCategories(parsed);
+        return setToMemoryCache('categories', enhanced);
       }
       await AsyncStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(INITIAL_CATEGORIES));
       return setToMemoryCache('categories', INITIAL_CATEGORIES);
@@ -3246,15 +3284,67 @@ export const mockDb = {
     }
   },
 
-  async saveCategory(category: Category): Promise<Category> {
+  async saveCategory(category: Category, oldName?: string): Promise<Category> {
     invalidateMemoryCache('categories');
+    invalidateMemoryCache('questions');
+    invalidateMemoryCache('facts');
+
+    // Wenn der Name geÃ¤ndert wurde
+    if (oldName && oldName.trim().toLowerCase() !== category.name.trim().toLowerCase()) {
+      const cleanOld = oldName.trim();
+      const cleanNew = category.name.trim();
+
+      if (isSupabaseConfigured() && supabase) {
+        try {
+          await supabase.from('quiz_questions').update({ category: cleanNew }).eq('category', cleanOld);
+          await supabase.from('flashcards').update({ category: cleanNew }).eq('category', cleanOld);
+          await supabase.from('categories').delete().eq('name', cleanOld);
+        } catch (e) {
+          console.log('Supabase rename category error', e);
+        }
+      }
+
+      try {
+        const questions = await this.getQuestions();
+        let qChanged = false;
+        const updatedQuestions = questions.map(q => {
+          if (q.category && q.category.toLowerCase() === cleanOld.toLowerCase()) {
+            qChanged = true;
+            return { ...q, category: cleanNew };
+          }
+          return q;
+        });
+        if (qChanged) {
+          await AsyncStorage.setItem(STORAGE_KEYS.QUESTIONS, JSON.stringify(updatedQuestions));
+          setToMemoryCache('questions', updatedQuestions);
+        }
+      } catch {}
+
+      try {
+        const facts = await this.getFacts();
+        let fChanged = false;
+        const updatedFacts = facts.map(f => {
+          if (f.category && f.category.toLowerCase() === cleanOld.toLowerCase()) {
+            fChanged = true;
+            return { ...f, category: cleanNew };
+          }
+          return f;
+        });
+        if (fChanged) {
+          await AsyncStorage.setItem(STORAGE_KEYS.FACTS, JSON.stringify(updatedFacts));
+          setToMemoryCache('facts', updatedFacts);
+        }
+      } catch {}
+    }
+
     if (isSupabaseConfigured() && supabase) {
       try {
         await supabase.from('categories').upsert({
           name: category.name,
           description: category.desc,
           color: category.color,
-          icon: category.icon
+          icon: category.icon,
+          image_url: category.imageUrl
         });
       } catch (e) {
         console.log('Supabase saveCategory error', e);
@@ -3262,7 +3352,10 @@ export const mockDb = {
     }
 
     const categories = await this.getCategories();
-    const index = categories.findIndex(c => c.name.toLowerCase() === category.name.toLowerCase());
+    const index = categories.findIndex(c => 
+      (oldName && c.name.toLowerCase() === oldName.toLowerCase()) || 
+      c.name.toLowerCase() === category.name.toLowerCase()
+    );
     
     if (index !== -1) {
       categories[index] = category;
@@ -4790,11 +4883,34 @@ export const mockDb = {
     }
   },
 
-  async saveSignalSubcategory(subcat: { id?: string; name: string; desc?: string; color?: string; icon?: string }): Promise<SignalSubcategory> {
+  async saveSignalSubcategory(subcat: { id?: string; name: string; desc?: string; color?: string; icon?: string; imageUrl?: string }, oldName?: string): Promise<SignalSubcategory> {
     invalidateMemoryCache('signal_subcategories');
+    invalidateMemoryCache('facts');
     const list = await this.getSignalSubcategories();
     const cleanName = subcat.name.trim();
-    const existingIndex = list.findIndex(s => (subcat.id && s.id === subcat.id) || s.name.toLowerCase() === cleanName.toLowerCase());
+
+    if (oldName && oldName.trim().toLowerCase() !== cleanName.toLowerCase()) {
+      const cleanOld = oldName.trim();
+      try {
+        const facts = await this.getFacts();
+        let fChanged = false;
+        const updatedFacts = facts.map(f => {
+          if (f.subcategory && f.subcategory.toLowerCase() === cleanOld.toLowerCase()) {
+            fChanged = true;
+            return { ...f, subcategory: cleanName };
+          }
+          return f;
+        });
+        if (fChanged) {
+          await AsyncStorage.setItem(STORAGE_KEYS.FACTS, JSON.stringify(updatedFacts));
+          setToMemoryCache('facts', updatedFacts);
+        }
+      } catch (e) {
+        console.error('Error updating facts subcategory on rename:', e);
+      }
+    }
+
+    const existingIndex = list.findIndex(s => (subcat.id && s.id === subcat.id) || (oldName && s.name.toLowerCase() === oldName.toLowerCase()) || s.name.toLowerCase() === cleanName.toLowerCase());
     
     let itemToSave: SignalSubcategory;
     if (existingIndex !== -1) {
@@ -4809,8 +4925,9 @@ export const mockDb = {
         id: subcat.id || 'sig_sub_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
         name: cleanName,
         desc: subcat.desc?.trim() || '',
-        color: subcat.color || '#3b82f6',
+        color: subcat.color || '#ef4444',
         icon: subcat.icon || 'Bookmark',
+        imageUrl: subcat.imageUrl,
       };
       list.push(itemToSave);
     }

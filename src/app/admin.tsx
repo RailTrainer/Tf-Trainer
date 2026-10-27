@@ -26,8 +26,8 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 }
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { mockDb, Question, Category, User as DbUser, Fact, RoleDefinition, Ticket, ChatMessageReport, getQuestionCorrectIndices, CustomIconItem, ChatBanRecord, SignalSubcategory, getFactSignalSubcategory, getFactImageUrls } from '../database/mockDb';
-import CategoryIcon, { RAILWAY_ICONS_DEF, POPULAR_LUCIDE_ICONS_DEF } from '../components/CategoryIcon';
+import { mockDb, Question, Category, User as DbUser, Fact, RoleDefinition, Ticket, ChatMessageReport, getQuestionCorrectIndices, CustomIconItem, ChatBanRecord, SignalSubcategory, getFactSignalSubcategory, getFactImageUrls, sortSignalFacts, compareSignalFacts } from '../database/mockDb';
+import CategoryIcon, { RAILWAY_ICONS_DEF, POPULAR_LUCIDE_ICONS_DEF, PRESET_CATEGORY_SYMBOLS } from '../components/CategoryIcon';
 import { useAppTheme } from '../context/ThemeContext';
 import { useDeviceLayout } from '../hooks/useDeviceLayout';
 import * as ImagePicker from 'expo-image-picker';
@@ -359,6 +359,10 @@ export default function AdminScreen() {
   const [signalSubcategories, setSignalSubcategories] = useState<SignalSubcategory[]>([]);
   const [newSigSubName, setNewSigSubName] = useState('');
   const [newSigSubDesc, setNewSigSubDesc] = useState('');
+  const [editingSubcatId, setEditingSubcatId] = useState<string | null>(null);
+  const [editingSubcatOldName, setEditingSubcatOldName] = useState<string | null>(null);
+  const [subcatImageUrl, setSubcatImageUrl] = useState<string>('');
+  const [pickingSubcatImage, setPickingSubcatImage] = useState<boolean>(false);
   const [userSubTab, setUserSubTab] = useState<'users' | 'roles' | 'webkeys'>('users');
   const [webKeysList, setWebKeysList] = useState<{ key: string; isRedeemed: boolean; redeemedBy?: string; createdAt: number }[]>([]);
   const [userSearchQuery, setUserSearchQuery] = useState('');
@@ -573,6 +577,7 @@ export default function AdminScreen() {
   const [questionVerificationFilter, setQuestionVerificationFilter] = useState<'all' | 'unverified' | 'verified'>('all');
   const [questionSearchQuery, setQuestionSearchQuery] = useState('');
   const [factCategoryFilter, setFactCategoryFilter] = useState<string>('all');
+  const [factSubcategoryFilter, setFactSubcategoryFilter] = useState<string>('all');
   const [factVerificationFilter, setFactVerificationFilter] = useState<'all' | 'unverified' | 'verified'>('all');
   const [factSearchQuery, setFactSearchQuery] = useState('');
   const [factDisplayLimit, setFactDisplayLimit] = useState<number>(40);
@@ -608,6 +613,8 @@ export default function AdminScreen() {
   const [formCatDesc, setFormCatDesc] = useState('');
   const [formCatColor, setFormCatColor] = useState('#3b82f6');
   const [formCatIcon, setFormCatIcon] = useState('Lokomotive');
+  const [formCatImageUrl, setFormCatImageUrl] = useState('');
+  const [pickingCatImage, setPickingCatImage] = useState(false);
 
   // CUSTOM ICONS & ICON PICKER
   const [customIcons, setCustomIcons] = useState<CustomIconItem[]>([]);
@@ -1524,7 +1531,7 @@ export default function AdminScreen() {
   // --- KATEGORIEN LOGIK ---
   const handleCatEditClick = (cat: Category) => {
     if (currentUser?.role !== 'admin') {
-      Alert.alert('Keine Berechtigung', 'Nur Ausbilder/Administratoren können Kategorien bearbeiten.');
+      Alert.alert('Keine Berechtigung', 'Nur Ausbilder/Administratoren kÃ¶nnen Kategorien bearbeiten.');
       return;
     }
     setEditingCatName(cat.name);
@@ -1532,25 +1539,26 @@ export default function AdminScreen() {
     setFormCatDesc(cat.desc);
     setFormCatColor(cat.color);
     setFormCatIcon(cat.icon);
+    setFormCatImageUrl(cat.imageUrl || '');
     setCatSubTab('form');
   };
 
   const handleCatDeleteClick = (name: string) => {
     if (currentUser?.role !== 'admin') {
-      Alert.alert('Keine Berechtigung', 'Nur Ausbilder/Administratoren können Kategorien löschen.');
+      Alert.alert('Keine Berechtigung', 'Nur Ausbilder/Administratoren kÃ¶nnen Kategorien lÃ¶schen.');
       return;
     }
     if (name.toLowerCase() === 'bahnbetrieb') {
-      Alert.alert('Geschützte Kategorie', 'Die Standardkategorie „Bahnbetrieb“ kann nicht gelöscht werden.');
+      Alert.alert('GeschÃ¼tzte Kategorie', 'Die Standardkategorie â€žBahnbetriebâ€œ kann nicht gelÃ¶scht werden.');
       return;
     }
     Alert.alert(
-      'Kategorie löschen?',
-      `Möchtest du die Kategorie "${name}" wirklich löschen? Alle verknüpften Fragen und Lernkarten werden automatisch in die Kategorie „Bahnbetrieb“ verschoben.`,
+      'Kategorie lÃ¶schen?',
+      `MÃ¶chtest du die Kategorie "${name}" wirklich lÃ¶schen? Alle verknÃ¼pften Fragen und Lernkarten werden automatisch in die Kategorie â€žBahnbetriebâ€œ verschoben.`,
       [
         { text: 'Abbrechen', style: 'cancel' },
         { 
-          text: 'Löschen & Verschieben', 
+          text: 'LÃ¶schen & Verschieben', 
           style: 'destructive',
           onPress: async () => {
             const success = await mockDb.deleteCategory(name);
@@ -1570,11 +1578,66 @@ export default function AdminScreen() {
     setFormCatDesc('');
     setFormCatColor('#3b82f6');
     setFormCatIcon('Lokomotive');
+    setFormCatImageUrl('');
+  };
+
+  const handlePickCatImage = async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Berechtigung fehlt', 'Wir benÃ¶tigen Zugriff auf deine Fotos.');
+        return;
+      }
+      setPickingCatImage(true);
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        quality: 0.5,
+        base64: true,
+      });
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        const raw = asset.base64 ? `data:image/jpeg;base64,${asset.base64}` : asset.uri;
+        const optimizedUri = await uploadAndOptimizeImage(raw, 'content', 'categories');
+        setFormCatImageUrl(optimizedUri);
+      }
+    } catch (e: any) {
+      Alert.alert('Fehler', 'Bild konnte nicht ausgewÃ¤hlt werden: ' + (e?.message || e));
+    } finally {
+      setPickingCatImage(false);
+    }
+  };
+
+  const handlePickSubcatImage = async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Berechtigung fehlt', 'Wir benÃ¶tigen Zugriff auf deine Fotos.');
+        return;
+      }
+      setPickingSubcatImage(true);
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        quality: 0.5,
+        base64: true,
+      });
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        const raw = asset.base64 ? `data:image/jpeg;base64,${asset.base64}` : asset.uri;
+        const optimizedUri = await uploadAndOptimizeImage(raw, 'content', 'categories');
+        setSubcatImageUrl(optimizedUri);
+      }
+    } catch (e: any) {
+      Alert.alert('Fehler', 'Bild konnte nicht ausgewÃ¤hlt werden: ' + (e?.message || e));
+    } finally {
+      setPickingSubcatImage(false);
+    }
   };
 
   const handleAddCustomIcon = async () => {
     if (!newIconInput.trim()) {
-      Alert.alert('Eingabe fehlt', newIconType === 'emoji' ? 'Bitte gib ein Emoji ein (z.B. 🚂 oder 🚦).' : 'Bitte gib einen Lucide-Icon-Namen ein (z.B. TrainFront, Flame, Zap).');
+      Alert.alert('Eingabe fehlt', newIconType === 'emoji' ? 'Bitte gib ein Emoji ein (z.B. ðŸš‚ oder ðŸš¦).' : 'Bitte gib einen Lucide-Icon-Namen ein (z.B. TrainFront, Flame, Zap).');
       return;
     }
     const name = newIconInput.trim();
@@ -1591,9 +1654,9 @@ export default function AdminScreen() {
       setNewIconInput('');
       setNewIconLabel('');
       setShowAddIconModal(false);
-      Alert.alert('Erfolg', `Symbol "${label}" wurde hinzugefügt und ausgewählt!`);
+      Alert.alert('Erfolg', `Symbol "${label}" wurde hinzugefÃ¼gt und ausgewÃ¤hlt!`);
     } catch (e: any) {
-      Alert.alert('Fehler', e?.message || 'Symbol konnte nicht hinzugefügt werden.');
+      Alert.alert('Fehler', e?.message || 'Symbol konnte nicht hinzugefÃ¼gt werden.');
     } finally {
       setAddingIcon(false);
     }
@@ -1602,11 +1665,11 @@ export default function AdminScreen() {
   const handleDeleteCustomIcon = (iconItem: CustomIconItem) => {
     Alert.alert(
       'Symbol entfernen?',
-      `Möchtest du das Symbol "${iconItem.label}" wirklich aus deiner Liste löschen?`,
+      `MÃ¶chtest du das Symbol "${iconItem.label}" wirklich aus deiner Liste lÃ¶schen?`,
       [
         { text: 'Abbrechen', style: 'cancel' },
         {
-          text: 'Löschen',
+          text: 'LÃ¶schen',
           style: 'destructive',
           onPress: async () => {
             const success = await mockDb.deleteCustomIcon(iconItem.id);
@@ -1642,7 +1705,7 @@ export default function AdminScreen() {
 
   const handleCatSave = async () => {
     if (currentUser?.role !== 'admin') {
-      Alert.alert('Keine Berechtigung', 'Nur Ausbilder/Administratoren können Kategorien erstellen oder bearbeiten.');
+      Alert.alert('Keine Berechtigung', 'Nur Ausbilder/Administratoren kÃ¶nnen Kategorien erstellen oder bearbeiten.');
       return;
     }
     if (!formCatName.trim()) {
@@ -1655,17 +1718,13 @@ export default function AdminScreen() {
     }
 
     try {
-      // Wenn Name editiert wurde und sich geändert hat, müssen wir den alten löschen
-      if (editingCatName && editingCatName.toLowerCase() !== formCatName.trim().toLowerCase()) {
-        await mockDb.deleteCategory(editingCatName);
-      }
-
       await mockDb.saveCategory({
         name: formCatName.trim(),
         desc: formCatDesc.trim(),
         color: formCatColor,
-        icon: formCatIcon
-      });
+        icon: formCatIcon,
+        imageUrl: formCatImageUrl.trim() || undefined,
+      }, editingCatName || undefined);
 
       Alert.alert('Erfolg', 'Kategorie wurde gespeichert.');
       handleCatResetForm();
@@ -1676,20 +1735,23 @@ export default function AdminScreen() {
     }
   };
 
-  const handleAddSignalSubcategory = async () => {
+  const handleSaveSignalSubcategory = async () => {
     if (!newSigSubName.trim()) {
-      Alert.alert('Fehler', 'Bitte gib einen Namen für die Signal-Unterkategorie ein.');
+      Alert.alert('Fehler', 'Bitte gib einen Namen fÃ¼r die Signal-Unterkategorie ein.');
       return;
     }
     try {
       const saved = await mockDb.saveSignalSubcategory({
+        id: editingSubcatId || undefined,
         name: newSigSubName.trim(),
         desc: newSigSubDesc.trim(),
         color: '#ef4444',
         icon: 'Bookmark',
-      });
+        imageUrl: subcatImageUrl.trim() || undefined,
+      }, editingSubcatOldName || undefined);
+
       setSignalSubcategories(prev => {
-        const idx = prev.findIndex(s => s.id === saved.id || s.name.toLowerCase() === saved.name.toLowerCase());
+        const idx = prev.findIndex(s => (editingSubcatId && s.id === editingSubcatId) || (editingSubcatOldName && s.name.toLowerCase() === editingSubcatOldName.toLowerCase()) || s.id === saved.id || s.name.toLowerCase() === saved.name.toLowerCase());
         if (idx !== -1) {
           const next = [...prev];
           next[idx] = saved;
@@ -1697,12 +1759,36 @@ export default function AdminScreen() {
         }
         return [...prev, saved];
       });
+
+      const isEdit = !!editingSubcatOldName;
+      setEditingSubcatId(null);
+      setEditingSubcatOldName(null);
       setNewSigSubName('');
       setNewSigSubDesc('');
-      Alert.alert('Erfolg ✓', `Signal-Unterkategorie "${saved.name}" wurde erstellt.`);
+      setSubcatImageUrl('');
+      if (isEdit) {
+        loadData();
+      }
+      Alert.alert('Erfolg âœ“', isEdit ? `Signal-Unterkategorie "${saved.name}" wurde aktualisiert.` : `Signal-Unterkategorie "${saved.name}" wurde erstellt.`);
     } catch (e: any) {
       Alert.alert('Fehler', 'Konnte Signal-Unterkategorie nicht speichern: ' + (e?.message || e));
     }
+  };
+
+  const handleEditSignalSubcategory = (sub: SignalSubcategory) => {
+    setEditingSubcatId(sub.id || sub.name);
+    setEditingSubcatOldName(sub.name);
+    setNewSigSubName(sub.name);
+    setNewSigSubDesc(sub.desc || '');
+    setSubcatImageUrl(sub.imageUrl || '');
+  };
+
+  const handleCancelEditSignalSubcategory = () => {
+    setEditingSubcatId(null);
+    setEditingSubcatOldName(null);
+    setNewSigSubName('');
+    setNewSigSubDesc('');
+    setSubcatImageUrl('');
   };
 
   const handleDeleteSignalSubcategory = (sub: SignalSubcategory) => {
@@ -3139,6 +3225,54 @@ export default function AdminScreen() {
                 </ScrollView>
               </View>
 
+              {/* UNTERKATEGORIE-FILTER FÃœR LERNKARTEN */}
+              {(factCategoryFilter === 'Signale' || signalSubcategories.length > 0) && (
+                <View style={[styles.categoryFilterContainer, { backgroundColor: colors.cardBg, borderBottomColor: colors.border, paddingTop: 4 }]}>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryFilterScroll}>
+                    <TouchableOpacity
+                      style={[
+                        styles.categoryFilterChip,
+                        { backgroundColor: colors.background, borderColor: colors.border },
+                        factSubcategoryFilter === 'all' && [styles.categoryFilterChipActive, { backgroundColor: colors.primary }]
+                      ]}
+                      onPress={() => { setFactSubcategoryFilter('all'); setFactDisplayLimit(40); }}
+                    >
+                      <Text style={[
+                        styles.categoryFilterText,
+                        { color: colors.text },
+                        factSubcategoryFilter === 'all' && styles.categoryFilterTextActive
+                      ]}>
+                        Alle Untergruppen ({factCategoryFilter === 'Signale' ? facts.filter(f => f.category === 'Signale').length : facts.length})
+                      </Text>
+                    </TouchableOpacity>
+
+                    {signalSubcategories.map((sub) => {
+                      const count = facts.filter(f => (factCategoryFilter === 'all' || f.category === 'Signale') && getFactSignalSubcategory(f) === sub.name).length;
+                      const isSelected = factSubcategoryFilter === sub.name;
+                      return (
+                        <TouchableOpacity
+                          key={sub.id || sub.name}
+                          style={[
+                            styles.categoryFilterChip,
+                            { backgroundColor: colors.background, borderColor: colors.border },
+                            isSelected && [styles.categoryFilterChipActive, { backgroundColor: colors.primary }]
+                          ]}
+                          onPress={() => { setFactSubcategoryFilter(sub.name); setFactDisplayLimit(40); }}
+                        >
+                          <Text style={[
+                            styles.categoryFilterText,
+                            { color: colors.text },
+                            isSelected && styles.categoryFilterTextActive
+                          ]}>
+                            {sub.name} ({count})
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
+                </View>
+              )}
+
               <ScrollView 
                 keyboardDismissMode="on-drag"
                 contentContainerStyle={styles.scrollContent} 
@@ -3155,8 +3289,11 @@ export default function AdminScreen() {
               >
                 {(() => {
                   const query = factSearchQuery.trim().toLowerCase();
-                  const filteredFacts = facts.filter(f => {
+                  const rawFiltered = facts.filter(f => {
                     if (factCategoryFilter !== 'all' && f.category !== factCategoryFilter) return false;
+                    if (factSubcategoryFilter !== 'all') {
+                      if (getFactSignalSubcategory(f) !== factSubcategoryFilter) return false;
+                    }
                     if (factVerificationFilter === 'unverified' && f.isVerified) return false;
                     if (factVerificationFilter === 'verified' && !f.isVerified) return false;
                     if (query) {
@@ -3168,6 +3305,31 @@ export default function AdminScreen() {
                     }
                     return true;
                   });
+
+                  // Genau so sortieren wie im Lernbereich!
+                  const filteredFacts = (() => {
+                    if (factCategoryFilter === 'Signale' || factSubcategoryFilter !== 'all') {
+                      return sortSignalFacts(rawFiltered, factSubcategoryFilter !== 'all' ? factSubcategoryFilter : undefined);
+                    }
+                    const catOrder = categories.map(c => c.name.toLowerCase());
+                    return [...rawFiltered].sort((a, b) => {
+                      const catA = (a.category || '').toLowerCase();
+                      const catB = (b.category || '').toLowerCase();
+                      if (catA !== catB) {
+                        const idxA = catOrder.indexOf(catA);
+                        const idxB = catOrder.indexOf(catB);
+                        if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+                        if (idxA !== -1) return -1;
+                        if (idxB !== -1) return 1;
+                        return catA.localeCompare(catB, 'de');
+                      }
+                      if (catA === 'signale') {
+                        return compareSignalFacts(a, b);
+                      }
+                      return 0;
+                    });
+                  })();
+
                   const visibleFacts = filteredFacts.slice(0, factDisplayLimit);
 
                   return (
@@ -3777,7 +3939,7 @@ export default function AdminScreen() {
                   <View style={styles.cardHeader}>
                     <View style={[styles.row, { flex: 1, marginRight: 8, alignItems: 'center' }]}>
                       <View style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: `${c.color}22`, alignItems: 'center', justifyContent: 'center', marginRight: 10 }}>
-                        <CategoryIcon icon={c.icon} size={18} color={c.color} />
+                        <CategoryIcon icon={c.icon} imageUrl={c.imageUrl} size={18} color={c.color} />
                       </View>
                       <Text style={[styles.itemTitle, { color: colors.text, flex: 1, marginLeft: 0 }]} numberOfLines={1}>{c.name}</Text>
                     </View>
@@ -3800,7 +3962,7 @@ export default function AdminScreen() {
                   </View>
                   <Text style={[styles.itemDescText, { color: colors.textMuted }]}>{c.desc}</Text>
                   <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8, gap: 6 }}>
-                    <CategoryIcon icon={c.icon} size={14} color={c.color} />
+                    <CategoryIcon icon={c.icon} imageUrl={c.imageUrl} size={14} color={c.color} />
                     <Text style={{ fontSize: 12, color: c.color, fontWeight: '600' }}>
                       {c.icon}
                     </Text>
@@ -3870,6 +4032,79 @@ export default function AdminScreen() {
                     {formCatColor === color && <Check size={16} color="#ffffff" />}
                   </TouchableOpacity>
                 ))}
+              </View>
+
+              {/* KATEGORIE-BILD / SYMBOL (FOTO-BIBLIOTHEK & 9 BAHN-SYMBOLE) */}
+              <Text style={[styles.formLabel, { color: colors.text, marginTop: 16 }]}>Kategorie-Bild & Symbol</Text>
+              <View style={[styles.itemCard, { backgroundColor: colors.cardBg, borderColor: colors.border, marginTop: 4, padding: 12 }]}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+                  <View style={[styles.selectedIconCircle, { backgroundColor: formCatColor, width: 52, height: 52, borderRadius: 12 }]}>
+                    <CategoryIcon icon={formCatIcon} imageUrl={formCatImageUrl} size={36} color="#ffffff" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 11, color: colors.textMuted, fontWeight: '700' }}>AKTIVES BILD / SYMBOL</Text>
+                    <Text style={{ fontSize: 14, fontWeight: 'bold', color: colors.text, marginTop: 2 }} numberOfLines={1}>
+                      {formCatImageUrl ? (formCatImageUrl.startsWith('asset:') ? formCatImageUrl.replace('asset:', '').toUpperCase() : 'Eigenes Foto / Upload') : formCatIcon}
+                    </Text>
+                    {!!formCatImageUrl && (
+                      <TouchableOpacity onPress={() => setFormCatImageUrl('')} style={{ marginTop: 4 }}>
+                        <Text style={{ fontSize: 12, color: colors.error, fontWeight: '600' }}>Bild entfernen (auf Vektoricon zurÃ¼cksetzen)</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </View>
+
+                <TouchableOpacity
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: colors.primary,
+                    paddingVertical: 10,
+                    paddingHorizontal: 16,
+                    borderRadius: 8,
+                    marginBottom: 12
+                  }}
+                  onPress={handlePickCatImage}
+                  disabled={pickingCatImage}
+                >
+                  <Camera size={16} color="#ffffff" style={{ marginRight: 8 }} />
+                  <Text style={{ color: '#ffffff', fontWeight: '700', fontSize: 13 }}>
+                    {pickingCatImage ? 'Wird optimiert...' : 'Aus Foto-Bibliothek wÃ¤hlen'}
+                  </Text>
+                </TouchableOpacity>
+
+                <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textMuted, marginBottom: 8 }}>
+                  ODER AUS DEN 9 OFFIZIELLEN BAHN-SYMBOLEN WÃ„HLEN:
+                </Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 4 }}>
+                  {PRESET_CATEGORY_SYMBOLS.map((sym) => {
+                    const isSelected = formCatImageUrl === sym.id;
+                    return (
+                      <TouchableOpacity
+                        key={sym.id}
+                        style={{
+                          alignItems: 'center',
+                          padding: 6,
+                          borderRadius: 8,
+                          backgroundColor: isSelected ? `${formCatColor}25` : colors.background,
+                          borderColor: isSelected ? formCatColor : colors.border,
+                          borderWidth: isSelected ? 2 : 1,
+                          width: 78
+                        }}
+                        onPress={() => {
+                          setFormCatImageUrl(sym.id);
+                          setFormCatIcon(sym.name);
+                        }}
+                      >
+                        <CategoryIcon icon={sym.id} size={36} />
+                        <Text numberOfLines={1} style={{ fontSize: 10, fontWeight: isSelected ? '700' : '500', color: isSelected ? colors.text : colors.textMuted, marginTop: 4, textAlign: 'center' }}>
+                          {sym.name}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
               </View>
 
               {/* Icon-Auswahl */}
@@ -4015,14 +4250,21 @@ export default function AdminScreen() {
                 Signalgruppen verwalten
               </Text>
               <Text style={{ fontSize: 13, color: colors.textMuted, marginBottom: 16, lineHeight: 18 }}>
-                Lege hier Signalgruppen (Unterkategorien) für Signale fest (z.B. Hauptsignale, Zusatzsignale, Rangiersignale). In der Lern-Ansicht wählen Schüler zuerst einen dieser Bereiche aus, um die zugehörigen Signale gezielt durchzublättern.
+                Lege hier Signalgruppen (Unterkategorien) fÃ¼r Signale fest (z.B. Hauptsignale, Zusatzsignale, Rangiersignale). Unterkategorien und deren Bilder kÃ¶nnen hier jederzeit bearbeitet oder neu angelegt werden.
               </Text>
 
-              {/* NEUE UNTERKATEGORIE ERSTELLEN */}
-              <View style={[styles.itemCard, { backgroundColor: colors.cardBg, borderColor: colors.border, marginBottom: 20 }]}>
-                <Text style={[styles.formLabel, { color: colors.text, marginTop: 0 }]}>
-                  Neue Signalgruppe hinzufügen
-                </Text>
+              {/* UNTERKATEGORIE ERSTELLEN ODER BEARBEITEN */}
+              <View style={[styles.itemCard, { backgroundColor: colors.cardBg, borderColor: editingSubcatId ? colors.primary : colors.border, marginBottom: 20 }]}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Text style={[styles.formLabel, { color: colors.text, marginTop: 0 }]}>
+                    {editingSubcatId ? 'Signalgruppe bearbeiten' : 'Neue Signalgruppe hinzufÃ¼gen'}
+                  </Text>
+                  {editingSubcatId && (
+                    <TouchableOpacity onPress={handleCancelEditSignalSubcategory} style={{ padding: 4 }}>
+                      <Text style={{ fontSize: 12, color: colors.primary, fontWeight: 'bold' }}>Abbrechen</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
 
                 <TextInput
                   style={[styles.input, { backgroundColor: colors.cardBg, color: colors.text, borderColor: colors.border, marginTop: 8 }]}
@@ -4034,18 +4276,54 @@ export default function AdminScreen() {
 
                 <TextInput
                   style={[styles.input, { backgroundColor: colors.cardBg, color: colors.text, borderColor: colors.border, marginTop: 8 }]}
-                  placeholder="Beschreibung (optional, z.B. Signale für Rangierfahrten)"
+                  placeholder="Beschreibung (optional, z.B. Signale fÃ¼r Rangierfahrten)"
                   placeholderTextColor={colors.textMuted}
                   value={newSigSubDesc}
                   onChangeText={setNewSigSubDesc}
                 />
 
+                {/* Bild-Auswahl fÃ¼r Unterkategorie */}
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12, gap: 10 }}>
+                  <View style={{ width: 44, height: 44, borderRadius: 8, backgroundColor: colors.background, borderColor: colors.border, borderWidth: 1, alignItems: 'center', justifyContent: 'center' }}>
+                    <CategoryIcon icon="Bookmark" imageUrl={subcatImageUrl} size={28} color={colors.primary} />
+                  </View>
+                  <View style={{ flex: 1, gap: 4 }}>
+                    <TouchableOpacity
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        backgroundColor: colors.primary + '18',
+                        paddingVertical: 8,
+                        paddingHorizontal: 12,
+                        borderRadius: 6,
+                        borderWidth: 1,
+                        borderColor: colors.primary + '35'
+                      }}
+                      onPress={handlePickSubcatImage}
+                      disabled={pickingSubcatImage}
+                    >
+                      <ImageIcon size={14} color={colors.primary} style={{ marginRight: 6 }} />
+                      <Text style={{ fontSize: 12, color: colors.primary, fontWeight: '600' }}>
+                        {pickingSubcatImage ? 'Wird geladen...' : 'Bild aus Foto-Bibliothek'}
+                      </Text>
+                    </TouchableOpacity>
+                    {!!subcatImageUrl && (
+                      <TouchableOpacity onPress={() => setSubcatImageUrl('')} style={{ alignSelf: 'flex-start' }}>
+                        <Text style={{ fontSize: 11, color: colors.error }}>Bild entfernen</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </View>
+
                 <TouchableOpacity
-                  style={[styles.formBtn, styles.saveBtn, { backgroundColor: colors.primary, marginTop: 12 }]}
-                  onPress={handleAddSignalSubcategory}
+                  style={[styles.formBtn, styles.saveBtn, { backgroundColor: colors.primary, marginTop: 14 }]}
+                  onPress={handleSaveSignalSubcategory}
                 >
-                  <Plus size={16} color="#ffffff" />
-                  <Text style={{ color: '#ffffff', fontWeight: 'bold' }}>Unterkategorie anlegen</Text>
+                  <Check size={16} color="#ffffff" />
+                  <Text style={{ color: '#ffffff', fontWeight: 'bold' }}>
+                    {editingSubcatId ? 'Ã„nderungen speichern' : 'Unterkategorie anlegen'}
+                  </Text>
                 </TouchableOpacity>
               </View>
 
@@ -4072,37 +4350,51 @@ export default function AdminScreen() {
                       style={[styles.itemCard, { backgroundColor: colors.cardBg, borderColor: colors.border, marginBottom: 10 }]}
                     >
                       <View style={styles.cardHeader}>
-                        <View style={{ flex: 1, marginRight: 8 }}>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                            <Text style={[styles.itemTitle, { color: colors.text, marginLeft: 0 }]}>
-                              {sub.name}
-                            </Text>
-                            <View style={{
-                              backgroundColor: colors.primary + '18',
-                              paddingHorizontal: 8,
-                              paddingVertical: 2,
-                              borderRadius: 4,
-                            }}>
-                              <Text style={{ fontSize: 11, fontWeight: '600', color: colors.primary }}>
-                                {assignedCount} {assignedCount === 1 ? 'Signal' : 'Signale'}
-                              </Text>
-                            </View>
+                        <View style={[styles.row, { flex: 1, marginRight: 8, alignItems: 'center' }]}>
+                          <View style={{ width: 34, height: 34, borderRadius: 8, backgroundColor: `${sub.color || colors.primary}22`, alignItems: 'center', justifyContent: 'center', marginRight: 10 }}>
+                            <CategoryIcon icon={sub.icon || 'Bookmark'} imageUrl={sub.imageUrl} size={20} color={sub.color || colors.primary} />
                           </View>
-                          {!!sub.desc && (
-                            <Text style={[styles.itemDescText, { color: colors.textMuted, marginTop: 4 }]}>
-                              {sub.desc}
-                            </Text>
-                          )}
+                          <View style={{ flex: 1 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                              <Text style={[styles.itemTitle, { color: colors.text, marginLeft: 0 }]}>
+                                {sub.name}
+                              </Text>
+                              <View style={{
+                                backgroundColor: colors.primary + '18',
+                                paddingHorizontal: 8,
+                                paddingVertical: 2,
+                                borderRadius: 4,
+                              }}>
+                                <Text style={{ fontSize: 11, fontWeight: '600', color: colors.primary }}>
+                                  {assignedCount} {assignedCount === 1 ? 'Signal' : 'Signale'}
+                                </Text>
+                              </View>
+                            </View>
+                            {!!sub.desc && (
+                              <Text style={[styles.itemDescText, { color: colors.textMuted, marginTop: 4 }]}>
+                                {sub.desc}
+                              </Text>
+                            )}
+                          </View>
                         </View>
-                        <TouchableOpacity
-                          onPress={() => handleDeleteSignalSubcategory(sub)}
-                          hitSlop={{ top: 12, bottom: 12, left: 10, right: 10 }}
-                          style={{ padding: 4 }}
-                          accessibilityRole="button"
-                          accessibilityLabel={`Unterkategorie ${sub.name} löschen`}
-                        >
-                          <Trash2 size={18} color={colors.error} />
-                        </TouchableOpacity>
+                        <View style={[styles.headerActions, { flexShrink: 0, paddingTop: 2 }]}>
+                          <TouchableOpacity 
+                            onPress={() => handleEditSignalSubcategory(sub)}
+                            hitSlop={{ top: 12, bottom: 12, left: 10, right: 10 }}
+                            style={{ padding: 4 }}
+                          >
+                            <Edit3 size={18} color={colors.primary} />
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            onPress={() => handleDeleteSignalSubcategory(sub)}
+                            hitSlop={{ top: 12, bottom: 12, left: 10, right: 10 }}
+                            style={{ padding: 4, marginLeft: 8 }}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Unterkategorie ${sub.name} lÃ¶schen`}
+                          >
+                            <Trash2 size={18} color={colors.error} />
+                          </TouchableOpacity>
+                        </View>
                       </View>
                     </View>
                   );

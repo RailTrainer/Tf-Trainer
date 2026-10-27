@@ -1,10 +1,11 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Image } from 'react-native';
 import Svg, { Path, Rect, Circle, Line } from 'react-native-svg';
 import * as LucideIcons from 'lucide-react-native';
 
 export interface CategoryIconProps {
-  icon: string;
+  icon?: string;
+  imageUrl?: string;
   size?: number;
   color?: string;
   strokeWidth?: number;
@@ -475,22 +476,120 @@ const RAILWAY_COMPONENTS_MAP: Record<string, React.ComponentType<SvgIconProps>> 
 };
 
 // ============================================================================
+// 2.5 KATEGORIE-GRAFIKEN & SYMBOLE (Vom Benutzer hochgeladene Kategorie-Icons)
+// ============================================================================
+
+export const CATEGORY_IMAGE_ASSETS: Record<string, any> = {
+  wagenpruefung: require('../../assets/images/categories/wagenpruefung.png'),
+  anlage5: require('../../assets/images/categories/anlage5.png'),
+  wagenmeister: require('../../assets/images/categories/wagenmeister.png'),
+  signale: require('../../assets/images/categories/signale.png'),
+  uvv: require('../../assets/images/categories/uvv.png'),
+  bremsprobe: require('../../assets/images/categories/bremsprobe.png'),
+  dieselgrundkurs: require('../../assets/images/categories/dieselgrundkurs.png'),
+  rangieren: require('../../assets/images/categories/rangieren.png'),
+  bahnbetrieb: require('../../assets/images/categories/bahnbetrieb.png'),
+};
+
+export const PRESET_CATEGORY_SYMBOLS = [
+  { id: 'asset:wagenpruefung', name: 'Wagenprüfung', assetKey: 'wagenpruefung' },
+  { id: 'asset:anlage5', name: 'Anlage 5', assetKey: 'anlage5' },
+  { id: 'asset:wagenmeister', name: 'Wagenmeister', assetKey: 'wagenmeister' },
+  { id: 'asset:signale', name: 'Signale', assetKey: 'signale' },
+  { id: 'asset:uvv', name: 'UVV', assetKey: 'uvv' },
+  { id: 'asset:bremsprobe', name: 'Bremsprobe', assetKey: 'bremsprobe' },
+  { id: 'asset:dieselgrundkurs', name: 'Dieselgrundkurs', assetKey: 'dieselgrundkurs' },
+  { id: 'asset:rangieren', name: 'Rangieren', assetKey: 'rangieren' },
+  { id: 'asset:bahnbetrieb', name: 'Bahnbetrieb', assetKey: 'bahnbetrieb' },
+];
+
+export function resolveCategoryAsset(val?: string): any {
+  if (!val) return null;
+  const str = val.trim();
+  if (str.startsWith('asset:')) {
+    const key = str.replace('asset:', '').toLowerCase().trim();
+    return CATEGORY_IMAGE_ASSETS[key] || null;
+  }
+  const clean = str.toLowerCase().replace(/[\s\-_äöü]+/g, (m) => {
+    if (m === 'ä') return 'ae';
+    if (m === 'ö') return 'oe';
+    if (m === 'ü') return 'ue';
+    return '';
+  });
+  if (CATEGORY_IMAGE_ASSETS[clean]) return CATEGORY_IMAGE_ASSETS[clean];
+  if (clean.includes('wagenpruef') || clean.includes('wagenp')) return CATEGORY_IMAGE_ASSETS.wagenpruefung;
+  if (clean.includes('anlage5') || clean.includes('anlage')) return CATEGORY_IMAGE_ASSETS.anlage5;
+  if (clean.includes('wagenmeister')) return CATEGORY_IMAGE_ASSETS.wagenmeister;
+  if (clean.includes('signal')) return CATEGORY_IMAGE_ASSETS.signale;
+  if (clean === 'uvv') return CATEGORY_IMAGE_ASSETS.uvv;
+  if (clean.includes('brems')) return CATEGORY_IMAGE_ASSETS.bremsprobe;
+  if (clean.includes('diesel')) return CATEGORY_IMAGE_ASSETS.dieselgrundkurs;
+  if (clean.includes('rangier')) return CATEGORY_IMAGE_ASSETS.rangieren;
+  if (clean.includes('bahnbetrieb')) return CATEGORY_IMAGE_ASSETS.bahnbetrieb;
+  return null;
+}
+
+// ============================================================================
 // 3. HAUPTKOMPONENTE: CategoryIcon
 // ============================================================================
 
 export default function CategoryIcon({
   icon,
+  imageUrl,
   size = 24,
   color = '#ffffff',
   strokeWidth = 2,
   style,
 }: CategoryIconProps) {
+  // 1. Wenn imageUrl übergeben wurde oder icon ein Bild-Pfad / Asset ist
+  const targetImage = imageUrl || (icon && (icon.startsWith('http') || icon.startsWith('data:') || icon.startsWith('file:') || icon.startsWith('asset:') ? icon : undefined));
+
+  if (targetImage) {
+    if (targetImage.startsWith('http') || targetImage.startsWith('data:') || targetImage.startsWith('file:')) {
+      return (
+        <View style={[styles.container, style]}>
+          <Image
+            source={{ uri: targetImage }}
+            style={{ width: size, height: size, borderRadius: Math.round(size * 0.18) }}
+            resizeMode="cover"
+          />
+        </View>
+      );
+    }
+    const asset = resolveCategoryAsset(targetImage);
+    if (asset) {
+      return (
+        <View style={[styles.container, style]}>
+          <Image
+            source={asset}
+            style={{ width: size, height: size, borderRadius: Math.round(size * 0.18) }}
+            resizeMode="contain"
+          />
+        </View>
+      );
+    }
+  }
+
   if (!icon) {
     const FallbackIcon = LucideIcons.BookOpen;
     return <FallbackIcon size={size} color={color} strokeWidth={strokeWidth} style={style} />;
   }
 
   const trimmed = icon.trim();
+
+  // Prüfen auf Category-Asset (z.B. wenn icon direkt als 'asset:...' oder Name übergeben wurde)
+  const directAsset = resolveCategoryAsset(trimmed);
+  if (directAsset) {
+    return (
+      <View style={[styles.container, style]}>
+        <Image
+          source={directAsset}
+          style={{ width: size, height: size, borderRadius: Math.round(size * 0.18) }}
+          resizeMode="contain"
+        />
+      </View>
+    );
+  }
 
   // 1. Prüfen auf benutzerdefiniertes Eisenbahn-Symbol
   const RailwayComp = RAILWAY_COMPONENTS_MAP[trimmed];
