@@ -2,13 +2,11 @@ import { useState, useEffect } from 'react';
 import { Keyboard, Platform } from 'react-native';
 
 /**
- * Hook für dynamische Tastatur-Verschiebung wie im Chat.
- * Reagiert auf Tastatur-Events (iOS & Android) und berechnet den exakten
- * unteren Innenabstand (Padding), sodass Eingabefelder immer sichtbar bleiben.
- * 
- * @param extraPadding Zusätzlicher Puffer für Tastatur-Toolbars (Standard: 80)
+ * Hook für Tastatur-Status (isKeyboardVisible, keyboardHeight).
+ * Hinweis: Für die visuelle Tastatur-Vermeidung von Ansichten wird empfohlen,
+ * stattdessen die AppKeyboardPane-Komponente zu verwenden (nach dem Vorbild des Chats).
  */
-export function useDynamicKeyboard(extraPadding: number = 100) {
+export function useDynamicKeyboard(extraPadding: number = 0) {
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
 
@@ -44,12 +42,8 @@ export function useDynamicKeyboard(extraPadding: number = 100) {
     };
   }, []);
 
-  // Auf Android mit softwareKeyboardLayoutMode: "resize" verkleinert das System das Fenster bereits automatisch.
-  // Daher darf auf Android nicht nochmals keyboardHeight als Padding addiert werden, da sonst ein riesiger grauer Leerraum entsteht.
-  // Auf iOS verkleinert das System das Fenster nicht, dort wird keyboardHeight benötigt.
-  const dynamicKeyboardPadding = keyboardHeight > 0 
-    ? (Platform.OS === 'ios' ? keyboardHeight + extraPadding : extraPadding)
-    : 0;
+  // dynamicKeyboardPadding wird auf 0 belassen, da AppKeyboardPane die Verschiebung passgenau per KeyboardAvoidingView steuert
+  const dynamicKeyboardPadding = 0;
 
   return { keyboardHeight, isKeyboardVisible, dynamicKeyboardPadding };
 }

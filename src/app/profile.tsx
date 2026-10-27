@@ -19,6 +19,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Updates from 'expo-updates';
 import { router, useLocalSearchParams } from 'expo-router';
 import { uploadAndOptimizeImage } from '../utils/imageOptimizer';
+import { AppKeyboardPane } from '../components/ui/AppKeyboardPane';
 import { useDynamicKeyboard } from '../hooks/useDynamicKeyboard';
 import { CreateFactModal } from '../components/CreateFactModal';
 import { CreateQuestionModal } from '../components/CreateQuestionModal';
@@ -259,7 +260,7 @@ export default function ProfileScreen() {
   }, [params?.openTicket]);
 
   // Dynamische Tastatur-Verschiebung für ruckelfreies Hochwandern aller Eingabemasken
-  const { dynamicKeyboardPadding } = useDynamicKeyboard(48);
+  const { isKeyboardVisible } = useDynamicKeyboard(0);
 
   // Benachrichtigungen States
   const [isChatMutedState, setIsChatMutedState] = useState(false);
@@ -804,13 +805,13 @@ export default function ProfileScreen() {
   const avatarBg = isDark ? colors.cardBg : colors.background;
 
   return (
-    <SafeAreaView edges={['bottom']} style={[styles.container, { backgroundColor: screenBg }]}>
+    <SafeAreaView edges={isKeyboardVisible ? ['left', 'right'] : ['bottom', 'left', 'right']} style={[styles.container, { backgroundColor: screenBg }]}>
+      <AppKeyboardPane style={styles.flex}>
       <ScrollView
-        automaticallyAdjustKeyboardInsets={true}
         keyboardDismissMode={KEYBOARD_DISMISS_MODE}
         contentContainerStyle={[
           styles.scrollContent,
-          { paddingBottom: dynamicKeyboardPadding ? dynamicKeyboardPadding + 32 : 32 },
+          { paddingBottom: 32 },
         ]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
@@ -1186,6 +1187,7 @@ export default function ProfileScreen() {
           </View>
         )}
       </ScrollView>
+      </AppKeyboardPane>
 
       {/* KONTO LÖSCHEN: Bestätigung im Screen, „Abbrechen“ ist der sichere Standard */}
       <ConfirmDialog
@@ -1212,12 +1214,12 @@ export default function ProfileScreen() {
         <SafeAreaView style={[styles.modalSafeArea, { backgroundColor: screenBg }]}>
           {renderModalHeader('Support', closeTicketModal, 'Support schließen')}
 
+          <AppKeyboardPane style={styles.flex}>
           <ScrollView
-            automaticallyAdjustKeyboardInsets={true}
             keyboardDismissMode={KEYBOARD_DISMISS_MODE}
             contentContainerStyle={[
               styles.modalScrollContent,
-              { paddingBottom: dynamicKeyboardPadding ? dynamicKeyboardPadding + 32 : 32 },
+              { paddingBottom: 32 },
             ]}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
@@ -1514,6 +1516,7 @@ export default function ProfileScreen() {
               )}
             </View>
           </ScrollView>
+          </AppKeyboardPane>
         </SafeAreaView>
       </Modal>
 
