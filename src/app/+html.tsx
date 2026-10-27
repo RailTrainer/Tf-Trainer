@@ -1,13 +1,17 @@
-import { ScrollViewStyleReset } from 'expo-router/html';
+import { ScrollViewStyleReset, useServerDocumentContext } from 'expo-router/html';
 import { type PropsWithChildren } from 'react';
 
 /**
  * Root HTML template for Expo Router Web.
  * Configured specifically to lock viewport scale and prevent iOS Safari auto-zoom on inputs.
+ * In Expo SDK 58, useServerDocumentContext is required to inject headNodes (styles/fonts)
+ * and bodyNodes (client hydration script bundles).
  */
 export default function Root({ children }: PropsWithChildren) {
+  const { htmlAttributes, bodyAttributes, headNodes, bodyNodes } = useServerDocumentContext();
+
   return (
-    <html lang="de">
+    <html lang="de" {...htmlAttributes}>
       <head>
         <meta charSet="utf-8" />
         <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
@@ -51,8 +55,13 @@ export default function Root({ children }: PropsWithChildren) {
             `,
           }}
         />
+
+        {headNodes}
       </head>
-      <body>{children}</body>
+      <body {...bodyAttributes}>
+        {children}
+        {bodyNodes}
+      </body>
     </html>
   );
 }
