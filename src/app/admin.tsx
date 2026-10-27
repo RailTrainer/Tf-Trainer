@@ -34,6 +34,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { optimizeImage, uploadAndOptimizeImage } from '../utils/imageOptimizer';
 import { useDynamicKeyboard } from '../hooks/useDynamicKeyboard';
 import { AppKeyboardPane } from '../components/ui/AppKeyboardPane';
+import { useSmoothKeyboardScroll } from '../hooks/useSmoothKeyboardScroll';
 import { 
   findDuplicateQuestionsAsync, 
   findDuplicateFactsAsync, 
@@ -428,150 +429,8 @@ export default function AdminScreen() {
   // Dynamische Tastatur-Verschiebung für nahtloses Hochwandern ohne grauen Leerraum
   const { keyboardHeight, isKeyboardVisible, dynamicKeyboardPadding } = useDynamicKeyboard(0);
 
-  // Exakte dynamische Layout-Positionen (y und height) der Formularfelder
-  interface FieldLayout {
-    y: number;
-    height: number;
-  }
-  const qFieldLayouts = useRef<{ [key: string]: FieldLayout }>({});
-  const fFieldLayouts = useRef<{ [key: string]: FieldLayout }>({});
-  const cFieldLayouts = useRef<{ [key: string]: FieldLayout }>({});
-
-  const handleQFieldLayout = (key: string, layout: { y: number; height?: number }) => {
-    qFieldLayouts.current[key] = { y: layout.y, height: layout.height ?? 60 };
-  };
-
-  const handleFFieldLayout = (key: string, layout: { y: number; height?: number }) => {
-    fFieldLayouts.current[key] = { y: layout.y, height: layout.height ?? 60 };
-  };
-
-  const handleCFieldLayout = (key: string, layout: { y: number; height?: number }) => {
-    cFieldLayouts.current[key] = { y: layout.y, height: layout.height ?? 60 };
-  };
-
-  // Aktuell fokussiertes Formularfeld für reaktive Nachjustierung bei Tastatur-Events
-  const currentFocusedFieldRef = useRef<{
-    form: 'question' | 'fact' | 'cat';
-    key: string;
-    fallbackY: number;
-    fallbackHeight: number;
-  } | null>(null);
-
-  // Dynamische Berechnung des optimalen Scroll-Offsets:
-  // Wie im Chat soll das aktive Eingabefeld genau auf halber Höhe des Bildschirms
-  // (oberhalb der Tastatur zentriert) platziert werden, anstatt ganz unten anzudocken
-  // oder an den oberen Bildschirmrand zu rutschen.
-  const getFieldTargetScrollY = (fieldY: number, fieldHeight: number = 60) => {
-    const kbH = keyboardHeight > 0 ? keyboardHeight : (isKeyboardVisible ? 300 : 320);
-    const visibleH = (scrollViewportHeight > 100 && scrollViewportHeight < windowHeight - 150)
-      ? scrollViewportHeight
-      : (windowHeight - kbH - 100);
-
-    // Mittelpunkt des aktiven Eingabefeldes
-    const fieldCenter = fieldY + (fieldHeight / 2);
-
-    // Zielposition im sichtbaren Bereich: genau auf halber Höhe (ca. 42% von oben)
-    const targetOffsetInViewport = Math.round(visibleH * 0.42);
-
-    const idealScrollY = fieldCenter - targetOffsetInViewport;
-    return Math.max(0, Math.round(idealScrollY));
-  };
-
-  // Sanfte Auto-Scroll-Hilfen für perfekten Fokus direkt über der Tastatur & Leiste
-  const scrollQuestionToField = (key: string, fallbackY: number, fallbackHeight: number = 60) => {
-    const layout = qFieldLayouts.current[key];
-    const y = layout?.y ?? fallbackY;
-    const height = layout?.height ?? fallbackHeight;
-    const targetY = getFieldTargetScrollY(y, height);
-    questionScrollRef.current?.scrollTo({ y: targetY, animated: true });
-    setTimeout(() => {
-      const curY = qFieldLayouts.current[key]?.y ?? fallbackY;
-      const curH = qFieldLayouts.current[key]?.height ?? fallbackHeight;
-      questionScrollRef.current?.scrollTo({ y: getFieldTargetScrollY(curY, curH), animated: true });
-    }, 60);
-    setTimeout(() => {
-      const curY = qFieldLayouts.current[key]?.y ?? fallbackY;
-      const curH = qFieldLayouts.current[key]?.height ?? fallbackHeight;
-      questionScrollRef.current?.scrollTo({ y: getFieldTargetScrollY(curY, curH), animated: true });
-    }, 180);
-    setTimeout(() => {
-      const curY = qFieldLayouts.current[key]?.y ?? fallbackY;
-      const curH = qFieldLayouts.current[key]?.height ?? fallbackHeight;
-      questionScrollRef.current?.scrollTo({ y: getFieldTargetScrollY(curY, curH), animated: true });
-    }, 350);
-  };
-
-  const scrollFactToField = (key: string, fallbackY: number, fallbackHeight: number = 60) => {
-    const layout = fFieldLayouts.current[key];
-    const y = layout?.y ?? fallbackY;
-    const height = layout?.height ?? fallbackHeight;
-    const targetY = getFieldTargetScrollY(y, height);
-    factScrollRef.current?.scrollTo({ y: targetY, animated: true });
-    setTimeout(() => {
-      const curY = fFieldLayouts.current[key]?.y ?? fallbackY;
-      const curH = fFieldLayouts.current[key]?.height ?? fallbackHeight;
-      factScrollRef.current?.scrollTo({ y: getFieldTargetScrollY(curY, curH), animated: true });
-    }, 60);
-    setTimeout(() => {
-      const curY = fFieldLayouts.current[key]?.y ?? fallbackY;
-      const curH = fFieldLayouts.current[key]?.height ?? fallbackHeight;
-      factScrollRef.current?.scrollTo({ y: getFieldTargetScrollY(curY, curH), animated: true });
-    }, 180);
-    setTimeout(() => {
-      const curY = fFieldLayouts.current[key]?.y ?? fallbackY;
-      const curH = fFieldLayouts.current[key]?.height ?? fallbackHeight;
-      factScrollRef.current?.scrollTo({ y: getFieldTargetScrollY(curY, curH), animated: true });
-    }, 350);
-  };
-
-  const scrollCatToField = (key: string, fallbackY: number, fallbackHeight: number = 60) => {
-    const layout = cFieldLayouts.current[key];
-    const y = layout?.y ?? fallbackY;
-    const height = layout?.height ?? fallbackHeight;
-    const targetY = getFieldTargetScrollY(y, height);
-    catScrollRef.current?.scrollTo({ y: targetY, animated: true });
-    setTimeout(() => {
-      const curY = cFieldLayouts.current[key]?.y ?? fallbackY;
-      const curH = cFieldLayouts.current[key]?.height ?? fallbackHeight;
-      catScrollRef.current?.scrollTo({ y: getFieldTargetScrollY(curY, curH), animated: true });
-    }, 60);
-    setTimeout(() => {
-      const curY = cFieldLayouts.current[key]?.y ?? fallbackY;
-      const curH = cFieldLayouts.current[key]?.height ?? fallbackHeight;
-      catScrollRef.current?.scrollTo({ y: getFieldTargetScrollY(curY, curH), animated: true });
-    }, 180);
-    setTimeout(() => {
-      const curY = cFieldLayouts.current[key]?.y ?? fallbackY;
-      const curH = cFieldLayouts.current[key]?.height ?? fallbackHeight;
-      catScrollRef.current?.scrollTo({ y: getFieldTargetScrollY(curY, curH), animated: true });
-    }, 350);
-  };
-
-  const handleFieldFocus = (form: 'question' | 'fact' | 'cat', key: string, fallbackY: number, fallbackHeight: number = 60) => {
-    currentFocusedFieldRef.current = { form, key, fallbackY, fallbackHeight };
-    if (form === 'question') {
-      scrollQuestionToField(key, fallbackY, fallbackHeight);
-    } else if (form === 'fact') {
-      scrollFactToField(key, fallbackY, fallbackHeight);
-    } else if (form === 'cat') {
-      scrollCatToField(key, fallbackY, fallbackHeight);
-    }
-  };
-
-  // Sobald die Tastatur aufpoppt, ihre Höhe ändert oder der Viewport sich anpasst:
-  // Reaktives Nachjustieren auf das aktuell aktive Feld
-  useEffect(() => {
-    if (isKeyboardVisible && currentFocusedFieldRef.current) {
-      const { form, key, fallbackY, fallbackHeight } = currentFocusedFieldRef.current;
-      if (form === 'question') {
-        scrollQuestionToField(key, fallbackY, fallbackHeight);
-      } else if (form === 'fact') {
-        scrollFactToField(key, fallbackY, fallbackHeight);
-      } else if (form === 'cat') {
-        scrollCatToField(key, fallbackY, fallbackHeight);
-      }
-    }
-  }, [isKeyboardVisible, keyboardHeight, scrollViewportHeight]);
+  // Sanftes, ruckelfreies Hochwandern des fokussierten Feldes direkt über die Tastatur
+  const { onScroll: onSmoothScroll, handleInputFocus } = useSmoothKeyboardScroll();
 
   // KATEGORIE-, STATUS-FILTER FÜR FRAGEN & LERNKARTEN
   const [questionCategoryFilter, setQuestionCategoryFilter] = useState<string>('all');
@@ -2625,12 +2484,10 @@ export default function AdminScreen() {
           ) : (
             <ScrollView 
               ref={questionScrollRef}
+              onScroll={onSmoothScroll}
+              scrollEventThrottle={16}
               keyboardDismissMode="on-drag"
-              onLayout={(e) => {
-                const h = e.nativeEvent.layout.height;
-                if (h > 0) setScrollViewportHeight(h);
-              }}
-              contentContainerStyle={[styles.formContent, { paddingBottom: 60 }]} 
+              contentContainerStyle={[styles.formContent, { paddingBottom: 280 }]} 
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
             >
@@ -2755,7 +2612,7 @@ export default function AdminScreen() {
               </View>
 
               {/* Fragentext */}
-              <View onLayout={(e) => handleQFieldLayout('text', e.nativeEvent.layout)}>
+              <View>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 16 }}>
                   <Text style={[styles.formLabel, { color: colors.text, marginBottom: 0 }]}>Fragentext *</Text>
                 </View>
@@ -2776,7 +2633,7 @@ export default function AdminScreen() {
                 placeholderTextColor={colors.textMuted}
                 value={formQText}
                 onChangeText={setFormQText}
-                onFocus={() => handleFieldFocus('question', 'text', 260, 90)}
+                onFocus={(e) => handleInputFocus(e, questionScrollRef)}
                 multiline
                 scrollEnabled={false}
               />
@@ -2948,8 +2805,7 @@ export default function AdminScreen() {
                   const key = `opt_${idx}`;
                   return (
                     <View 
-                      key={idx} 
-                      onLayout={(e) => handleQFieldLayout(key, e.nativeEvent.layout)}
+                      key={idx}
                       style={[styles.optionRow, { alignItems: 'flex-start' }]}
                     >
                       <TouchableOpacity
@@ -2989,7 +2845,7 @@ export default function AdminScreen() {
                         onChangeText={(t) => handleQOptionChange(t, idx)}
                         multiline
                         scrollEnabled={false}
-                        onFocus={() => handleFieldFocus('question', key, 380 + idx * 75, 55)}
+                        onFocus={(e) => handleInputFocus(e, questionScrollRef)}
                       />
                       <TouchableOpacity
                         style={{
@@ -3041,7 +2897,7 @@ export default function AdminScreen() {
             )}
 
               {/* Erklärung */}
-              <View onLayout={(e) => handleQFieldLayout('explanation', e.nativeEvent.layout)}>
+              <View>
                 <Text style={[styles.formLabel, { color: colors.text, marginTop: 16 }]}>Erklärung (optional)</Text>
                 <TextInput
                   style={[
@@ -3059,14 +2915,14 @@ export default function AdminScreen() {
                   placeholderTextColor={colors.textMuted}
                   value={formQExplanation}
                   onChangeText={setFormQExplanation}
-                  onFocus={() => handleFieldFocus('question', 'explanation', 680, 85)}
+                  onFocus={(e) => handleInputFocus(e, questionScrollRef)}
                   multiline
                   scrollEnabled={false}
                 />
               </View>
 
               {/* Bild (Galerie oder URL) */}
-              <View onLayout={(e) => handleQFieldLayout('image', e.nativeEvent.layout)}>
+              <View>
                 <Text style={[styles.formLabel, { color: colors.text, marginTop: 16 }]}>Foto / Abbildung (optional)</Text>
                 <View style={{ flexDirection: 'row', gap: 10, marginBottom: 8 }}>
                   <TouchableOpacity
@@ -3092,7 +2948,7 @@ export default function AdminScreen() {
                   placeholderTextColor={colors.textMuted}
                   value={formQImageUrl}
                   onChangeText={setFormQImageUrl}
-                  onFocus={() => handleFieldFocus('question', 'image', 820, 50)}
+                  onFocus={(e) => handleInputFocus(e, questionScrollRef)}
                 />
               </View>
 
@@ -3593,12 +3449,10 @@ export default function AdminScreen() {
           ) : (
             <ScrollView 
               ref={factScrollRef}
+              onScroll={onSmoothScroll}
+              scrollEventThrottle={16}
               keyboardDismissMode="on-drag"
-              onLayout={(e) => {
-                const h = e.nativeEvent.layout.height;
-                if (h > 0) setScrollViewportHeight(h);
-              }}
-              contentContainerStyle={[styles.formContent, { paddingBottom: 60 }]} 
+              contentContainerStyle={[styles.formContent, { paddingBottom: 280 }]} 
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
             >
@@ -3704,7 +3558,7 @@ export default function AdminScreen() {
               )}
 
               {/* Titel */}
-              <View onLayout={(e) => handleFFieldLayout('title', e.nativeEvent.layout)}>
+              <View>
                 <Text style={[styles.formLabel, { color: colors.text, marginTop: 16 }]}>Titel / Stichwort</Text>
                 <TextInput
                   style={[styles.input, { backgroundColor: colors.cardBg, color: colors.text, borderColor: colors.border }]}
@@ -3712,12 +3566,12 @@ export default function AdminScreen() {
                   placeholderTextColor={colors.textMuted}
                   value={formFTitle}
                   onChangeText={setFormFTitle}
-                  onFocus={() => handleFieldFocus('fact', 'title', 260, 50)}
+                  onFocus={(e) => handleInputFocus(e, factScrollRef)}
                 />
               </View>
 
               {/* Inhalt */}
-              <View onLayout={(e) => handleFFieldLayout('content', e.nativeEvent.layout)}>
+              <View>
                 <Text style={[styles.formLabel, { color: colors.text, marginTop: 16 }]}>Inhalt / Fachwissen</Text>
                 <TextInput
                   style={[styles.input, styles.textArea, { backgroundColor: colors.cardBg, color: colors.text, borderColor: colors.border }]}
@@ -3725,14 +3579,14 @@ export default function AdminScreen() {
                   placeholderTextColor={colors.textMuted}
                   value={formFContent}
                   onChangeText={setFormFContent}
-                  onFocus={() => handleFieldFocus('fact', 'content', 380, 110)}
+                  onFocus={(e) => handleInputFocus(e, factScrollRef)}
                   multiline
                   scrollEnabled={false}
                 />
               </View>
 
               {/* Regelwerks-Referenz */}
-              <View onLayout={(e) => handleFFieldLayout('reference', e.nativeEvent.layout)}>
+              <View>
                 <Text style={[styles.formLabel, { color: colors.text, marginTop: 12 }]}>Regelwerks-Quelle</Text>
                 <TextInput
                   style={[styles.input, { backgroundColor: colors.cardBg, color: colors.text, borderColor: colors.border }]}
@@ -3740,12 +3594,12 @@ export default function AdminScreen() {
                   placeholderTextColor={colors.textMuted}
                   value={formFReference}
                   onChangeText={setFormFReference}
-                  onFocus={() => handleFieldFocus('fact', 'reference', 540, 50)}
+                  onFocus={(e) => handleInputFocus(e, factScrollRef)}
                 />
               </View>
 
               {/* Fotos / Abbildungen (mehrere Bilder möglich) */}
-              <View onLayout={(e) => handleFFieldLayout('image', e.nativeEvent.layout)}>
+              <View>
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 14, marginBottom: 4 }}>
                   <Text style={[styles.formLabel, { color: colors.text, marginTop: 0, marginBottom: 0 }]}>
                     Fotos / Abbildungen ({formFImageUrls.length})
@@ -3791,7 +3645,7 @@ export default function AdminScreen() {
                     value={newFactImageUrlInput}
                     onChangeText={setNewFactImageUrlInput}
                     onSubmitEditing={handleAddFactImageUrl}
-                    onFocus={() => handleFieldFocus('fact', 'image', 700, 50)}
+                    onFocus={(e) => handleInputFocus(e, factScrollRef)}
                   />
                   {newFactImageUrlInput.trim() !== '' && (
                     <TouchableOpacity
@@ -3976,12 +3830,10 @@ export default function AdminScreen() {
             // KATEGORIEN FORMULAR
             <ScrollView 
               ref={catScrollRef}
+              onScroll={onSmoothScroll}
+              scrollEventThrottle={16}
               keyboardDismissMode="on-drag"
-              onLayout={(e) => {
-                const h = e.nativeEvent.layout.height;
-                if (h > 0) setScrollViewportHeight(h);
-              }}
-              contentContainerStyle={[styles.formContent, { paddingBottom: 60 }]} 
+              contentContainerStyle={[styles.formContent, { paddingBottom: 280 }]} 
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
             >
@@ -3990,7 +3842,7 @@ export default function AdminScreen() {
               </Text>
 
               {/* Name */}
-              <View onLayout={(e) => handleCFieldLayout('name', e.nativeEvent.layout)}>
+              <View>
                 <Text style={[styles.formLabel, { color: colors.text }]}>Kategoriename (z.B. Signale)</Text>
                 <TextInput
                   style={[styles.input, { backgroundColor: colors.cardBg, color: colors.text, borderColor: colors.border }]}
@@ -3998,12 +3850,12 @@ export default function AdminScreen() {
                   placeholderTextColor={colors.textMuted}
                   value={formCatName}
                   onChangeText={setFormCatName}
-                  onFocus={() => handleFieldFocus('cat', 'name', 60, 50)}
+                  onFocus={(e) => handleInputFocus(e, catScrollRef)}
                 />
               </View>
 
               {/* Beschreibung */}
-              <View onLayout={(e) => handleCFieldLayout('desc', e.nativeEvent.layout)}>
+              <View>
                 <Text style={[styles.formLabel, { color: colors.text, marginTop: 16 }]}>Beschreibung</Text>
                 <TextInput
                   style={[styles.input, styles.textArea, { backgroundColor: colors.cardBg, color: colors.text, borderColor: colors.border }]}
@@ -4011,7 +3863,7 @@ export default function AdminScreen() {
                   placeholderTextColor={colors.textMuted}
                   value={formCatDesc}
                   onChangeText={setFormCatDesc}
-                  onFocus={() => handleFieldFocus('cat', 'desc', 150, 75)}
+                  onFocus={(e) => handleInputFocus(e, catScrollRef)}
                   multiline
                   numberOfLines={2}
                 />

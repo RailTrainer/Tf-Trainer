@@ -18,6 +18,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { mockDb, Category, User, SignalSubcategory } from '../database/mockDb';
 import { useAppTheme } from '../context/ThemeContext';
 import { AppKeyboardPane } from './ui/AppKeyboardPane';
+import { useSmoothKeyboardScroll } from '../hooks/useSmoothKeyboardScroll';
 import { uploadAndOptimizeImage } from '../utils/imageOptimizer';
 
 interface CreateFactModalProps {
@@ -38,6 +39,8 @@ export const CreateFactModal: React.FC<CreateFactModalProps> = ({
   currentUser,
 }) => {
   const { colors, isDark } = useAppTheme();
+  const scrollRef = React.useRef<any>(null);
+  const { onScroll: onSmoothScroll, handleInputFocus } = useSmoothKeyboardScroll();
 
   const [category, setCategory] = useState<string>(
     defaultCategory || categories[0]?.name || 'Allgemein'
@@ -191,8 +194,11 @@ export const CreateFactModal: React.FC<CreateFactModalProps> = ({
         </View>
 
         <ScrollView
+          ref={scrollRef}
+          onScroll={onSmoothScroll}
+          scrollEventThrottle={16}
           style={styles.scroll}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: 240 }]}
           keyboardShouldPersistTaps="handled"
         >
           {/* HINWEIS-BOX: 4-AUGEN-PRINZIP & FREIGABE */}

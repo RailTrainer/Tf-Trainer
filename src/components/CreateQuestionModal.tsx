@@ -31,6 +31,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { mockDb, Category, User, QuestionType } from '../database/mockDb';
 import { useAppTheme } from '../context/ThemeContext';
 import { AppKeyboardPane } from './ui/AppKeyboardPane';
+import { useSmoothKeyboardScroll } from '../hooks/useSmoothKeyboardScroll';
 import { uploadAndOptimizeImage } from '../utils/imageOptimizer';
 
 interface CreateQuestionModalProps {
@@ -51,6 +52,8 @@ export const CreateQuestionModal: React.FC<CreateQuestionModalProps> = ({
   currentUser,
 }) => {
   const { colors, isDark } = useAppTheme();
+  const scrollRef = React.useRef<any>(null);
+  const { onScroll: onSmoothScroll, handleInputFocus } = useSmoothKeyboardScroll();
 
   const [category, setCategory] = useState<string>(
     defaultCategory || categories[0]?.name || 'Allgemein'
@@ -302,8 +305,11 @@ export const CreateQuestionModal: React.FC<CreateQuestionModalProps> = ({
         </View>
 
         <ScrollView
+          ref={scrollRef}
+          onScroll={onSmoothScroll}
+          scrollEventThrottle={16}
           style={styles.scroll}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: 240 }]}
           keyboardShouldPersistTaps="handled"
         >
           {/* HINWEIS-BOX */}

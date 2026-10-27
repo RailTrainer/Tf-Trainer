@@ -24,18 +24,14 @@ export interface AppKeyboardPaneProps {
  * iOS und Android: Integriertes KeyboardAvoidingView mit behavior="padding".
  * Der Versatz (keyboardVerticalOffset) wird dynamisch über die tatsächliche
  * Fensterposition des Bereichs (onLayout / measure) ermittelt statt geschätzt.
- *
- * Unter Android (Edge-to-Edge) überdeckt die Tastatur standardmäßig den Inhalt;
- * durch den gemessenen Versatz und behavior="padding" wird der sichtbare Bereich
- * passgenau und ohne störenden Leerraum verkleinert.
- *
- * Web: Normales flexibles View ohne unnötige Tastatur-Listener.
+ * extraOffset gibt zusätzlich 24px Freiraum, damit die letzte Zeile jedes Feldes
+ * garantiert über der Tastaturoberkante liegt.
  */
 export function AppKeyboardPane({
   children,
   style,
   contentContainerStyle,
-  extraOffset = 0,
+  extraOffset = 24,
   enabled = true,
 }: AppKeyboardPaneProps) {
   const wrapperRef = useRef<ViewInstance>(null);
@@ -46,8 +42,8 @@ export function AppKeyboardPane({
     const node = wrapperRef.current;
     if (!node) return;
     const apply = (y: number) => {
-      const finalY = (y || 0) + extraOffset;
-      setOffset((prev) => (prev === finalY ? prev : finalY));
+      const finalY = Math.max(0, (y || 0) + extraOffset);
+      setOffset((prev) => (Math.abs(prev - finalY) > 2 ? finalY : prev));
     };
     if (Platform.OS === 'ios') {
       node.measureInWindow((_x, y) => apply(y));
