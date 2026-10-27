@@ -2004,7 +2004,7 @@ export default function AdminScreen() {
   }
 
   return (
-    <SafeAreaView edges={['bottom']} style={[
+    <SafeAreaView edges={isKeyboardVisible ? ['left', 'right'] : ['bottom', 'left', 'right']} style={[
       styles.container, 
       { backgroundColor: colors.background },
       isTablet && { width: '100%' }

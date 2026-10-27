@@ -19,19 +19,19 @@ export interface AppKeyboardPaneProps {
 
 /**
  * Universelle Tastaturfixierung (nach dem bewährten Vorbild aus dem Chatbereich).
- * Hält ScrollViews, Formulare und Eingabeleisten zuverlässig über der Tastatur.
+ * Hält ScrollViews, Formulare und Eingabeleisten bündig und zuverlässig über der Tastatur.
  *
  * iOS und Android: Integriertes KeyboardAvoidingView mit behavior="padding".
  * Der Versatz (keyboardVerticalOffset) wird dynamisch über die tatsächliche
  * Fensterposition des Bereichs (onLayout / measure) ermittelt statt geschätzt.
- * extraOffset gibt zusätzlich 24px Freiraum, damit die letzte Zeile jedes Feldes
- * garantiert über der Tastaturoberkante liegt.
+ * extraOffset ist standardmäßig 0, sodass keine störende Lücke (grauer Balken)
+ * zwischen Eingabeleiste und Tastatur entsteht.
  */
 export function AppKeyboardPane({
   children,
   style,
   contentContainerStyle,
-  extraOffset = 24,
+  extraOffset = 0,
   enabled = true,
 }: AppKeyboardPaneProps) {
   const wrapperRef = useRef<ViewInstance>(null);

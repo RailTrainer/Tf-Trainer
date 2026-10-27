@@ -34,6 +34,7 @@ import {
   BookOpen
 } from 'lucide-react-native';
 import { AppKeyboardPane } from '../components/ui/AppKeyboardPane';
+import { useDynamicKeyboard } from '../hooks/useDynamicKeyboard';
 import { useDeviceLayout } from '../hooks/useDeviceLayout';
 import { CreateFactModal } from '../components/CreateFactModal';
 import { Button } from '../components/ui/Button';
@@ -258,7 +259,7 @@ export default function LernenScreen() {
   const router = useRouter();
   const { isDark, colors } = useAppTheme();
   const screenBg = isDark ? colors.background : colors.cardBg;
-  // Tastatur-Fixierung über AppKeyboardPane
+  const { isKeyboardVisible } = useDynamicKeyboard(0);
   const { isTablet, isLandscape, isLandscapeTablet, columns } = useDeviceLayout();
 
   // States
@@ -397,7 +398,7 @@ export default function LernenScreen() {
   }
 
   return (
-    <SafeAreaView edges={['bottom']} style={[styles.container, { backgroundColor: screenBg }]}>
+    <SafeAreaView edges={isKeyboardVisible ? ['left', 'right'] : ['bottom', 'left', 'right']} style={[styles.container, { backgroundColor: screenBg }]}>
       <AppKeyboardPane style={{ flex: 1 }}>
 
       {selectedCategory === null ? (
