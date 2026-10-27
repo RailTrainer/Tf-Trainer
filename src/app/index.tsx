@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, memo } from 'react';
+﻿import React, { useState, useEffect, useRef, useCallback, memo } from 'react';
 import {
   StyleSheet,
   Text,
@@ -571,8 +571,8 @@ export default function LernenScreen() {
                     {isTablet ? (
                       <>
                         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                          <View style={[styles.rowIconBg, { backgroundColor: cat.color + '20' }]}>
-                            <CategoryIcon icon={cat.icon} imageUrl={cat.imageUrl} size={22} color={cat.color} />
+                          <View style={[styles.rowIconBg, { backgroundColor: cat.imageUrl ? 'transparent' : cat.color + '20', width: 48, height: 48, overflow: 'hidden' }]}>
+                            <CategoryIcon icon={cat.icon} imageUrl={cat.imageUrl} size={cat.imageUrl ? 48 : 24} color={cat.color} style={cat.imageUrl ? { width: '100%', height: '100%' } : undefined} />
                           </View>
                           <View style={{
                             backgroundColor: colors.primary + '18',
@@ -599,8 +599,8 @@ export default function LernenScreen() {
                     ) : (
                       <>
                         <View style={styles.rowLeft}>
-                          <View style={[styles.rowIconBg, { backgroundColor: cat.color + '20' }]}>
-                            <CategoryIcon icon={cat.icon} imageUrl={cat.imageUrl} size={20} color={cat.color} />
+                          <View style={[styles.rowIconBg, { backgroundColor: cat.imageUrl ? 'transparent' : cat.color + '20', width: 44, height: 44, overflow: 'hidden' }]}>
+                            <CategoryIcon icon={cat.icon} imageUrl={cat.imageUrl} size={cat.imageUrl ? 44 : 22} color={cat.color} style={cat.imageUrl ? { width: '100%', height: '100%' } : undefined} />
                           </View>
                           <View style={{ flex: 1 }}>
                             <Text style={[styles.rowTitle, { color: colors.text }]}>{cat.name}</Text>
@@ -742,8 +742,8 @@ export default function LernenScreen() {
                     }}
                   >
                     <View style={styles.rowLeft}>
-                      <View style={[styles.rowIconBg, { backgroundColor: (subcat.color || colors.primary) + '20' }]}>
-                        <CategoryIcon icon={subcat.icon || 'Bookmark'} imageUrl={subcat.imageUrl} size={20} color={subcat.color || colors.primary} />
+                      <View style={[styles.rowIconBg, { backgroundColor: subcat.imageUrl ? 'transparent' : (subcat.color || colors.primary) + '20', width: 44, height: 44, overflow: 'hidden' }]}>
+                        <CategoryIcon icon={subcat.icon || 'Bookmark'} imageUrl={subcat.imageUrl} size={subcat.imageUrl ? 44 : 22} color={subcat.color || colors.primary} style={subcat.imageUrl ? { width: '100%', height: '100%' } : undefined} />
                       </View>
                       <View style={{ flex: 1 }}>
                         <Text style={[styles.rowTitle, { color: colors.text }]}>{subcat.name}</Text>
@@ -1431,12 +1431,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   rowIconBg: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     borderRadius: RADIUS,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
+    overflow: 'hidden',
   },
   rowTitle: {
     fontSize: 15,

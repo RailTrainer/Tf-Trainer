@@ -547,10 +547,10 @@ export default function CategoryIcon({
   if (targetImage) {
     if (targetImage.startsWith('http') || targetImage.startsWith('data:') || targetImage.startsWith('file:')) {
       return (
-        <View style={[styles.container, style]}>
+        <View style={[{ width: size, height: size, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }, styles.container, style]}>
           <Image
             source={{ uri: targetImage }}
-            style={{ width: size, height: size, borderRadius: Math.round(size * 0.18) }}
+            style={{ width: '100%', height: '100%' }}
             resizeMode="cover"
           />
         </View>
@@ -559,11 +559,11 @@ export default function CategoryIcon({
     const asset = resolveCategoryAsset(targetImage);
     if (asset) {
       return (
-        <View style={[styles.container, style]}>
+        <View style={[{ width: size, height: size, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }, styles.container, style]}>
           <Image
             source={asset}
-            style={{ width: size, height: size, borderRadius: Math.round(size * 0.18) }}
-            resizeMode="contain"
+            style={{ width: '100%', height: '100%' }}
+            resizeMode="cover"
           />
         </View>
       );
@@ -581,11 +581,11 @@ export default function CategoryIcon({
   const directAsset = resolveCategoryAsset(trimmed);
   if (directAsset) {
     return (
-      <View style={[styles.container, style]}>
+      <View style={[{ width: size, height: size, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }, styles.container, style]}>
         <Image
           source={directAsset}
-          style={{ width: size, height: size, borderRadius: Math.round(size * 0.18) }}
-          resizeMode="contain"
+          style={{ width: '100%', height: '100%' }}
+          resizeMode="cover"
         />
       </View>
     );

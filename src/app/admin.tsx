@@ -3226,7 +3226,7 @@ export default function AdminScreen() {
               </View>
 
               {/* UNTERKATEGORIE-FILTER FÃœR LERNKARTEN */}
-              {(factCategoryFilter === 'Signale' || signalSubcategories.length > 0) && (
+              {factCategoryFilter === 'Signale' && (
                 <View style={[styles.categoryFilterContainer, { backgroundColor: colors.cardBg, borderBottomColor: colors.border, paddingTop: 4 }]}>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryFilterScroll}>
                     <TouchableOpacity
@@ -3242,12 +3242,12 @@ export default function AdminScreen() {
                         { color: colors.text },
                         factSubcategoryFilter === 'all' && styles.categoryFilterTextActive
                       ]}>
-                        Alle Untergruppen ({factCategoryFilter === 'Signale' ? facts.filter(f => f.category === 'Signale').length : facts.length})
+                        Alle Untergruppen ({facts.filter(f => f.category === 'Signale').length})
                       </Text>
                     </TouchableOpacity>
 
                     {signalSubcategories.map((sub) => {
-                      const count = facts.filter(f => (factCategoryFilter === 'all' || f.category === 'Signale') && getFactSignalSubcategory(f) === sub.name).length;
+                      const count = facts.filter(f => f.category === 'Signale' && getFactSignalSubcategory(f) === sub.name).length;
                       const isSelected = factSubcategoryFilter === sub.name;
                       return (
                         <TouchableOpacity
@@ -3291,7 +3291,7 @@ export default function AdminScreen() {
                   const query = factSearchQuery.trim().toLowerCase();
                   const rawFiltered = facts.filter(f => {
                     if (factCategoryFilter !== 'all' && f.category !== factCategoryFilter) return false;
-                    if (factSubcategoryFilter !== 'all') {
+                    if (factCategoryFilter === 'Signale' && factSubcategoryFilter !== 'all') {
                       if (getFactSignalSubcategory(f) !== factSubcategoryFilter) return false;
                     }
                     if (factVerificationFilter === 'unverified' && f.isVerified) return false;
@@ -3308,7 +3308,7 @@ export default function AdminScreen() {
 
                   // Genau so sortieren wie im Lernbereich!
                   const filteredFacts = (() => {
-                    if (factCategoryFilter === 'Signale' || factSubcategoryFilter !== 'all') {
+                    if (factCategoryFilter === 'Signale') {
                       return sortSignalFacts(rawFiltered, factSubcategoryFilter !== 'all' ? factSubcategoryFilter : undefined);
                     }
                     const catOrder = categories.map(c => c.name.toLowerCase());
@@ -3938,8 +3938,8 @@ export default function AdminScreen() {
                 <View key={c.name} style={[styles.itemCard, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
                   <View style={styles.cardHeader}>
                     <View style={[styles.row, { flex: 1, marginRight: 8, alignItems: 'center' }]}>
-                      <View style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: `${c.color}22`, alignItems: 'center', justifyContent: 'center', marginRight: 10 }}>
-                        <CategoryIcon icon={c.icon} imageUrl={c.imageUrl} size={18} color={c.color} />
+                      <View style={{ width: 38, height: 38, borderRadius: 8, backgroundColor: c.imageUrl ? 'transparent' : `${c.color}22`, alignItems: 'center', justifyContent: 'center', marginRight: 10, overflow: 'hidden' }}>
+                        <CategoryIcon icon={c.icon} imageUrl={c.imageUrl} size={c.imageUrl ? 38 : 20} color={c.color} style={c.imageUrl ? { width: '100%', height: '100%' } : undefined} />
                       </View>
                       <Text style={[styles.itemTitle, { color: colors.text, flex: 1, marginLeft: 0 }]} numberOfLines={1}>{c.name}</Text>
                     </View>
@@ -4038,8 +4038,8 @@ export default function AdminScreen() {
               <Text style={[styles.formLabel, { color: colors.text, marginTop: 16 }]}>Kategorie-Bild & Symbol</Text>
               <View style={[styles.itemCard, { backgroundColor: colors.cardBg, borderColor: colors.border, marginTop: 4, padding: 12 }]}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-                  <View style={[styles.selectedIconCircle, { backgroundColor: formCatColor, width: 52, height: 52, borderRadius: 12 }]}>
-                    <CategoryIcon icon={formCatIcon} imageUrl={formCatImageUrl} size={36} color="#ffffff" />
+                  <View style={[styles.selectedIconCircle, { backgroundColor: formCatImageUrl ? 'transparent' : formCatColor, width: 56, height: 56, borderRadius: 12, overflow: 'hidden' }]}>
+                    <CategoryIcon icon={formCatIcon} imageUrl={formCatImageUrl} size={formCatImageUrl ? 56 : 30} color="#ffffff" style={formCatImageUrl ? { width: '100%', height: '100%' } : undefined} />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={{ fontSize: 11, color: colors.textMuted, fontWeight: '700' }}>AKTIVES BILD / SYMBOL</Text>
@@ -4097,7 +4097,9 @@ export default function AdminScreen() {
                           setFormCatIcon(sym.name);
                         }}
                       >
-                        <CategoryIcon icon={sym.id} size={36} />
+                        <View style={{ width: 52, height: 52, borderRadius: 10, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }}>
+                          <CategoryIcon icon={sym.id} size={52} style={{ width: '100%', height: '100%' }} />
+                        </View>
                         <Text numberOfLines={1} style={{ fontSize: 10, fontWeight: isSelected ? '700' : '500', color: isSelected ? colors.text : colors.textMuted, marginTop: 4, textAlign: 'center' }}>
                           {sym.name}
                         </Text>
@@ -4284,8 +4286,8 @@ export default function AdminScreen() {
 
                 {/* Bild-Auswahl fÃ¼r Unterkategorie */}
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12, gap: 10 }}>
-                  <View style={{ width: 44, height: 44, borderRadius: 8, backgroundColor: colors.background, borderColor: colors.border, borderWidth: 1, alignItems: 'center', justifyContent: 'center' }}>
-                    <CategoryIcon icon="Bookmark" imageUrl={subcatImageUrl} size={28} color={colors.primary} />
+                  <View style={{ width: 44, height: 44, borderRadius: 8, backgroundColor: subcatImageUrl ? 'transparent' : colors.background, borderColor: colors.border, borderWidth: 1, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                    <CategoryIcon icon="Bookmark" imageUrl={subcatImageUrl} size={subcatImageUrl ? 44 : 24} color={colors.primary} style={subcatImageUrl ? { width: '100%', height: '100%' } : undefined} />
                   </View>
                   <View style={{ flex: 1, gap: 4 }}>
                     <TouchableOpacity
@@ -4351,8 +4353,8 @@ export default function AdminScreen() {
                     >
                       <View style={styles.cardHeader}>
                         <View style={[styles.row, { flex: 1, marginRight: 8, alignItems: 'center' }]}>
-                          <View style={{ width: 34, height: 34, borderRadius: 8, backgroundColor: `${sub.color || colors.primary}22`, alignItems: 'center', justifyContent: 'center', marginRight: 10 }}>
-                            <CategoryIcon icon={sub.icon || 'Bookmark'} imageUrl={sub.imageUrl} size={20} color={sub.color || colors.primary} />
+                          <View style={{ width: 38, height: 38, borderRadius: 8, backgroundColor: sub.imageUrl ? 'transparent' : `${sub.color || colors.primary}22`, alignItems: 'center', justifyContent: 'center', marginRight: 10, overflow: 'hidden' }}>
+                            <CategoryIcon icon={sub.icon || 'Bookmark'} imageUrl={sub.imageUrl} size={sub.imageUrl ? 38 : 20} color={sub.color || colors.primary} style={sub.imageUrl ? { width: '100%', height: '100%' } : undefined} />
                           </View>
                           <View style={{ flex: 1 }}>
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
