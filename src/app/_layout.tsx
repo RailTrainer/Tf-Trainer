@@ -1070,7 +1070,7 @@ function MainAppLayout() {
   // Web-Titel für Browser-Reiter
   useEffect(() => {
     if (Platform.OS === 'web' && typeof document !== 'undefined') {
-      document.title = 'Tf-Trainer';
+      document.title = 'RailTrainer';
     }
   }, []);
 
@@ -1384,7 +1384,7 @@ function MainAppLayout() {
           name="index"
           options={{
             title: 'Lernen',
-            headerTitle: 'Tf-Trainer - Lernen',
+            headerTitle: 'RailTrainer - Lernen',
             tabBarLabel: 'Lernen',
             tabBarIcon: ({ color, size }) => (
               <BookOpen color={color} size={size} />

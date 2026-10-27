@@ -19,7 +19,7 @@ import { mockDb, Question, Category, User, Fact, SignalSubcategory, getFactSigna
 import { useAppTheme } from '../context/ThemeContext';
 import * as Icons from 'lucide-react-native';
 import CategoryIcon from '../components/CategoryIcon';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -355,6 +355,23 @@ export default function LernenScreen() {
     loadData();
   }, []);
 
+  useFocusEffect(
+    useCallback(() => {
+      let isMounted = true;
+      (async () => {
+        try {
+          const allCategories = await mockDb.getCategories();
+          if (isMounted) setCategories(allCategories);
+          const allSigSubs = await mockDb.getSignalSubcategories();
+          if (isMounted) setSignalSubcategories(allSigSubs);
+        } catch {}
+      })();
+      return () => {
+        isMounted = false;
+      };
+    }, [])
+  );
+
   const loadData = async () => {
     try {
       setLoading(true);
@@ -380,7 +397,7 @@ export default function LernenScreen() {
       const user = await mockDb.getCurrentUser();
       setCurrentUser(prev => (prev?.id === user?.id && prev?.role === user?.role ? prev : user));
       const allCategories = await mockDb.getCategories();
-      setCategories(prev => (prev.length === allCategories.length && prev[0]?.name === allCategories[0]?.name ? prev : allCategories));
+      setCategories(allCategories);
       const verifiedFacts = await mockDb.getVerifiedFacts();
       setFacts(prev => (prev.length === verifiedFacts.length && prev[0]?.id === verifiedFacts[0]?.id ? prev : verifiedFacts));
       const favIds = await mockDb.getFavoriteFactIds(user?.id);

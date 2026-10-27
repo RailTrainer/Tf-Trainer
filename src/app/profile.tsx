@@ -65,7 +65,7 @@ import { TextField } from '../components/ui/TextField';
 import { CONTENT_MAX_WIDTH, MIN_TOUCH_TARGET, RADIUS, SCREEN_PADDING } from '../components/ui/tokens';
 
 const IS_WEB = Platform.OS === 'web';
-const APP_NAME = 'Tf-Trainer';
+const APP_NAME = 'RailTrainer';
 const APP_VERSION = Constants.expoConfig?.version;
 const SUPPORT_EMAIL = 'support@tf-trainer.de';
 // RN Web blurt bei „on-drag“ jedes fokussierte Feld, sobald die ScrollView scrollt (z. B. beim Fokus-Sprung) – im Web daher aus.

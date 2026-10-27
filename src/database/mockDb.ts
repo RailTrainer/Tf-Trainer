@@ -2212,7 +2212,7 @@ const INITIAL_TICKETS: Ticket[] = [];
 const INITIAL_NEWS: NewsItem[] = [
   {
     id: 'news_1',
-    title: 'Willkommen bei Tf-Trainer',
+    title: 'Willkommen bei RailTrainer',
     content: 'Willkommen auf der offiziellen Lern- und Wissensplattform für den Eisenbahnbetriebsdienst. Nutze die interaktiven Lernkarten und die Prüfungssimulation zur gezielten Vorbereitung.',
     category: 'announcement',
     authorId: 'u_admin',
@@ -3222,17 +3222,14 @@ export const mockDb = {
 
         const enhanceCategories = (list: Category[]): Category[] => {
       const existingNames = new Set(list.map(c => (c.name || '').toLowerCase()));
-      const result = list.map(c => {
+      const result: Category[] = list.map(c => {
         let name = c.name || '';
         if (name.toLowerCase().startsWith('wagenpr') && name !== 'Wagenprüfung') {
           name = 'Wagenprüfung';
         }
         const k = name.toLowerCase();
-        const img = c.imageUrl || defaultAssetsMap[k] || defaultAssetsMap['wagenprüfung'];
-        if (!c.imageUrl && img) {
-          return { ...c, name, imageUrl: img };
-        }
-        return { ...c, name };
+        const img = (c.imageUrl !== undefined && c.imageUrl !== '') ? c.imageUrl : defaultAssetsMap[k];
+        return { ...c, name, imageUrl: img };
       });
       for (const initCat of INITIAL_CATEGORIES) {
         if (!existingNames.has(initCat.name.toLowerCase())) {
@@ -3246,13 +3243,29 @@ export const mockDb = {
       try {
         const { data, error } = await supabase.from('categories').select('*');
         if (!error && data && data.length > 0) {
-          const mapped: Category[] = data.map(c => ({
-            name: c.name,
-            desc: c.description || '',
-            color: c.color || '#22c55e',
-            icon: c.icon || 'BookOpen',
-            imageUrl: c.image_url || c.imageUrl || defaultAssetsMap[c.name?.toLowerCase()]
-          }));
+          let localCategoriesMap: Record<string, Category> = {};
+          try {
+            const localData = await AsyncStorage.getItem(STORAGE_KEYS.CATEGORIES);
+            if (localData) {
+              const parsed: Category[] = JSON.parse(localData);
+              parsed.forEach(catItem => {
+                if (catItem.name) localCategoriesMap[catItem.name.toLowerCase()] = catItem;
+              });
+            }
+          } catch {}
+
+          const mapped: Category[] = data.map(c => {
+            const localCat = localCategoriesMap[(c.name || '').toLowerCase()];
+            const isIconAnImage = c.icon && (c.icon.startsWith('http') || c.icon.startsWith('data:') || c.icon.startsWith('asset:') || c.icon.startsWith('file:'));
+            const resolvedImg = c.image_url || c.imageUrl || (isIconAnImage ? c.icon : undefined) || localCat?.imageUrl || defaultAssetsMap[c.name?.toLowerCase()];
+            return {
+              name: c.name,
+              desc: c.description || '',
+              color: c.color || '#22c55e',
+              icon: isIconAnImage ? (localCat?.icon || 'BookOpen') : (c.icon || 'BookOpen'),
+              imageUrl: resolvedImg
+            };
+          });
           const enhanced = enhanceCategories(mapped);
           await AsyncStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(enhanced));
           return setToMemoryCache('categories', enhanced);
@@ -3345,13 +3358,24 @@ export const mockDb = {
 
     if (isSupabaseConfigured() && supabase) {
       try {
-        await supabase.from('categories').upsert({
+        const payload: Record<string, any> = {
           name: category.name,
           description: category.desc,
           color: category.color,
-          icon: category.icon,
-          image_url: category.imageUrl
-        });
+          icon: category.imageUrl || category.icon || 'BookOpen',
+          image_url: category.imageUrl || null
+        };
+        const { error } = await supabase.from('categories').upsert(payload);
+        if (error) {
+          console.warn('Supabase saveCategory with image_url failed, falling back to icon field:', error);
+          const fallbackPayload = {
+            name: category.name,
+            description: category.desc,
+            color: category.color,
+            icon: category.imageUrl || category.icon || 'BookOpen'
+          };
+          await supabase.from('categories').upsert(fallbackPayload);
+        }
       } catch (e) {
         console.log('Supabase saveCategory error', e);
       }
@@ -3370,7 +3394,7 @@ export const mockDb = {
     }
     
     await AsyncStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(categories));
-    invalidateMemoryCache('categories');
+    setToMemoryCache('categories', categories);
     return category;
   },
 

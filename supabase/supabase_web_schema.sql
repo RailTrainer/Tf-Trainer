@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS public.categories (
   description TEXT DEFAULT '',
   color TEXT DEFAULT '#22c55e',
   icon TEXT DEFAULT 'BookOpen',
+  image_url TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 

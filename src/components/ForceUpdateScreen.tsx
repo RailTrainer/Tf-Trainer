@@ -52,7 +52,7 @@ export default function ForceUpdateScreen({ updateInfo }: ForceUpdateScreenProps
         </View>
 
         <Text style={[styles.description, { color: colors.textMuted }]}>
-          Eine neue Version von Tf-Trainer ist verfügbar. Um die App weiterhin sicher und fehlerfrei nutzen zu können, ist eine Aktualisierung erforderlich.
+          Eine neue Version von RailTrainer ist verfügbar. Um die App weiterhin sicher und fehlerfrei nutzen zu können, ist eine Aktualisierung erforderlich.
         </Text>
 
         <View style={[styles.versionBox, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>

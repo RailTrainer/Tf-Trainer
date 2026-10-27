@@ -31,7 +31,7 @@ type FieldErrors = Partial<Record<FieldName, string>>;
 type Pending = 'submit' | 'resend' | null;
 
 const IS_WEB = Platform.OS === 'web';
-const APP_NAME = 'Tf-Trainer';
+const APP_NAME = 'RailTrainer';
 const APP_VERSION = Constants.expoConfig?.version;
 const MIN_PASSWORD_LENGTH = 6;
 const PASSWORD_HINT = `Mindestens ${MIN_PASSWORD_LENGTH} Zeichen`;
