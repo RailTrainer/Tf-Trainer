@@ -48,7 +48,7 @@ import WebPaywallScreen from '../components/WebPaywallScreen';
 import ForceUpdateScreen from '../components/ForceUpdateScreen';
 import { checkAppStoreUpdate, type AppStoreUpdateInfo } from '../services/appStoreUpdateService';
 import { ThemeProvider, useAppTheme } from '../context/ThemeContext';
-import { useDynamicKeyboard } from '../hooks/useDynamicKeyboard';
+import { AppKeyboardPane } from '../components/ui/AppKeyboardPane';
 import { useDeviceLayout } from '../hooks/useDeviceLayout';
 import { requestNotificationPermissions, registerForPushNotificationsAsync, sendChatNotification } from '../services/notificationService';
 import * as Updates from 'expo-updates';
@@ -286,7 +286,7 @@ function NewsUpdatesModal({
   const [newsContent, setNewsContent] = useState('');
   const [newsCategory, setNewsCategory] = useState<'update' | 'announcement' | 'warning' | 'event'>('update');
   const [saving, setSaving] = useState(false);
-  const { keyboardHeight, dynamicKeyboardPadding } = useDynamicKeyboard(48);
+  // Tastatur-Fixierung über AppKeyboardPane
   const { isTablet } = useDeviceLayout();
 
   const unreadNews = newsList.filter(n => !readNewsIds.includes(n.id));
@@ -517,8 +517,9 @@ function NewsUpdatesModal({
             </TouchableOpacity>
           </View>
 
+          <AppKeyboardPane style={{ flex: 1 }}>
           <ScrollView 
-            contentContainerStyle={{ padding: 18, paddingBottom: dynamicKeyboardPadding ? dynamicKeyboardPadding + 32 : 30 }} 
+            contentContainerStyle={{ padding: 18, paddingBottom: 30 }} 
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
@@ -941,6 +942,7 @@ function NewsUpdatesModal({
               </View>
             )}
           </ScrollView>
+          </AppKeyboardPane>
         </View>
       </View>
     </Modal>

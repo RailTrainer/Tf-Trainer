@@ -17,6 +17,7 @@ import { X, Camera, Trash2, CheckCircle2, ShieldCheck, Sparkles } from 'lucide-r
 import * as ImagePicker from 'expo-image-picker';
 import { mockDb, Category, User, SignalSubcategory } from '../database/mockDb';
 import { useAppTheme } from '../context/ThemeContext';
+import { AppKeyboardPane } from './ui/AppKeyboardPane';
 import { uploadAndOptimizeImage } from '../utils/imageOptimizer';
 
 interface CreateFactModalProps {
@@ -161,10 +162,7 @@ export const CreateFactModal: React.FC<CreateFactModalProps> = ({
 
   return (
     <Modal visible={visible} animationType="slide" transparent={false} onRequestClose={onClose}>
-      <KeyboardAvoidingView
-        style={{ flex: 1, backgroundColor: colors.background }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
+      <AppKeyboardPane style={{ flex: 1, backgroundColor: colors.background }}>
         {/* HEADER */}
         <View
           style={[
@@ -465,7 +463,7 @@ export const CreateFactModal: React.FC<CreateFactModalProps> = ({
             </TouchableOpacity>
           </View>
         </ScrollView>
-      </KeyboardAvoidingView>
+      </AppKeyboardPane>
     </Modal>
   );
 };

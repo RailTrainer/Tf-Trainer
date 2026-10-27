@@ -14,6 +14,7 @@ import Constants from 'expo-constants';
 import { ChevronLeft, KeyRound, Lock, Mail, User as UserIcon } from 'lucide-react-native';
 import { mockDb, User } from '../database/mockDb';
 import { useAppTheme } from '../context/ThemeContext';
+import { AppKeyboardPane } from './ui/AppKeyboardPane';
 import { useDynamicKeyboard } from '../hooks/useDynamicKeyboard';
 import { TextField } from './ui/TextField';
 import { Button } from './ui/Button';
@@ -58,7 +59,7 @@ function errorMessage(e: unknown): string {
 
 export default function AuthScreen({ onLoginSuccess }: AuthScreenProps) {
   const { isDark, colors } = useAppTheme();
-  const { dynamicKeyboardPadding, isKeyboardVisible } = useDynamicKeyboard(16);
+  const { isKeyboardVisible } = useDynamicKeyboard(0);
 
   const [mode, setMode] = useState<Mode>('login');
   const [forgotStep, setForgotStep] = useState<ForgotStep>('email');
@@ -331,7 +332,7 @@ export default function AuthScreen({ onLoginSuccess }: AuthScreenProps) {
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: screenBg }]}>
-      <View style={[styles.flex, { paddingBottom: dynamicKeyboardPadding }]}>
+      <AppKeyboardPane style={styles.flex}>
         <ScrollView
           style={styles.flex}
           contentContainerStyle={styles.scrollContent}
@@ -473,7 +474,7 @@ export default function AuthScreen({ onLoginSuccess }: AuthScreenProps) {
             </View>
           </View>
         </ScrollView>
-      </View>
+      </AppKeyboardPane>
 
       {/* Footer steht fest unten (außerhalb der ScrollView); bei offener Tastatur ausgeblendet. */}
       {!isKeyboardVisible ? (

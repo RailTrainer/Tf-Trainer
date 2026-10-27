@@ -33,6 +33,7 @@ import { useDeviceLayout } from '../hooks/useDeviceLayout';
 import * as ImagePicker from 'expo-image-picker';
 import { optimizeImage, uploadAndOptimizeImage } from '../utils/imageOptimizer';
 import { useDynamicKeyboard } from '../hooks/useDynamicKeyboard';
+import { AppKeyboardPane } from '../components/ui/AppKeyboardPane';
 import { 
   findDuplicateQuestionsAsync, 
   findDuplicateFactsAsync, 
@@ -2151,7 +2152,7 @@ export default function AdminScreen() {
     ]}>
       
       {/* OBERE NAVIGATION (HAUPT-TABS - HORIZONTAL SCROLLBAR / SLIDE - BEI TASTATUR IM FORMULAR AUSGEBLENDET FÜR MAXIMALEN PLATZ) */}
-      {(!isKeyboardVisible || (activeSubTab !== 'form' && factSubTab !== 'form' && catSubTab !== 'form')) && (
+      
       <View style={[styles.mainTabBarWrapper, { backgroundColor: colors.cardBg, borderBottomColor: colors.border }]}>
         <ScrollView
           horizontal
@@ -2291,10 +2292,9 @@ export default function AdminScreen() {
           })()}
         </ScrollView>
       </View>
-      )}
 
       {/* HAUPTINHALT MIT DYNAMISCHER TASTATURANPASSUNG WIE IM CHAT */}
-      <View style={{ flex: 1, paddingBottom: dynamicKeyboardPadding }}>
+      <AppKeyboardPane style={{ flex: 1 }}>
         {/* --- REITER 1: FRAGEN VERWALTEN --- */}
         {activeTab === 'questions' && (
         <View style={{ flex: 1 }}>
@@ -2630,7 +2630,7 @@ export default function AdminScreen() {
                 const h = e.nativeEvent.layout.height;
                 if (h > 0) setScrollViewportHeight(h);
               }}
-              contentContainerStyle={[styles.formContent, { paddingBottom: isKeyboardVisible ? 400 : 40 }]} 
+              contentContainerStyle={[styles.formContent, { paddingBottom: 60 }]} 
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
             >
@@ -3598,7 +3598,7 @@ export default function AdminScreen() {
                 const h = e.nativeEvent.layout.height;
                 if (h > 0) setScrollViewportHeight(h);
               }}
-              contentContainerStyle={[styles.formContent, { paddingBottom: isKeyboardVisible ? 400 : 40 }]} 
+              contentContainerStyle={[styles.formContent, { paddingBottom: 60 }]} 
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
             >
@@ -3981,7 +3981,7 @@ export default function AdminScreen() {
                 const h = e.nativeEvent.layout.height;
                 if (h > 0) setScrollViewportHeight(h);
               }}
-              contentContainerStyle={[styles.formContent, { paddingBottom: isKeyboardVisible ? 400 : 40 }]} 
+              contentContainerStyle={[styles.formContent, { paddingBottom: 60 }]} 
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
             >
@@ -6417,7 +6417,7 @@ export default function AdminScreen() {
           </ScrollView>
         </View>
       )}
-      </View>
+      </AppKeyboardPane>
 
       {/* FULLSCREEN IMAGE PREVIEW MODAL */}
       <Modal
@@ -6450,7 +6450,7 @@ export default function AdminScreen() {
         animationType="fade"
         onRequestClose={() => setShowAddIconModal(false)}
       >
-        <View style={styles.modalBackdrop}>
+        <AppKeyboardPane style={styles.modalBackdrop} contentContainerStyle={{ justifyContent: 'center', alignItems: 'center' }}>
           <View style={[styles.customIconModalBox, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
             <View style={styles.customIconModalHeader}>
               <Text style={[styles.modalTitleText, { color: colors.text }]}>Zusätzliches Symbol hinzufügen</Text>
@@ -6546,7 +6546,7 @@ export default function AdminScreen() {
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </AppKeyboardPane>
       </Modal>
     </SafeAreaView>
   );

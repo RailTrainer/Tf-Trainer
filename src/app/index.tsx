@@ -33,7 +33,7 @@ import {
   Plus,
   BookOpen
 } from 'lucide-react-native';
-import { useDynamicKeyboard } from '../hooks/useDynamicKeyboard';
+import { AppKeyboardPane } from '../components/ui/AppKeyboardPane';
 import { useDeviceLayout } from '../hooks/useDeviceLayout';
 import { CreateFactModal } from '../components/CreateFactModal';
 import { Button } from '../components/ui/Button';
@@ -258,7 +258,7 @@ export default function LernenScreen() {
   const router = useRouter();
   const { isDark, colors } = useAppTheme();
   const screenBg = isDark ? colors.background : colors.cardBg;
-  const { dynamicKeyboardPadding } = useDynamicKeyboard(32);
+  // Tastatur-Fixierung über AppKeyboardPane
   const { isTablet, isLandscape, isLandscapeTablet, columns } = useDeviceLayout();
 
   // States
@@ -398,13 +398,14 @@ export default function LernenScreen() {
 
   return (
     <SafeAreaView edges={['bottom']} style={[styles.container, { backgroundColor: screenBg }]}>
+      <AppKeyboardPane style={{ flex: 1 }}>
 
       {selectedCategory === null ? (
         // --- HAUPTÜBERSICHT: THEMENBEREICHE & SUCHE ---
         <ScrollView 
           contentContainerStyle={[
             styles.scrollContainer, 
-            { paddingBottom: dynamicKeyboardPadding ? dynamicKeyboardPadding + 24 : 32 },
+            { paddingBottom: 32 },
             { maxWidth: CONTENT_MAX_WIDTH, width: '100%', alignSelf: 'center' }
           ]} 
           showsVerticalScrollIndicator={false}
@@ -1349,6 +1350,7 @@ export default function LernenScreen() {
         defaultCategory={selectedCategory || undefined}
         currentUser={currentUser}
       />
+    </AppKeyboardPane>
     </SafeAreaView>
   );
 }
