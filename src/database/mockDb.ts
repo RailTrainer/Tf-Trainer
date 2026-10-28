@@ -2917,14 +2917,39 @@ export const mockDb = {
       return true;
     }
 
-    // 3. Web-Freigabe Markierung
+    // WICHTIG: Wenn der Nutzer im Wartezustand ist ([Web-Wartend]), KEINE Freischaltung!
     if (
-      user.isWebUnlocked ||
-      userTitle.includes('[web') ||
+      userTitle.includes('web-wartend') || 
+      userTitle.includes('wartet auf') || 
+      Boolean(user.web_unlock_requested)
+    ) {
+      // Nur freischalten, wenn explizit ein echtes Freigabe-Tag vergeben wurde
+      const hasRealUnlockTag = 
+        userTitle.includes('[web-freigabe]') ||
+        userTitle.includes('[web-zugang]') ||
+        userTitle.includes('[web-lizenz]') ||
+        userTitle.includes('web-freigabe') ||
+        userTitle.includes('web-lizenz') ||
+        userTitle.includes('web-zugang');
+      if (!hasRealUnlockTag) {
+        return false;
+      }
+    }
+
+    // 3. Echte Web-Freigabe Markierung (NUR explizite Tags, niemals generisches '[web')
+    if (
+      userTitle.includes('[web-freigabe]') ||
+      userTitle.includes('[web-zugang]') ||
+      userTitle.includes('[web-lizenz]') ||
       userTitle.includes('web-freigabe') ||
       userTitle.includes('web-lizenz') ||
-      userTitle.includes('web-zugang')
+      userTitle.includes('web-zugang') ||
+      userTitle.includes('[web]')
     ) {
+      return true;
+    }
+
+    if (user.isWebUnlocked && !user.web_unlock_requested && !userTitle.includes('web-wartend')) {
       return true;
     }
 
@@ -2999,12 +3024,14 @@ export const mockDb = {
       const nowIso = new Date().toISOString();
       if (index !== -1) {
         users[index].web_unlock_requested = true;
+        users[index].isWebUnlocked = false;
         users[index].web_unlock_requested_at = nowIso;
         await AsyncStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
       }
       let currentUserObj = await this.getCurrentUser();
       if (currentUserObj && currentUserObj.id === userId) {
         currentUserObj.web_unlock_requested = true;
+        currentUserObj.isWebUnlocked = false;
         currentUserObj.web_unlock_requested_at = nowIso;
         invalidateMemoryCache('current_user');
         await AsyncStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(currentUserObj));
