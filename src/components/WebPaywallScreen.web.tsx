@@ -61,33 +61,26 @@ export default function WebPaywallScreen({ currentUser, onUnlocked, onLogout }: 
   const checkUnlockStatus = useCallback(async (silent: boolean = false) => {
     if (!silent) setCheckingStatus(true);
     try {
-      let me = currentUser;
-      const users = await mockDb.getUsers();
-      const found = users.find(u => 
-        (currentUser && u.id === currentUser.id) || 
-        (currentUser && u.email && u.email.toLowerCase() === currentUser.email.toLowerCase())
-      );
-      if (found) me = found;
-      if (me) {
-        const validatedMe = await mockDb.validateWebAccessAuthoritative(me);
-        const effectiveMe = validatedMe || me;
-        if (isMountedRef.current) {
-          setIsWaitingUnlock(mockDb.isUserWaitingForWebUnlock(effectiveMe));
-        }
+      if (currentUser && currentUser.id) {
+        // Direkte authoritative Validierung gegen Supabase (keine veralteten Cache-Zustände!)
+        const validatedMe = await mockDb.validateWebAccessAuthoritative(currentUser);
+        const effectiveMe = validatedMe || currentUser;
+
         if (mockDb.isUserWebUnlocked(effectiveMe)) {
           if (isMountedRef.current) {
             setSuccessMessage('Dein Zugang wurde erfolgreich freigeschaltet! 🎉');
           }
           setTimeout(() => {
             onUnlocked(effectiveMe);
-          }, 1000);
+          }, 800);
           return true;
         }
       }
+
       if (!silent) {
         Alert.alert(
           'Noch nicht freigeschaltet ⏳',
-          'Dein Account wartet noch auf die Freigabe durch den Admin. Sobald deine Zahlung bestätigt und freigeschaltet wurde, öffnet sich die App automatisch.'
+          'Dein Account wartet noch auf die Freigabe durch den Administrator. Sobald deine Zahlung bestätigt und freigeschaltet wurde, öffnet sich der Tf-Trainer automatisch.'
         );
       }
     } catch {
@@ -335,6 +328,24 @@ export default function WebPaywallScreen({ currentUser, onUnlocked, onLogout }: 
                     </Text>
                   )}
                 </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.notifyAdminBtn, { borderColor: '#f59e0b', backgroundColor: isDark ? '#451a0345' : '#fef3c7' }]}
+                  onPress={handleSendAdminPopup}
+                  disabled={sendingPopup || Boolean(successMessage)}
+                  activeOpacity={0.8}
+                >
+                  {sendingPopup ? (
+                    <ActivityIndicator size="small" color="#f59e0b" />
+                  ) : (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Send size={13} color="#d97706" />
+                      <Text style={{ fontSize: 12, color: isDark ? '#fbbf24' : '#b45309', fontWeight: '700' }}>
+                        {popupSentCount > 0 ? 'Erneut Pop-Up an Admin senden' : 'Pop-Up an Admin senden'}
+                      </Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
               </View>
             </View>
           )}
@@ -415,121 +426,6 @@ export default function WebPaywallScreen({ currentUser, onUnlocked, onLogout }: 
                 </Text>
               </View>
             </View>
-          </View>
-
-          {/* SCHRITT 1: JETZT MIT PAYPAL BEZAHLEN */}
-          <View style={styles.actionSection}>
-            <TouchableOpacity
-              style={[styles.paypalButton, { backgroundColor: colors.paypalYellow }]}
-              onPress={handlePaypalCheckout}
-              disabled={loadingPaypal || Boolean(successMessage)}
-              activeOpacity={0.85}
-            >
-              {loadingPaypal ? (
-                <ActivityIndicator size="small" color="#003087" />
-              ) : (
-                <View style={styles.paypalButtonContent}>
-                  <CreditCard size={20} color="#003087" />
-                  <Text style={styles.paypalButtonText}>
-                    Jetzt mit <Text style={{ fontStyle: 'italic', fontWeight: '900', color: '#003087' }}>Pay</Text><Text style={{ fontStyle: 'italic', fontWeight: '900', color: '#0070ba' }}>Pal</Text> bezahlen (4,99 €)
-                  </Text>
-                </View>
-              )}
-            </TouchableOpacity>
-
-            {/* WICHTIGER EMAIL-HINWEIS FÜR DIE ZAHLUNG */}
-            <View style={[styles.emailNoticeBox, { backgroundColor: isDark ? '#451a0335' : '#fffbeb', borderColor: isDark ? '#d97706' : '#f59e0b' }]}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                <Info size={15} color="#d97706" />
-                <Text style={{ fontSize: 13, fontWeight: 'bold', color: isDark ? '#fbbf24' : '#b45309' }}>
-                  Wichtig für die Zuordnung deiner Zahlung:
-                </Text>
-              </View>
-              <Text style={{ fontSize: 12, color: colors.text, lineHeight: 18 }}>
-                Bitte gib bei PayPal im Verwendungszweck deine Registrierungs-E-Mail an:
-              </Text>
-              <View style={[styles.emailBadge, { backgroundColor: isDark ? '#1e293b' : '#ffffff', borderColor: colors.border }]}>
-                <Text style={{ fontSize: 13, fontWeight: 'bold', color: colors.primary }}>
-                  📧 {currentUser.email}
-                </Text>
-              </View>
-            </View>
-          </View>
-
-          {/* SCHRITT 3 & 4: POP-UP AN DEN ADMIN SENDEN / STATUS PRÜFEN */}
-          <View style={[styles.reminderCard, { backgroundColor: isDark ? '#0f172a' : '#f8fafc', borderColor: '#f59e0b' }]}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-              {isWaitingUnlock ? (
-                <ActivityIndicator size="small" color="#f59e0b" />
-              ) : (
-                <Bell size={20} color="#f59e0b" />
-              )}
-              <Text style={[styles.reminderTitle, { color: colors.text }]}>
-                Freischaltung durch Administrator
-              </Text>
-            </View>
-
-            <Text style={[styles.reminderDesc, { color: colors.textMuted }]}>
-              Der Administrator wurde bei deiner Registrierung automatisch per Pop-Up informiert. Sobald deine 4,99 € Zahlung geprüft und freigeschaltet wurde, öffnet sich die App automatisch.
-            </Text>
-
-            {/* BUTTON: SCHRITT 4 - ERNEUTES POP-UP AN ADMIN SENDEN */}
-            <TouchableOpacity
-              style={[
-                styles.sendPopupButton, 
-                { 
-                  backgroundColor: isDark ? '#451a0345' : '#fef3c7',
-                  borderColor: '#f59e0b'
-                }
-              ]}
-              onPress={handleSendAdminPopup}
-              disabled={sendingPopup || Boolean(successMessage)}
-              activeOpacity={0.8}
-            >
-              {sendingPopup ? (
-                <ActivityIndicator size="small" color="#f59e0b" />
-              ) : (
-                <View style={styles.sendPopupButtonContent}>
-                  <Send size={16} color="#d97706" />
-                  <Text style={[styles.sendPopupButtonText, { color: isDark ? '#fbbf24' : '#b45309' }]}>
-                    {popupSentCount > 0 ? '🔔 Erneut Pop-Up an den Admin schicken' : '🔔 Neues Pop-Up an den Admin schicken'}
-                  </Text>
-                </View>
-              )}
-            </TouchableOpacity>
-
-            <Text style={[styles.subHint, { color: colors.textMuted }]}>
-              ℹ️ Das Senden eines Pop-Ups erinnert den Admin. Dies führt nicht automatisch zur Freischaltung.
-            </Text>
-
-            {/* TIPP ZUM WEBCACHE */}
-            <View style={[styles.cacheTipSmallBox, { backgroundColor: isDark ? '#0c4a6e25' : '#f0f9ff', borderColor: isDark ? '#0284c7' : '#bae6fd' }]}>
-              <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 6 }}>
-                <Info size={14} color="#0284c7" style={{ marginTop: 2 }} />
-                <Text style={[styles.cacheTipSmallText, { color: isDark ? '#bae6fd' : '#0369a1' }]}>
-                  <Text style={{ fontWeight: 'bold' }}>Tipp:</Text> Nach der Freischaltung durch den Administrator kann das <Text style={{ fontWeight: 'bold' }}>Leeren des Webcaches</Text> (Strg + F5 bzw. Cmd + Shift + R) helfen, die Seite neu zu laden.
-                </Text>
-              </View>
-            </View>
-
-            {/* BUTTON: STATUS MANUELL PRÜFEN */}
-            <TouchableOpacity
-              style={[styles.checkStatusBtn, { borderColor: colors.border }]}
-              onPress={() => checkUnlockStatus(false)}
-              disabled={checkingStatus || Boolean(successMessage)}
-              activeOpacity={0.7}
-            >
-              {checkingStatus ? (
-                <ActivityIndicator size="small" color={colors.primary} />
-              ) : (
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <RefreshCw size={14} color={colors.primary} />
-                  <Text style={{ fontSize: 13, color: colors.primary, fontWeight: '600' }}>
-                    Status jetzt prüfen
-                  </Text>
-                </View>
-              )}
-            </TouchableOpacity>
           </View>
 
           {/* FOOTER */}
@@ -912,6 +808,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 10,
     paddingHorizontal: 14,
+    paddingVertical: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  notifyAdminBtn: {
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
     paddingVertical: 9,
     alignItems: 'center',
     justifyContent: 'center',

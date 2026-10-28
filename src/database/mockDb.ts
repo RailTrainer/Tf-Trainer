@@ -2912,27 +2912,23 @@ export const mockDb = {
     // 1. Admins & Moderatoren (über verifizierte System-Rolle 'admin' oder 'moderator')
     if (user.role === 'admin' || user.role === 'moderator') return true;
 
-    // 2. Wartezustand hat strikten Vorrang: Wenn der Nutzer wartet,
-    // ist er NIEMALS freigeschaltet, solange [Web-Wartend] aktiv ist!
+    // 2. Echte Web-Freigabe Markierung durch Admin hat VORRANG, wenn kein explizites [Web-Wartend] mehr im Titel steht
     const userTitle = (user.title || '').toLowerCase();
-    const hasWaitTag = 
-      userTitle.includes('web-wartend') || 
-      userTitle.includes('wartet auf') || 
-      userTitle.includes('wartend') ||
-      Boolean(user.web_unlock_requested);
-
-    if (hasWaitTag) {
-      return false;
-    }
-
-    // 3. Echte Web-Freigabe Markierung (NUR explizite Freigabe-Tags durch Admin oder gesetztes isWebUnlocked)
+    const hasWaitTitle = userTitle.includes('web-wartend') || userTitle.includes('wartet auf');
     const hasRealUnlockTag = 
-      userTitle.includes('[web-freigabe]') ||
-      userTitle.includes('[web-zugang]') ||
+      userTitle.includes('web-freigabe') ||
+      userTitle.includes('web-zugang') ||
       user.isWebUnlocked === true;
 
-    if (hasRealUnlockTag) {
+    if (hasRealUnlockTag && !hasWaitTitle) {
+      user.web_unlock_requested = false;
+      user.isWebUnlocked = true;
       return true;
+    }
+
+    // 3. Wartezustand: Wenn noch kein Freigabe-Tag vorliegt oder explizit gewartet wird
+    if (hasWaitTitle || Boolean(user.web_unlock_requested)) {
+      return false;
     }
 
     return false;
@@ -3149,12 +3145,25 @@ export const mockDb = {
           user.title = dbUser.title || user.title;
           user.name = dbUser.name || user.name;
           user.email = dbUser.email || user.email;
-          user.isWebUnlocked = this.isUserWebUnlocked(user);
+
+          const dbTitle = (user.title || '').toLowerCase();
+          const isDbUnlocked = dbTitle.includes('web-freigabe') || dbTitle.includes('web-zugang') || user.role === 'admin' || user.role === 'moderator';
+
+          if (isDbUnlocked && !dbTitle.includes('web-wartend')) {
+            user.web_unlock_requested = false;
+            user.isWebUnlocked = true;
+          } else {
+            user.isWebUnlocked = this.isUserWebUnlocked(user);
+          }
 
           try {
             const curUser = await this.getCurrentUser();
             if (curUser && curUser.id === user.id) {
-              await AsyncStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(user));
+              curUser.title = user.title;
+              curUser.role = user.role;
+              curUser.isWebUnlocked = user.isWebUnlocked;
+              curUser.web_unlock_requested = user.web_unlock_requested;
+              await AsyncStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(curUser));
               invalidateMemoryCache('current_user');
             }
           } catch {}
