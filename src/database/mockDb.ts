@@ -2229,7 +2229,8 @@ export const isDennisMasterAdminEmail = (email: string | null | undefined): bool
   return (
     e === 'dennis.koester@aixrail.de' ||
     e === 'dschmitz112@web.de' ||
-    e === 'dennis.schmitz112@gmail.com'
+    e === 'dennis.schmitz112@gmail.com' ||
+    e === 'dennis.schmitz@aixrail.de'
   );
 };
 
