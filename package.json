@@ -1,6 +1,6 @@
 {
   "name": "railtrainer",
-  "version": "1.2.10",
+  "version": "1.2.11",
   "description": "RailTrainer - Interaktive Bahn Lern- und Wissensplattform",
   "author": "Dennis Köster",
   "main": "expo-router/entry",
