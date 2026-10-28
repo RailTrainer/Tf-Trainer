@@ -22,7 +22,8 @@ import {
   Info,
   Bell,
   Check,
-  Send
+  Send,
+  Clock
 } from 'lucide-react-native';
 
 interface WebPaywallScreenProps {
@@ -233,6 +234,69 @@ export default function WebPaywallScreen({ currentUser, onUnlocked, onLogout }: 
             </View>
           )}
 
+          {/* PRÜFUNGS-STATUS-BANNER (ACCOUNT DERZEIT IN DER PRÜFUNG) */}
+          {isWaitingUnlock && !successMessage && (
+            <View style={[styles.reviewNoticeBox, { backgroundColor: isDark ? '#451a0325' : '#fffbeb', borderColor: '#f59e0b' }]}>
+              <View style={styles.reviewNoticeHeader}>
+                <Clock size={22} color="#d97706" />
+                <Text style={[styles.reviewNoticeTitle, { color: isDark ? '#fef08a' : '#92400e' }]}>
+                  Account derzeit in Prüfung ⏳
+                </Text>
+              </View>
+
+              <Text style={[styles.reviewNoticeText, { color: colors.text }]}>
+                Deine Registrierung bzw. Zahlungsanfrage ist eingegangen! Dein Account befindet sich aktuell in der manuellen Prüfung durch einen Administrator. Sobald deine Freischaltung bestätigt wurde, öffnet sich der Tf-Trainer automatisch.
+              </Text>
+
+              {/* TIPP ZUM WEBCACHE */}
+              <View style={[styles.cacheTipBox, { backgroundColor: isDark ? '#0c4a6e30' : '#f0f9ff', borderColor: isDark ? '#0284c7' : '#bae6fd' }]}>
+                <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
+                  <Info size={16} color="#0284c7" style={{ marginTop: 2 }} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.cacheTipTitle, { color: isDark ? '#7dd3fc' : '#0369a1' }]}>
+                      Wichtiger Hinweis zum Webcache:
+                    </Text>
+                    <Text style={[styles.cacheTipText, { color: isDark ? '#e0f2fe' : '#0c4a6e' }]}>
+                      Wenn der Administrator deinen Account freigeschaltet hat, kann es helfen, den <Text style={{ fontWeight: 'bold' }}>Webcache deines Browsers zu leeren</Text> oder die Seite neu zu laden (<Text style={{ fontWeight: 'bold' }}>Strg + F5</Text> unter Windows bzw. <Text style={{ fontWeight: 'bold' }}>Cmd + Shift + R</Text> auf dem Mac), damit die Seite neu geladen und die Freigabe sofort aktiv wird.
+                    </Text>
+                  </View>
+                </View>
+              </View>
+
+              <View style={styles.reviewButtonsRow}>
+                <TouchableOpacity
+                  style={[styles.reloadPageBtn, { backgroundColor: colors.primary }]}
+                  onPress={() => {
+                    if (typeof window !== 'undefined' && window.location) {
+                      window.location.reload();
+                    } else {
+                      checkUnlockStatus(false);
+                    }
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <RefreshCw size={14} color="#ffffff" />
+                  <Text style={styles.reloadPageBtnText}>Seite neu laden & Cache aktualisieren</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.checkStatusSmallBtn, { borderColor: colors.border }]}
+                  onPress={() => checkUnlockStatus(false)}
+                  disabled={checkingStatus}
+                  activeOpacity={0.7}
+                >
+                  {checkingStatus ? (
+                    <ActivityIndicator size="small" color={colors.primary} />
+                  ) : (
+                    <Text style={{ fontSize: 13, color: colors.primary, fontWeight: '600' }}>
+                      Status prüfen
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
           {/* 3-SCHRITTE ABLAUF-BOX */}
           <View style={[styles.stepsBox, { backgroundColor: isDark ? '#0f172a' : '#f8fafc', borderColor: colors.border }]}>
             <Text style={[styles.stepsTitle, { color: colors.text }]}>
@@ -395,6 +459,16 @@ export default function WebPaywallScreen({ currentUser, onUnlocked, onLogout }: 
             <Text style={[styles.subHint, { color: colors.textMuted }]}>
               ℹ️ Das Senden eines Pop-Ups erinnert den Admin. Dies führt nicht automatisch zur Freischaltung.
             </Text>
+
+            {/* TIPP ZUM WEBCACHE */}
+            <View style={[styles.cacheTipSmallBox, { backgroundColor: isDark ? '#0c4a6e25' : '#f0f9ff', borderColor: isDark ? '#0284c7' : '#bae6fd' }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 6 }}>
+                <Info size={14} color="#0284c7" style={{ marginTop: 2 }} />
+                <Text style={[styles.cacheTipSmallText, { color: isDark ? '#bae6fd' : '#0369a1' }]}>
+                  <Text style={{ fontWeight: 'bold' }}>Tipp:</Text> Nach der Freischaltung durch den Administrator kann das <Text style={{ fontWeight: 'bold' }}>Leeren des Webcaches</Text> (Strg + F5 bzw. Cmd + Shift + R) helfen, die Seite neu zu laden.
+                </Text>
+              </View>
+            </View>
 
             {/* BUTTON: STATUS MANUELL PRÜFEN */}
             <TouchableOpacity
@@ -725,5 +799,79 @@ const styles = StyleSheet.create({
     color: '#ef4444',
     fontSize: 12,
     fontWeight: '600',
+  },
+  reviewNoticeBox: {
+    borderRadius: 16,
+    borderWidth: 1.5,
+    padding: 16,
+    marginBottom: 18,
+    gap: 10,
+  },
+  reviewNoticeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  reviewNoticeTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  reviewNoticeText: {
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  cacheTipBox: {
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 12,
+    marginTop: 4,
+  },
+  cacheTipTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  cacheTipText: {
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  cacheTipSmallBox: {
+    borderRadius: 10,
+    borderWidth: 1,
+    padding: 10,
+    marginBottom: 12,
+  },
+  cacheTipSmallText: {
+    fontSize: 12,
+    lineHeight: 17,
+    flex: 1,
+  },
+  reviewButtonsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 4,
+    flexWrap: 'wrap',
+  },
+  reloadPageBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  reloadPageBtnText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  checkStatusSmallBtn: {
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

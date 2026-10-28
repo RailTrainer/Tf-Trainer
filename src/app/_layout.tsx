@@ -1331,8 +1331,23 @@ function MainAppLayout() {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: backgroundColor }}>
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: backgroundColor, padding: 24 }}>
         <ActivityIndicator size="large" color={activeColor} />
+        {Platform.OS === 'web' && (
+          <View style={{ marginTop: 24, alignItems: 'center', maxWidth: 440 }}>
+            <Text style={{ fontSize: 17, fontWeight: 'bold', color: activeColor, marginBottom: 8, textAlign: 'center' }}>
+              Tf-Trainer wird geladen...
+            </Text>
+            <Text style={{ fontSize: 13, color: isDark ? '#94a3b8' : '#64748b', textAlign: 'center', lineHeight: 20, marginBottom: 12 }}>
+              Account und Freischaltungsstatus werden überprüft.
+            </Text>
+            <View style={{ backgroundColor: isDark ? '#1e293b' : '#f1f5f9', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: isDark ? '#334155' : '#e2e8f0', width: '100%' }}>
+              <Text style={{ fontSize: 12, color: isDark ? '#cbd5e1' : '#475569', textAlign: 'center', lineHeight: 18 }}>
+                💡 <Text style={{ fontWeight: 'bold' }}>Tipp:</Text> Falls dieser Bildschirm länger sichtbar bleibt oder dein Account kürzlich freigeschaltet wurde, kann das <Text style={{ fontWeight: 'bold' }}>Leeren des Webcaches</Text> (<Text style={{ fontWeight: 'bold' }}>Strg + F5</Text> bzw. <Text style={{ fontWeight: 'bold' }}>Cmd + Shift + R</Text>) helfen, die Seite neu zu laden.
+              </Text>
+            </View>
+          </View>
+        )}
       </View>
     );
   }
