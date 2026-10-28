@@ -248,6 +248,48 @@ export default function WebPaywallScreen({ currentUser, onUnlocked, onLogout }: 
                 Deine Registrierung bzw. Zahlungsanfrage ist eingegangen! Dein Account befindet sich aktuell in der manuellen Prüfung durch einen Administrator. Sobald deine Freischaltung bestätigt wurde, öffnet sich der Tf-Trainer automatisch.
               </Text>
 
+              {/* PAYPAL ZAHLUNGS-BUTTON DIREKT IM PRÜFUNGS-BILDSCHIRM */}
+              <View style={{ marginVertical: 6, width: '100%' }}>
+                <TouchableOpacity
+                  style={[styles.paypalButton, { backgroundColor: colors.paypalYellow }]}
+                  onPress={handlePaypalCheckout}
+                  disabled={loadingPaypal || Boolean(successMessage)}
+                  activeOpacity={0.85}
+                >
+                  {loadingPaypal ? (
+                    <ActivityIndicator size="small" color="#003087" />
+                  ) : (
+                    <View style={styles.paypalButtonContent}>
+                      <CreditCard size={20} color="#003087" />
+                      <Text style={styles.paypalButtonText}>
+                        Jetzt mit <Text style={{ fontStyle: 'italic', fontWeight: '900', color: '#003087' }}>Pay</Text><Text style={{ fontStyle: 'italic', fontWeight: '900', color: '#0070ba' }}>Pal</Text> bezahlen (4,99 €)
+                      </Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+                <Text style={{ fontSize: 11, color: colors.textMuted, textAlign: 'center', marginTop: 5 }}>
+                  Empfängerkonto: <Text style={{ fontWeight: '600', color: colors.text }}>dschmitz112@web.de</Text> • Einmalig 4,99 €
+                </Text>
+              </View>
+
+              {/* WICHTIGER EMAIL-HINWEIS FÜR DIE ZAHLUNG */}
+              <View style={[styles.emailNoticeBox, { backgroundColor: isDark ? '#451a0335' : '#fffbeb', borderColor: isDark ? '#d97706' : '#f59e0b', marginVertical: 4 }]}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 3 }}>
+                  <Info size={14} color="#d97706" />
+                  <Text style={{ fontSize: 12, fontWeight: 'bold', color: isDark ? '#fbbf24' : '#b45309' }}>
+                    Wichtig für die Zuordnung deiner PayPal-Zahlung:
+                  </Text>
+                </View>
+                <Text style={{ fontSize: 12, color: colors.text, lineHeight: 18 }}>
+                  Bitte gib bei PayPal im Verwendungszweck deine Registrierungs-E-Mail an:
+                </Text>
+                <View style={[styles.emailBadge, { backgroundColor: isDark ? '#1e293b' : '#ffffff', borderColor: colors.border, marginTop: 4 }]}>
+                  <Text style={{ fontSize: 13, fontWeight: 'bold', color: colors.primary }}>
+                    📧 {currentUser.email}
+                  </Text>
+                </View>
+              </View>
+
               {/* TIPP ZUM WEBCACHE */}
               <View style={[styles.cacheTipBox, { backgroundColor: isDark ? '#0c4a6e30' : '#f0f9ff', borderColor: isDark ? '#0284c7' : '#bae6fd' }]}>
                 <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
