@@ -1252,6 +1252,7 @@ function MainAppLayout() {
   useEffect(() => {
     let hasCheckedStartup = false;
     let registeredPushUserId: string | null = null;
+    let lastContentSyncTime = 0;
 
     const checkData = async () => {
       try {
@@ -1307,6 +1308,14 @@ function MainAppLayout() {
             console.warn('[Startup] performStartupVerificationCheck failed:', e);
           }
         }
+        // Automatische periodische Hintergrund-Synchronisation von Fragen, Lernkarten und Freigaben
+        const now = Date.now();
+        if (now - lastContentSyncTime >= 60000) {
+          lastContentSyncTime = now;
+          mockDb.syncContentBidirectional(true).catch(e => {
+            console.log('[BackgroundSync] Lautloser Abgleich im Hintergrund:', e?.message || e);
+          });
+        }
       } catch (err) {
         console.error('Critical error in checkData startup:', err);
       } finally {
@@ -1353,6 +1362,7 @@ function MainAppLayout() {
     const appStateSub = AppState.addEventListener('change', (nextState) => {
       if (nextState === 'active') {
         checkOtaUpdate();
+        mockDb.syncContentBidirectional(true).catch(() => {});
       }
     });
     const interval = setInterval(checkData, 30000);

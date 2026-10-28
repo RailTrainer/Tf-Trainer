@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef, useCallback, memo } from 'react';
+import React, { useState, useEffect, useRef, useCallback, memo } from 'react';
 import {
   StyleSheet,
   Text,
@@ -399,11 +399,26 @@ export default function LernenScreen() {
       const allCategories = await mockDb.getCategories();
       setCategories(allCategories);
       const verifiedFacts = await mockDb.getVerifiedFacts();
-      setFacts(prev => (prev.length === verifiedFacts.length && prev[0]?.id === verifiedFacts[0]?.id ? prev : verifiedFacts));
+      setFacts(verifiedFacts);
       const favIds = await mockDb.getFavoriteFactIds(user?.id);
       setFavoriteFactIds(prev => (prev.length === favIds.length && prev.every(id => favIds.includes(id)) ? prev : favIds));
     }, 30000);
-    return () => clearInterval(interval);
+
+    const sub = DeviceEventEmitter.addListener('contentSynced', async () => {
+      try {
+        const verifiedFacts = await mockDb.getVerifiedFacts();
+        setFacts(verifiedFacts);
+        const allCategories = await mockDb.getCategories();
+        setCategories(allCategories);
+      } catch (err) {
+        console.log('[Index] Error handling contentSynced:', err);
+      }
+    });
+
+    return () => {
+      clearInterval(interval);
+      sub.remove();
+    };
   }, []);
 
   if (loading) {

@@ -18,6 +18,7 @@ import {
   LayoutAnimation,
   UIManager,
   RefreshControl,
+  DeviceEventEmitter,
   type ScrollViewInstance,
 } from 'react-native';
 
@@ -499,10 +500,44 @@ export default function AdminScreen() {
   };
 
   const [refreshing, setRefreshing] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
 
   useEffect(() => {
     loadData();
+    const sub = DeviceEventEmitter.addListener('contentSynced', () => {
+      // Leise Aktualisierung bei Hintergrund-Sync oder Änderungen
+      mockDb.getQuestions(false, false).then(setQuestions).catch(() => {});
+      mockDb.getFacts(undefined, false, false).then(setFacts).catch(() => {});
+    });
+    return () => sub.remove();
   }, []);
+
+  const handleManualSync = async () => {
+    if (isSyncing) return;
+    try {
+      setIsSyncing(true);
+      const res = await mockDb.syncContentBidirectional(true);
+      await loadData(true);
+      const timeStr = new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      setLastSyncTime(timeStr);
+      Alert.alert(
+        'Synchronisierung erfolgreich ✅',
+        `Alle Fragen, Lernkarten und Freigaben wurden mit der Webversion synchronisiert.\n\n` +
+        `• Fragen: ${res.questionsCount} (${res.verifiedQuestionsCount} freigegeben)\n` +
+        `• Lernkarten: ${res.factsCount} (${res.verifiedFactsCount} freigegeben)\n` +
+        `• Ungeprüfte Fragen: ${res.unverifiedQuestionsCount}\n` +
+        `• Ungeprüfte Lernkarten: ${res.unverifiedFactsCount}`
+      );
+    } catch (e: any) {
+      Alert.alert(
+        'Synchronisierungsfehler ❌',
+        'Inhalte konnten nicht synchronisiert werden: ' + (e?.message || e)
+      );
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   const loadData = async (forceRefresh: boolean = false) => {
     try {
@@ -2010,6 +2045,62 @@ export default function AdminScreen() {
       isTablet && { width: '100%' }
     ]}>
       
+      {/* ADMIN TOP HEADER MIT SYNCHRONISIERUNG */}
+      <View style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        backgroundColor: colors.cardBg,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.border,
+      }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <ShieldCheck size={20} color={colors.primary} />
+          <View>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: colors.text }}>
+              Admin-Verwaltung
+            </Text>
+            {lastSyncTime ? (
+              <Text style={{ fontSize: 10, color: colors.textMuted }}>
+                Zuletzt synchronisiert: {lastSyncTime}
+              </Text>
+            ) : (
+              <Text style={{ fontSize: 10, color: colors.textMuted }}>
+                Web & App verbunden
+              </Text>
+            )}
+          </View>
+        </View>
+
+        <TouchableOpacity
+          disabled={isSyncing}
+          onPress={handleManualSync}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 6,
+            backgroundColor: colors.primary,
+            paddingHorizontal: 12,
+            paddingVertical: 7,
+            borderRadius: RADIUS,
+            opacity: isSyncing ? 0.7 : 1,
+          }}
+          accessibilityLabel="Jetzt mit Webversion synchronisieren"
+          accessibilityRole="button"
+        >
+          {isSyncing ? (
+            <ActivityIndicator size="small" color="#ffffff" />
+          ) : (
+            <RefreshCw size={14} color="#ffffff" />
+          )}
+          <Text style={{ color: '#ffffff', fontSize: 13, fontWeight: '700' }}>
+            {isSyncing ? 'Synchronisiere...' : 'Web-Sync'}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
       {/* OBERE NAVIGATION (HAUPT-TABS - HORIZONTAL SCROLLBAR / SLIDE - BEI TASTATUR IM FORMULAR AUSGEBLENDET FÜR MAXIMALEN PLATZ) */}
       
       <View style={[styles.mainTabBarWrapper, { backgroundColor: colors.cardBg, borderBottomColor: colors.border }]}>

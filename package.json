@@ -53,7 +53,8 @@
     "admin": "node scripts/adminServer.js",
     "lint": "expo lint",
     "ota": "node scripts/publish-ota.js",
-    "ota:preview": "node scripts/publish-ota.js --branch preview"
+    "ota:preview": "node scripts/publish-ota.js --branch preview",
+    "sync:content": "node scripts/sync_playstore_to_web.js"
   },
   "private": true
 }

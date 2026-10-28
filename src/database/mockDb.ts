@@ -1,4 +1,4 @@
-import { Platform } from 'react-native';
+import { Platform, DeviceEventEmitter } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase, isSupabaseConfigured } from '../services/supabaseClient';
 import { broadcastChatPushNotification, sendDirectSupportPushNotification, sendAdminWebUnlockRequestNotification } from '../services/notificationService';
@@ -528,7 +528,7 @@ export const INITIAL_ROLES: RoleDefinition[] = [
 ];
 
 // Initialdaten für Kategorien
-const INITIAL_CATEGORIES: Category[] = [
+export const INITIAL_CATEGORIES: Category[] = [
   { name: 'Anlage 5', icon: 'asset:anlage5', color: '#f59e0b', desc: 'Zugleitbetrieb und Betriebsvorschriften für Nebenbahnen', imageUrl: 'asset:anlage5' },
   { name: 'Bahnbetrieb', icon: 'asset:bahnbetrieb', color: '#3b82f6', desc: 'Grundlagen, Zug- und Rangierfahrten im Detail', imageUrl: 'asset:bahnbetrieb' },
   { name: 'Zugfahrt', icon: 'Lokomotive', color: '#10b981', desc: 'Regelbetrieb, Abweichungen und Unregelmäßigkeiten' },
@@ -686,7 +686,7 @@ export function sortSignalFacts<T extends Partial<Fact>>(facts: T[], subcategory
 }
 
 // Initialdaten für Fakten (inkl. VDV-Schrift 757 & Regelwerke)
-const INITIAL_FACTS: Fact[] = [
+export const INITIAL_FACTS: Fact[] = [
   ...sortSignalFacts(quizletSignals as unknown as Fact[]),
   ...(anlage5Cards as unknown as Fact[]),
   ...(bremsprobeCards as unknown as Fact[]),
@@ -870,210 +870,210 @@ const INITIAL_FACTS: Fact[] = [
   // --- VDV-SCHRIFT 758: WAGENPRÜFUNG IM GÜTERVERKEHR ---
   {
     id: 'f_vdv758_1',
-    category: 'wagenprÃ¼fung',
+    category: 'Wagenprüfung',
     title: 'Verantwortung für die Fahrzeuginstandhaltung (ECM)',
     content: 'Für die ordnungsgemäße Instandhaltung, die Einhaltung der Revisionsfristen und den betriebssicheren Zustand von Güterwagen ist der Fahrzeughalter (bzw. die zertifizierte Stelle ECM – Entity in Charge of Maintenance) verantwortlich.',
     reference: 'VDV-Schrift 758, Grundlagen & Verantwortlichkeiten / EU-VO 2019/779'
   },
   {
     id: 'f_vdv758_2',
-    category: 'wagenprÃ¼fung',
+    category: 'Wagenprüfung',
     title: 'Die 4 Stufen der Wagenprüfung',
     content: 'Im Schienengüterverkehr gibt es 4 Prüfstufen: • Stufe 1: Prüfung vor der Rangierfahrt • Stufe 2: Prüfung nach Abstellung • Stufe 3: Prüfung vor der Zugfahrt (Standardprüfung) • Stufe 4: Prüfung vor der Zugfahrt mit bestimmten Güterwagen oder Ladungen (z.B. KV-Verkehr, außergewöhnliche Transporte).',
     reference: 'VDV-Schrift 758, Prüfstufen der Wagenprüfung'
   },
   {
     id: 'f_vdv758_3',
-    category: 'wagenprÃ¼fung',
+    category: 'Wagenprüfung',
     title: 'Ablauf der Revisionsfrist & Muster K',
     content: 'Läuft die Revisionsfrist eines Güterwagens in unter 15 Tagen ab, ist der Wagen beidseitig mit einem Zettel „Muster K“ zu kennzeichnen. Nach erfolgter Entladung darf der Wagen keinesfalls wiederbeladen werden, sondern muss zur Revision/Instandhaltung zugeführt werden.',
     reference: 'VDV-Schrift 758, Fristen & Bremsverzettelung / AVV Anlage 9'
   },
   {
     id: 'f_vdv758_4',
-    category: 'wagenprÃ¼fung',
+    category: 'Wagenprüfung',
     title: 'Die 3 Hauptaufgaben des Laufwerks',
     content: 'Das Laufwerk eines Schienenfahrzeugs erfüllt drei grundlegende Aufgaben: 1. Führen des Fahrzeugs sicher im Gleis (Spurführung), 2. Tragen der Fahrzeug- und Ladungsmasse, 3. Federung und Dämpfung der dynamischen Kräfte zwischen Rad und Schiene.',
     reference: 'VDV-Schrift 758, Bauteile des Laufwerks'
   },
   {
     id: 'f_vdv758_5',
-    category: 'wagenprÃ¼fung',
+    category: 'Wagenprüfung',
     title: 'Erkennungsmerkmale eines losen Radreifens',
     content: 'Ein loser Radreifen ist an 4 Merkmalen erkennbar: 1. Gegeneinander verschobene Kontrollmarken (Prüfstriche), 2. Rostaustritt an der Fuge zwischen Radreifen und Radkörper, 3. Loser, gebrochener oder fehlender Sprengring, 4. Unreiner, dumpfer Klang beim Abklopfen mit dem Prüfhammer.',
     reference: 'VDV-Schrift 758, Radsatzprüfung / AVV Anlage 9'
   },
   {
     id: 'f_vdv758_6',
-    category: 'wagenprÃ¼fung',
+    category: 'Wagenprüfung',
     title: 'Erkennungsmerkmale eines Heißläufers am Radsatzlager',
     content: 'Ein Heißläufer wird erkannt durch: 1. Oxidationsspuren, Verfärbungen, Blasenbildung oder Lackabbrand am Lagergehäuse, 2. Ausgetretenes/verbranntes Schmiermittel, 3. Handrückenprobe (spürbare Überhitzung im Vergleich zu anderen Radsatzlagern desselben Fahrzeugs).',
     reference: 'VDV-Schrift 758, Radsatzlagerprüfung'
   },
   {
     id: 'f_vdv758_7',
-    category: 'wagenprÃ¼fung',
+    category: 'Wagenprüfung',
     title: 'Merkmale eines beginnenden Radsatzlagerschadens',
     content: 'Ein Radsatzlagerschaden kündigt sich an durch: • Schmiermittelaustritt an der inneren Radscheibe • Schmiermittelaustritt am äußeren Lagerdeckel • Rasselnde, mahlende oder schleifende Laufgeräusche bei der Fahrzeugbewegung.',
     reference: 'VDV-Schrift 758, Radsatzlager'
   },
   {
     id: 'f_vdv758_8',
-    category: 'wagenprÃ¼fung',
+    category: 'Wagenprüfung',
     title: 'Definition: Verkehrstauglichkeit und Betriebssicherheit',
     content: '• Verkehrstauglichkeit: Der sichere Zustand des Fahrzeugs und der Ladeeinheit für den bestimmungsgemäßen Verwendungszweck. • Betriebssicherheit: Der Zustand von Wagen und deren Komponenten zur Gewährleistung eines sicheren Bahnbetriebs ohne abwendbare Gefährdung von Personen, Umwelt und Sachen.',
     reference: 'VDV-Schrift 758, Schutzziele & Grundsätze'
   },
   {
     id: 'f_vdv758_9',
-    category: 'wagenprÃ¼fung',
+    category: 'Wagenprüfung',
     title: 'Schutzziele und Fälligkeiten der Wagenprüfung Stufe 3',
     content: 'Schutzziel: Feststellung des sicheren Zustands von Güterwagen, Ladeeinheiten und Ladung für die anschließende Zugfahrt. Fälligkeiten: 1. Am neu gebildeten Zug, 2. Nach jeder Be- oder Entladung, 3. Wenn noch keine Stufe 3 oder 4 durchgeführt wurde, 4. Bei Übernahme von einem anderen EVU (falls kein Vertrauensabkommen besteht).',
     reference: 'VDV-Schrift 758, Wagenprüfung Stufe 3'
   },
   {
     id: 'f_vdv758_10',
-    category: 'wagenprÃ¼fung',
+    category: 'Wagenprüfung',
     title: 'Pufferbauarten und deren Besonderheiten',
     content: 'Im Güterverkehr kommen folgende Pufferbauarten zum Einsatz: 1. Standardpuffer (Kategorie A/B), 2. Hochleistungspuffer (Kategorie C mit höherem Energieaufnahmevermögen), 3. Crashpuffer (mit Sollbruchstellen zur Verformungsenergieaufnahme), 4. Diagonalpuffer, 5. QGO-Puffer (Quer-Gleit-Ölpuffer).',
     reference: 'VDV-Schrift 758, Zug- und Stoßeinrichtung'
   },
   {
     id: 'f_vdv758_11',
-    category: 'wagenprÃ¼fung',
+    category: 'Wagenprüfung',
     title: 'Ladungssicherungsmittel und Sicherungsarten nach VDV 758',
     content: '• Sicherungsmittel: Fest- und Niederbindungen (Gurte/Ketten), Trennwände, Mulden, Borde, Stirn-/Seitenwände, Stützen, Rungen. • Sicherungsarten: 1. Festbinden (Formschluss / Direktzurren), 2. Niederbinden (Kraftschluss durch Erhöhung der Reibung), 3. Starre Verladung (Ladung fest mit Wagen verbunden), 4. Gleitende Verladung (kontrolliertes Verschieben zugelassen).',
     reference: 'VDV-Schrift 758, Ladungssicherung & UIC-Verladerichtlinien'
   },
   {
     id: 'f_vdv758_12',
-    category: 'wagenprÃ¼fung',
+    category: 'Wagenprüfung',
     title: 'Zulässige Grenzwerte der Lastverteilung',
     content: 'Ungleichmäßige Lastverteilung erhöht die Entgleisungsgefahr. Grenzwerte für das Verhältnis der Radsatzlasten: • 2-achsige Wagen: max. 2:1 in Wagenlängsrichtung • Drehgestellwagen: max. 3:1 in Wagenlängsrichtung • In Wagenquerrichtung: max. 1,25:1 bei allen Güterwagen.',
     reference: 'VDV-Schrift 758, Lastverteilung / UIC-Verladerichtlinien Band 1'
   },
   {
     id: 'f_vdv758_13',
-    category: 'wagenprÃ¼fung',
+    category: 'Wagenprüfung',
     title: 'Mindestdicke von Bremssohlen',
     content: 'Die Dicke einer Grauguss- oder Kunststoff-Bremssohle darf an der dünnsten Stelle das Grenzmaß von 10 mm keinesfalls unterschreiten. Bei Erreichen oder Unterschreiten der Verschleißmarkierung ist die Sohle vor der Zugfahrt zu tauschen.',
     reference: 'VDV-Schrift 758, Bremsausrüstung / AVV Anlage 9'
   },
   {
     id: 'f_vdv758_14',
-    category: 'wagenprÃ¼fung',
+    category: 'Wagenprüfung',
     title: 'Vorschriften für Stahldraht und wirkende Höhen',
     content: '• Wird Stahldraht zur Ladungssicherung verwendet, muss dieser geglüht sein und einen Mindestdurchmesser von 4 mm aufweisen. • Wirkende Höhen von Rungen, Keilen, Bordwänden oder Anschlägen müssen mindestens 10 cm betragen, um ein Verrutschen der Ladung wirksam zu verhindern.',
     reference: 'VDV-Schrift 758, Ladungssicherungsmaterialien'
   },
   {
     id: 'f_vdv758_15',
-    category: 'wagenprÃ¼fung',
+    category: 'Wagenprüfung',
     title: 'Erkennungsmerkmale thermisch überlasteter Räder',
     content: 'Eine unzulässige thermische Überbeanspruchung (z.B. durch feste Bremse) zeigt sich durch: 1. Angeschmolzene oder verbrannte Bremssohlen, 2. Aufschweißungen / Metallauftrag auf der Lauffläche, 3. Flachstellen, 4. Verdrehte Radreifen, 5. Farbabbrand von mehr als 25 mm Breite am Übergang zur Lauffläche.',
     reference: 'VDV-Schrift 758, Thermische Radüberlastung / AVV Schadenskatalog'
   },
   {
     id: 'f_vdv758_16',
-    category: 'wagenprÃ¼fung',
+    category: 'Wagenprüfung',
     title: 'Bauteile der Doppelschake und Federungsarten',
     content: '• Doppelschake Bauteile: Schake, Zwischenstück, Tragfederbolzen, Schakenstein, Verschlussstück. • Blatttragfedern Bauarten: Trapezfederung und Parabelfederung. • Vorteil der Parabelfeder: Sie wirkt zweistufig (progressiv – weicheres Ansprechen im Leerzustand, hohe Tragfähigkeit unter Last).',
     reference: 'VDV-Schrift 758, Federung und Schaken'
   },
   {
     id: 'f_vdv758_17',
-    category: 'wagenprÃ¼fung',
+    category: 'Wagenprüfung',
     title: 'Zulässiges Tragfederspiel und Umstellung des Lastwechsels',
     content: '• Mindest-Federspiel: Schraubenfederung mind. 8 mm, Blatttragfederung mind. 15 mm. • Umstellung des Lastwechsels (Leer/Beladen): Darf ausschließlich bei vollständig gelöster Druckluftbremse UND gelöster Hand-/Feststellbremse erfolgen.',
     reference: 'VDV-Schrift 758, Federung & Bremsbedienung'
   },
   {
     id: 'f_vdv758_18',
-    category: 'wagenprÃ¼fung',
+    category: 'Wagenprüfung',
     title: 'Unzulässige Zurrpunkte zur Ladungssicherung',
     content: 'Zur Ladungssicherung dürfen nur dafür vorgesehene Zurrpunkte verwendet werden. Unzulässig sind: Laufwerk, Federungsteile, Signalstützen, Drehgestellrahmen, Zug- und Stoßeinrichtungen, Bremsgestänge sowie das vollständige Umschlingen des Wagenuntergestells.',
     reference: 'VDV-Schrift 758, Ladungssicherung / UIC Verladerichtlinien'
   },
   {
     id: 'f_vdv758_19',
-    category: 'wagenprÃ¼fung',
+    category: 'Wagenprüfung',
     title: 'Funktion und Aufgabe des Bremsgestängestellers',
     content: 'Der Bremsgestängesteller gleicht die Abnutzung und den Verschleiß der Bremssohlen automatisch aus. Er verkürzt bzw. verlängert das Bremsgestänge so, dass der Kolbenhub des Bremszylinders stets im vorgeschriebenen Arbeitsbereich bleibt.',
     reference: 'VDV-Schrift 758, Bremsmechanik'
   },
   {
     id: 'f_vdv758_20',
-    category: 'wagenprÃ¼fung',
+    category: 'Wagenprüfung',
     title: 'Schakenbauarten und Wirkungsanschriften der Feststellbremse',
     content: '• Schakenbauarten: Einfachschake, Doppelschake, Langschake, Trapezschake, Lasche. • Anschrift „1/2“ oder „3/4“: Weist darauf hin, dass die Hand-/Feststellbremse nicht auf alle Achsen, sondern nur auf den 1. und 2. bzw. den 3. und 4. Radsatz des Wagens wirkt.',
     reference: 'VDV-Schrift 758, Laufwerk & Bremsanschriften'
   },
   {
     id: 'f_vdv758_21',
-    category: 'wagenprÃ¼fung',
+    category: 'Wagenprüfung',
     title: 'Anschrift Ladeflächenhöhe und maximaler Pufferhöhenunterschied',
     content: '• Anschrift Ladeflächenhöhe: Gibt die Ladeflächenhöhe im unbeladenen Zustand über Schienenoberkante (SOK) in mm an. • Pufferhöhe: Der Höhenunterschied zwischen den Puffermitten zweier gekuppelter Fahrzeuge darf maximal 12,5 cm (125 mm) betragen.',
     reference: 'VDV-Schrift 758, Wagenanschriften & UIC 528'
   },
   {
     id: 'f_vdv758_22',
-    category: 'wagenprÃ¼fung',
+    category: 'Wagenprüfung',
     title: 'Aufgabe von Gleitstücken und Drehgestell-Erdungslitzen',
     content: '• Gleitstücke: Fangen Wankbewegungen des Wagenkastens von der Drehpfanne ab und stabilisieren den Bogenlauf. • Erdungslitzen: Die gefettete Drehpfanne isoliert elektrisch. Erdungslitzen leiten im Fall eines Oberleitungsabrisses den Kurzschlussstrom sicher vom Wagenkasten über das Drehgestell in die Schiene ab.',
     reference: 'VDV-Schrift 758, Drehgestellaufbau & Elektrosicherheit'
   },
   {
     id: 'f_vdv758_23',
-    category: 'wagenprÃ¼fung',
+    category: 'Wagenprüfung',
     title: 'Bedeutung der Wagen-Musterzettel (K, M, U, I)',
     content: '• Muster K: Nach Entladung zur Reparatur (Wiederbeladung verboten; bei erneuter Beladung: Aussetzen!). • Muster M: Wagen zu untersuchen (darf weiter beladen/befördert werden; dient der Schadenbeobachtung & Haftungsabgrenzung). • Muster U: Außergewöhnliche Sendung (nur durch Wagenmeister). • Muster I: Lauffähigkeitsbescheinigung (nur durch Wagenmeister).',
     reference: 'VDV-Schrift 758 / AVV Anlage 9 (Verzettelung)'
   },
   {
     id: 'f_vdv758_24',
-    category: 'wagenprÃ¼fung',
+    category: 'Wagenprüfung',
     title: 'Pflicht zur Wagenprüfung Stufe 4',
     content: 'Eine Stufe-3-Prüfung reicht nicht aus (Stufe 4 erforderlich) bei: 1. Kombiniertem Verkehr (KV-Züge / Intermodal), 2. Außergewöhnlichen Sendungen, 3. Außergewöhnlichen Fahrzeugen, 4. Besonderen Ladungssicherungsanforderungen (z.B. Schwellentransporte).',
     reference: 'VDV-Schrift 758, Prüfstufe 4'
   },
   {
     id: 'f_vdv758_25',
-    category: 'wagenprÃ¼fung',
+    category: 'Wagenprüfung',
     title: 'Merkmale für unrunde Räder und Flachstellen',
     content: 'Ein unrundes Rad (z.B. durch Polygonbildung oder Flachstellen) erzeugt starke Stöße und wird erkannt durch: • Blankgescheuerte Scheiben am Bremsschuh • Gebrochene Bremsfangbügel (Fangeisen) • Glänzende Abriebstellen an Tragfedern • Lose gewordene Abhebesicherungen.',
     reference: 'VDV-Schrift 758, Radsatzschäden'
   },
   {
     id: 'f_vdv758_26',
-    category: 'wagenprÃ¼fung',
+    category: 'Wagenprüfung',
     title: 'Funktion der automatischen Lastabbremsung (Oerlikon-Wiegeventil)',
     content: 'Güterwagen mit automatischem Wiegeventil passen das Bremsgewicht selbsttätig an das tatsächliche Wagengewicht an (unabhängig von der Bremsstellung G/P). Beispiel: Bei $\ge$ 42 t Gesamtgewicht schaltet das Ventil automatisch auf 48 t Bremsgewicht; unter 42 t wirkt ein Bremsgewicht von 24 t.',
     reference: 'VDV-Schrift 758, Automatische Lastabbremsung / UIC 541'
   },
   {
     id: 'f_vdv758_27',
-    category: 'wagenprÃ¼fung',
+    category: 'Wagenprüfung',
     title: 'Funktionsweise der Reibungsdämpfung am Y25-Drehgestell',
     content: 'Die lastabhängige Lenoir-Dämpfung am Y25-Drehgestell: 1. Vertikale Last drückt nach unten $\rightarrow$ 2. Schräge Dämpferschake zieht Federhaube nach unten $\rightarrow$ 3. Federhaube drückt auf inneres Druckstück $\rightarrow$ 4. Druckstück presst das Radsatzlagergehäuse horizontal gegen die Hartmanganplatte $\rightarrow$ 5. Reibung dämpft Schwingungen lastabhängig.',
     reference: 'VDV-Schrift 758, Drehgestellbauart Y25'
   },
   {
     id: 'f_vdv758_28',
-    category: 'wagenprÃ¼fung',
+    category: 'Wagenprüfung',
     title: 'Definition Überwalzung und Radsatzlagerung',
     content: '• Überwalzung: Plastische Kaltverformung des Radstahls durch extreme Druck- und Bremsbelastungen, bei der Material über die äußere Radkante hinausfließt und einen scharfkantigen, spröden Grat bildet. • Radsatzlagerung: Bei modernen Güterwagen kommen geschlossene, wartungsarme Wälzlager (Zylinder- oder Kegelrollenlager) zum Einsatz.',
     reference: 'VDV-Schrift 758, Radsatz- und Laufflächenschäden'
   },
   {
     id: 'f_vdv758_29',
-    category: 'wagenprÃ¼fung',
+    category: 'Wagenprüfung',
     title: 'Grundsätze der Wagenprüfung im Güterverkehr',
     content: 'Die 3 goldenen Grundsätze: 1. Jeder Wagen muss uneingeschränkt betriebssicher und verkehrstauglich sein, 2. Kein Wagen darf ohne gültige Technische Wagenuntersuchung auf die freie Strecke fahren, 3. Nach jeder Be- und Entladung ist zwingend eine neue Wagenprüfung fällig.',
     reference: 'VDV-Schrift 758, Grundsätze der Wagenprüfung'
   },
   {
     id: 'f_vdv758_30',
-    category: 'wagenprÃ¼fung',
+    category: 'Wagenprüfung',
     title: 'Schüttgutladung: Schüttkegel & Ladungsvolumen',
     content: '• Schüttkegel: Darf maximal 50 cm hoch über die Bordwand ragen und muss mindestens 15 cm Abstand unterhalb der Bordwandkante aufweisen. • Ladungsvolumen: Darf durch erfahrene Prüfer geschätzt werden (z.B. Uas-Schüttgutwagen ca. 50 t Zuladung, Res-Wagen ca. 40–50 t Zuladung).',
     reference: 'VDV-Schrift 758, Schüttgutverladung & UIC Verladerichtlinien'
@@ -1491,7 +1491,7 @@ const INITIAL_FACTS: Fact[] = [
   },
   {
     id: 'f6',
-    category: 'wagenprÃ¼fung',
+    category: 'Wagenprüfung',
     title: 'Grenzmaß für Flachstellen',
     content: 'Flachstellen an Radreifen von Güterwagen dürfen eine Länge von 60 mm nicht überschreiten. Bei Überschreitung muss der Wagen ausgesetzt und der Instandhaltung zugeführt werden, um Schienenbeschädigungen zu vermeiden.',
     reference: 'Ril 937 (Wagenprüfung), Modul 937.0102, Abs. 7'
@@ -1676,7 +1676,7 @@ const INITIAL_FACTS: Fact[] = [
 ];
 
 // Initialdaten für Fragen
-const INITIAL_QUESTIONS: Question[] = [
+export const INITIAL_QUESTIONS: Question[] = [
   {
     id: 'q1',
     category: 'Signale',
@@ -1745,7 +1745,7 @@ const INITIAL_QUESTIONS: Question[] = [
   },
   {
     id: 'q6',
-    category: 'wagenprÃ¼fung',
+    category: 'Wagenprüfung',
     text: 'Wie macht sich eine Flachstelle an einem Güterwagen im Betrieb bemerkbar?',
     options: [
       "Durch eine stetige Rauchentwicklung am Radsatzlagergehäuse",
@@ -3534,6 +3534,70 @@ export const mockDb = {
     }
   },
 
+  /**
+   * Vollständige bidirektionale Synchronisierung von Fragen, Lernkarten und Freigaben
+   * mit der Supabase-Cloud.
+   * Aktualisiert Memory-Cache und persistenten AsyncStorage und benachrichtigt alle Screens.
+   */
+  async syncContentBidirectional(forceRefresh: boolean = true): Promise<{
+    questionsCount: number;
+    factsCount: number;
+    verifiedQuestionsCount: number;
+    verifiedFactsCount: number;
+    unverifiedQuestionsCount: number;
+    unverifiedFactsCount: number;
+    timestamp: string;
+  }> {
+    try {
+      console.log('[Sync] Starte bidirektionalen Abgleich mit Supabase...');
+      invalidateMemoryCache('questions');
+      invalidateMemoryCache('facts');
+
+      const [allQuestions, allFacts] = await Promise.all([
+        this.getQuestions(false, forceRefresh),
+        this.getFacts(undefined, false, forceRefresh)
+      ]);
+
+      const verifiedQuestions = allQuestions.filter(q => q.isVerified === true);
+      const verifiedFacts = allFacts.filter(f => f.isVerified === true);
+
+      // In persistenten Cache schreiben
+      await AsyncStorage.setItem(STORAGE_KEYS.QUESTIONS, JSON.stringify(allQuestions));
+      await AsyncStorage.setItem(STORAGE_KEYS.FACTS, JSON.stringify(allFacts));
+
+      // 4-Augen-Prinzip: Schüler erhalten nur verifizierte Daten
+      try {
+        const curUser = await this.getCurrentUser();
+        if (curUser?.role === 'user') {
+          await AsyncStorage.setItem(STORAGE_KEYS.QUESTIONS, JSON.stringify(verifiedQuestions));
+          await AsyncStorage.setItem(STORAGE_KEYS.FACTS, JSON.stringify(verifiedFacts));
+        }
+      } catch (err) {
+        console.warn('[Sync] Fehler beim Prüfen der User-Rolle:', err);
+      }
+
+      const syncResult = {
+        questionsCount: allQuestions.length,
+        factsCount: allFacts.length,
+        verifiedQuestionsCount: verifiedQuestions.length,
+        verifiedFactsCount: verifiedFacts.length,
+        unverifiedQuestionsCount: allQuestions.length - verifiedQuestions.length,
+        unverifiedFactsCount: allFacts.length - verifiedFacts.length,
+        timestamp: new Date().toISOString()
+      };
+
+      console.log(`[Sync] Abgleich erfolgreich: ${syncResult.questionsCount} Fragen (${syncResult.verifiedQuestionsCount} verifiziert), ${syncResult.factsCount} Lernkarten (${syncResult.verifiedFactsCount} verifiziert).`);
+
+      // Bildschirme informieren
+      DeviceEventEmitter.emit('contentSynced', syncResult);
+
+      return syncResult;
+    } catch (error) {
+      console.error('[Sync] Fehler beim bidirektionalen Abgleich:', error);
+      throw error;
+    }
+  },
+
   async getVerifiedQuestions(): Promise<Question[]> {
     return this.getQuestions(true);
   },
@@ -3786,6 +3850,7 @@ export const mockDb = {
     await AsyncStorage.setItem(STORAGE_KEYS.QUESTIONS, JSON.stringify(questions));
     invalidateMemoryCache('questions');
     setToMemoryCache('questions_false', questions);
+    DeviceEventEmitter.emit('contentSynced', { type: 'question', id: fullQuestion.id, isVerified: fullQuestion.isVerified });
     return fullQuestion;
   },
 
@@ -4493,6 +4558,7 @@ export const mockDb = {
     await AsyncStorage.setItem(STORAGE_KEYS.FACTS, JSON.stringify(facts));
     invalidateMemoryCache('facts');
     setToMemoryCache(`facts_all_false`, facts);
+    DeviceEventEmitter.emit('contentSynced', { type: 'fact', id: fullFact.id, isVerified: fullFact.isVerified });
     return fullFact;
   },
 

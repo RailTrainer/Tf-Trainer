@@ -313,6 +313,13 @@ export default function QuizScreen() {
       mockDb.getCategories().then(setCategories);
       mockDb.getVerifiedQuestions().then(setQuestions);
     }
+    const sub = DeviceEventEmitter.addListener('contentSynced', () => {
+      if (quizStatus === 'setup') {
+        mockDb.getVerifiedQuestions().then(setQuestions).catch(() => {});
+        mockDb.getCategories().then(setCategories).catch(() => {});
+      }
+    });
+    return () => sub.remove();
   }, [quizStatus]);
 
 
