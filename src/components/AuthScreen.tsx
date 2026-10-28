@@ -415,9 +415,9 @@ export default function AuthScreen({ onLoginSuccess }: AuthScreenProps) {
                   />
                 ) : null}
 
-                {IS_WEB && mode === 'register' ? (
+                {mode === 'register' ? (
                   <Text style={[styles.note, { color: colors.textMuted }]}>
-                    Der Web-Zugang kostet einmalig 4,99 €. Bezahlen kannst du nach der Registrierung.
+                    Die Freischaltung kostet einmalig 4,99 € (lebenslanger Zugriff). Bezahlen kannst du direkt nach der Registrierung via PayPal.
                   </Text>
                 ) : null}
 

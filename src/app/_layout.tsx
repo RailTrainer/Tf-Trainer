@@ -45,6 +45,7 @@ import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-cont
 import { mockDb, User, RoleDefinition, NewsItem } from '../database/mockDb';
 import AuthScreen from '../components/AuthScreen';
 import WebPaywallScreen from '../components/WebPaywallScreen';
+import AdminUnlockModal from '../components/AdminUnlockModal';
 import ForceUpdateScreen from '../components/ForceUpdateScreen';
 import { checkAppStoreUpdate, type AppStoreUpdateInfo } from '../services/appStoreUpdateService';
 import { ThemeProvider, useAppTheme } from '../context/ThemeContext';
@@ -1082,6 +1083,11 @@ function MainAppLayout() {
   const [loading, setLoading] = useState(true);
   const [forceUpdateInfo, setForceUpdateInfo] = useState<AppStoreUpdateInfo | null>(null);
 
+  // Admin Freischaltungs-PopUp State
+  const [pendingRequests, setPendingRequests] = useState<User[]>([]);
+  const [adminModalVisible, setAdminModalVisible] = useState(false);
+  const [dismissedTimestamps, setDismissedTimestamps] = useState<Record<string, number>>({});
+
   // Farben konfigurieren
   const activeColor = themeColors.primary;
   const inactiveColor = themeColors.textMuted;
@@ -1117,6 +1123,58 @@ function MainAppLayout() {
   };
 
   const unreadCount = newsList.filter(n => !readNewsIds.includes(n.id)).length;
+
+  const isAdmin = Boolean(
+    currentUser && (
+      currentUser.role === 'admin' ||
+      currentUser.role === 'moderator' ||
+      Boolean(roles.find(r => r.id === currentUser.role)?.canAccessAdmin) ||
+      (currentUser.email || '').toLowerCase() === 'dennis.koester@aixrail.de'
+    )
+  );
+
+  // Admin Pop-Up für wartende Freischaltungen (automatische Live-Abfrage)
+  useEffect(() => {
+    if (!isAdmin) return;
+
+    let isMounted = true;
+    const checkPendingRequests = async () => {
+      try {
+        const requests = await mockDb.getPendingUnlockRequests();
+        if (!isMounted) return;
+        if (requests && requests.length > 0) {
+          const actionable = requests.filter(r => {
+            const dismissedAt = dismissedTimestamps[r.id] || 0;
+            const reqTime = r.web_unlock_requested_at ? new Date(r.web_unlock_requested_at).getTime() : 0;
+            return dismissedAt === 0 || reqTime > dismissedAt;
+          });
+          setPendingRequests(actionable);
+          if (actionable.length > 0) {
+            setAdminModalVisible(true);
+          }
+        } else {
+          setPendingRequests([]);
+          setAdminModalVisible(false);
+        }
+      } catch (err) {
+        console.warn('Error checking pending unlock requests:', err);
+      }
+    };
+
+    const initialTimer = setTimeout(() => {
+      void checkPendingRequests();
+    }, 100);
+
+    const interval = setInterval(() => {
+      void checkPendingRequests();
+    }, 6000);
+
+    return () => {
+      isMounted = false;
+      clearTimeout(initialTimer);
+      clearInterval(interval);
+    };
+  }, [isAdmin, dismissedTimestamps]);
 
   // iOS Safari Zoom-Verhinderung im Web (Meta-Tag, Gesten & 16px Inputs)
   useEffect(() => {
@@ -1187,7 +1245,7 @@ function MainAppLayout() {
 
     const checkData = async () => {
       let user = await mockDb.getCurrentUser();
-      if (user && typeof user === 'object' && Platform.OS === 'web') {
+      if (user && typeof user === 'object') {
         // Authoritative Server-Validierung gegen Supabase (Backend Paywall & Rolle abgleichen)
         const validated = await mockDb.validateWebAccessAuthoritative(user);
         if (validated && typeof validated === 'object') {
@@ -1275,36 +1333,30 @@ function MainAppLayout() {
       <AuthScreen 
           onLoginSuccess={async (loggedInUser) => {
             if (loggedInUser && typeof loggedInUser === 'object') {
-              if (Platform.OS === 'web') {
-                const validated = await mockDb.validateWebAccessAuthoritative(loggedInUser);
-                setCurrentUser(validated || loggedInUser);
-              } else {
-                setCurrentUser(loggedInUser);
-              }
+              const validated = await mockDb.validateWebAccessAuthoritative(loggedInUser);
+              setCurrentUser(validated || loggedInUser);
             }
           }} 
         />
     );
   }
 
-  // WEB-GATE: Prüfung der Web-Freischaltung (4,99 € PayPal / Key oder Dozenten)
-  if (Platform.OS === 'web') {
-    const isUnlocked = mockDb.isUserWebUnlocked(currentUser, roles);
+  // PAYWALL-GATE: Prüfung der Freischaltung (4,99 € PayPal / Key oder Dozenten/Admins)
+  const isUnlocked = mockDb.isUserWebUnlocked(currentUser, roles);
 
-    if (!isUnlocked) {
-      return (
-        <WebPaywallScreen
-          currentUser={currentUser}
-          onUnlocked={(updatedUser) => {
-            setCurrentUser({ ...updatedUser, isWebUnlocked: true });
-          }}
-          onLogout={async () => {
-            await mockDb.logoutUser();
-            setCurrentUser(null);
-          }}
-        />
-      );
-    }
+  if (!isUnlocked) {
+    return (
+      <WebPaywallScreen
+        currentUser={currentUser}
+        onUnlocked={(updatedUser) => {
+          setCurrentUser({ ...updatedUser, isWebUnlocked: true });
+        }}
+        onLogout={async () => {
+          await mockDb.logoutUser();
+          setCurrentUser(null);
+        }}
+      />
+    );
   }
 
   return (
@@ -1325,6 +1377,45 @@ function MainAppLayout() {
           onNewsUpdated={fetchNews}
           onMarkAsRead={handleMarkAsRead}
           onMarkAllAsRead={handleMarkAllAsRead}
+          colors={{
+            background: backgroundColor,
+            cardBg: cardBackgroundColor,
+            border: borderColor,
+            text: textColor,
+            textMuted: inactiveColor,
+            primary: activeColor,
+          }}
+          isDark={isDark}
+        />
+
+        {/* ADMIN FREISCHALTUNGS-POPUP (Ablauf: Neues Mitglied wartet auf Freischaltung) */}
+        <AdminUnlockModal
+          visible={adminModalVisible && pendingRequests.length > 0}
+          requests={pendingRequests}
+          onUnlock={async (userId, userName) => {
+            try {
+              await mockDb.unlockWebAccess(userId, { provider: 'admin_popup' });
+              setPendingRequests(prev => prev.filter(r => r.id !== userId));
+              Alert.alert('Erfolgreich freigeschaltet 🎉', `Der Zugang für ${userName} wurde aktiviert.`);
+            } catch {
+              Alert.alert('Fehler', 'Konnte nicht freigeschaltet werden.');
+            }
+          }}
+          onDismiss={(userId) => {
+            setDismissedTimestamps(prev => ({ ...prev, [userId]: Date.now() }));
+            setPendingRequests(prev => {
+              const filtered = prev.filter(r => r.id !== userId);
+              if (filtered.length === 0) setAdminModalVisible(false);
+              return filtered;
+            });
+          }}
+          onDismissAll={() => {
+            const now = Date.now();
+            const newDismissed: Record<string, number> = {};
+            pendingRequests.forEach(r => { newDismissed[r.id] = now; });
+            setDismissedTimestamps(prev => ({ ...prev, ...newDismissed }));
+            setAdminModalVisible(false);
+          }}
           colors={{
             background: backgroundColor,
             cardBg: cardBackgroundColor,

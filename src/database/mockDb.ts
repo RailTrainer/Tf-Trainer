@@ -1,7 +1,7 @@
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase, isSupabaseConfigured } from '../services/supabaseClient';
-import { broadcastChatPushNotification, sendDirectSupportPushNotification, registerForPushNotificationsAsync, sendAdminWebUnlockRequestNotification } from '../services/notificationService';
+import { broadcastChatPushNotification, sendDirectSupportPushNotification, sendAdminWebUnlockRequestNotification } from '../services/notificationService';
 import quizletSignals from './quizlet_signals.json';
 import anlage5Cards from './anlage5_cards.json';
 import bremsprobeCards from './bremsprobe_cards.json';
@@ -2335,36 +2335,20 @@ export const mockDb = {
 
   PAYPAL_CONFIG,
 
-  async registerUser(name: string, email: string, password: string, webKey?: string): Promise<User> {
+  async registerUser(name: string, email: string, password: string): Promise<User> {
     const cleanEmail = email.trim().toLowerCase();
     const hashedPassword = hashPassword(password);
 
+    // Standard: Jeder neu registrierte Nutzer wartet auf Zahlung (4,99 €) & Admin-Freigabe
     let isWebUnlocked = false;
-    let title = '';
+    let title = '[Web-Wartend]';
+    let role = 'user';
 
-    // Falls ein Freischaltcode angegeben wurde, direkt prüfen & freischalten
-    const trimmedKey = (webKey || '').trim();
-    if (trimmedKey) {
-      const isValid = verifyWebKey(trimmedKey);
-      if (!isValid) {
-        throw new Error('Der eingegebene Freischaltcode ist ungültig. Bitte prüfe die Eingabe oder lasse das Feld leer.');
-      }
-
-      // Prüfe, ob der Key bereits eingelöst wurde
-      const rawRedeemed = await AsyncStorage.getItem(STORAGE_KEYS.WEB_KEYS);
-      const redeemedKeys: { key: string; userId: string; date: number }[] = rawRedeemed ? JSON.parse(rawRedeemed) : [];
-      const normKey = trimmedKey.toUpperCase().replace(/[^A-Z0-9]/g, '');
-      const alreadyUsed = redeemedKeys.find(r => r.key === normKey);
-      if (alreadyUsed) {
-        throw new Error('Dieser Freischaltcode wurde bereits von einem anderen Benutzer verwendet.');
-      }
-
+    // Nur Dennis' verifizierte Haupt-E-Mail erhält bei Registrierung Admin-Rechte
+    if (cleanEmail === 'dennis.koester@aixrail.de') {
       isWebUnlocked = true;
-      title = '[Web-Freigabe]';
-    } else {
-      // Standard: Auf Web wartet jeder neu registrierte Kunde auf Zahlung & Admin-Freigabe
-      title = '[Web-Wartend]';
-      isWebUnlocked = false;
+      title = 'Administrator';
+      role = 'admin';
     }
 
     const newUser: User = {
@@ -2372,7 +2356,7 @@ export const mockDb = {
       email: cleanEmail,
       password: hashedPassword,
       name: name.trim(),
-      role: 'user',
+      role: role,
       title: title,
       isWebUnlocked: isWebUnlocked,
       web_unlock_requested: !isWebUnlocked,
@@ -2404,23 +2388,6 @@ export const mockDb = {
           }
           throw new Error(error.message);
         }
-
-        // Support-Ticket für Web-Freischaltung erstellen
-        if (!isWebUnlocked) {
-          try {
-            await supabase.from('tickets').insert([{
-              id: 'tick_reg_' + Date.now(),
-              user_id: newUser.id,
-              user_name: newUser.name,
-              user_email: newUser.email,
-              title: `🖥️ Neuer Web-Kunde registriert: ${newUser.name}`,
-              description: `Neuer Kunde ${newUser.name} (${newUser.email}) hat sich auf Web registriert und wartet auf Freischaltung.`,
-              type: 'other',
-              status: 'open',
-              created_at: new Date().toISOString(),
-            }]);
-          } catch {}
-        }
       } catch (e: any) {
         if (e.message && (e.message.includes('bereits') || e.message.includes('registriert'))) throw e;
       }
@@ -2430,30 +2397,6 @@ export const mockDb = {
     const exists = users.some(u => u.email.toLowerCase() === cleanEmail);
     if (exists && !isSupabaseConfigured()) {
       throw new Error('Diese E-Mail-Adresse ist bereits registriert.');
-    }
-
-    // Wenn Key genutzt wurde, als eingelöst abspeichern & protokollieren
-    if (webKey && isWebUnlocked) {
-      const rawRedeemed = await AsyncStorage.getItem(STORAGE_KEYS.WEB_KEYS);
-      const redeemedKeys: { key: string; userId: string; date: number }[] = rawRedeemed ? JSON.parse(rawRedeemed) : [];
-      const normKey = webKey.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
-      redeemedKeys.push({ key: normKey, userId: newUser.id, date: Date.now() });
-      await AsyncStorage.setItem(STORAGE_KEYS.WEB_KEYS, JSON.stringify(redeemedKeys));
-
-      try {
-        const rawLicenses = await AsyncStorage.getItem(STORAGE_KEYS.WEB_LICENSES);
-        const licenses = rawLicenses ? JSON.parse(rawLicenses) : [];
-        licenses.push({
-          id: 'lic_' + Date.now(),
-          userId: newUser.id,
-          provider: 'paypal_key_registration',
-          amount: '4.99',
-          orderId: 'REG-' + Date.now(),
-          key: webKey.trim(),
-          unlockedAt: Date.now()
-        });
-        await AsyncStorage.setItem(STORAGE_KEYS.WEB_LICENSES, JSON.stringify(licenses));
-      } catch {}
     }
 
     users.push(newUser);
@@ -2718,13 +2661,28 @@ export const mockDb = {
   // E-Mail-Adresse ist bewusst nicht änderbar (Login-Identität in Supabase Auth).
   async updateUserProfile(userId: string, name: string, password?: string, avatarUrl?: string, title?: string): Promise<User> {
     const hashedPassword = password && password.trim() !== '' ? hashPassword(password) : undefined;
+    const curUser = await this.getCurrentUser();
+    const callerEmail = (curUser?.email || '').toLowerCase().trim();
+    const isCallerAdmin = curUser && (
+      curUser.role === 'admin' ||
+      curUser.role === 'moderator' ||
+      callerEmail === 'dennis.koester@aixrail.de'
+    );
+
+    let cleanTitle = title !== undefined ? title.trim() : undefined;
+    if (cleanTitle !== undefined && !isCallerAdmin) {
+      // Sicherheits-Bereinigung: Nicht-Admins dürfen keine Freischalt-Tags einschleusen
+      cleanTitle = cleanTitle
+        .replace(/\[?web[-_]?(freigabe|zugang|lizenz|unlocked)\]?/gi, '')
+        .trim();
+    }
 
     if (isSupabaseConfigured() && supabase) {
       try {
         const updatePayload: any = { name: name.trim() };
         if (hashedPassword) updatePayload.password = hashedPassword;
         if (avatarUrl !== undefined) updatePayload.avatar_url = avatarUrl;
-        if (title !== undefined) updatePayload.title = title.trim();
+        if (cleanTitle !== undefined) updatePayload.title = cleanTitle;
         await supabase.from('users').update(updatePayload).eq('id', userId);
       } catch (e) {
         console.log('Supabase updateUserProfile error', e);
@@ -2745,26 +2703,25 @@ export const mockDb = {
       if (avatarUrl !== undefined) {
         users[index].avatarUrl = avatarUrl;
       }
-      if (title !== undefined) {
-        users[index].title = title.trim();
+      if (cleanTitle !== undefined) {
+        users[index].title = cleanTitle;
       }
       await AsyncStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
     }
 
     // Aktuelle Session aktualisieren
-    const curUser = await this.getCurrentUser();
     if (curUser && curUser.id === userId) {
       const updated = {
         ...curUser,
         name: name.trim(),
         password: hashedPassword || curUser.password,
         avatarUrl: avatarUrl !== undefined ? avatarUrl : curUser.avatarUrl,
-        title: title !== undefined ? title.trim() : curUser.title
+        title: cleanTitle !== undefined ? cleanTitle : curUser.title
       };
       await AsyncStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(updated));
       return updated;
     }
-    return index !== -1 ? users[index] : (curUser || { id: userId, name, email: '', role: 'user', title: title || '' });
+    return index !== -1 ? users[index] : (curUser || { id: userId, name, email: '', role: 'user', title: cleanTitle || '' });
   },
 
   async updateUserName(userId: string, newName: string): Promise<boolean> {
@@ -2871,9 +2828,25 @@ export const mockDb = {
   },
 
   async updateUserTitle(userId: string, newTitle: string): Promise<void> {
+    const curUser = await this.getCurrentUser();
+    const callerEmail = (curUser?.email || '').toLowerCase().trim();
+    const isCallerAdmin = curUser && (
+      curUser.role === 'admin' ||
+      curUser.role === 'moderator' ||
+      callerEmail === 'dennis.koester@aixrail.de'
+    );
+
+    let cleanTitle = newTitle.trim();
+    if (!isCallerAdmin) {
+      // Sicherheits-Bereinigung: Nicht-Admins dürfen keine Freischalt-Tags einschleusen
+      cleanTitle = cleanTitle
+        .replace(/\[?web[-_]?(freigabe|zugang|lizenz|unlocked)\]?/gi, '')
+        .trim();
+    }
+
     if (isSupabaseConfigured() && supabase) {
       try {
-        await supabase.from('users').update({ title: newTitle.trim() }).eq('id', userId);
+        await supabase.from('users').update({ title: cleanTitle }).eq('id', userId);
       } catch (e) {
         console.log('Supabase updateUserTitle error', e);
       }
@@ -2882,13 +2855,12 @@ export const mockDb = {
     const users = await this.getUsers();
     const index = users.findIndex(u => u.id === userId);
     if (index !== -1) {
-      users[index].title = newTitle.trim();
+      users[index].title = cleanTitle;
       await AsyncStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
 
       // Falls sich der aktuell eingeloggte Nutzer ändert, auch seine Session updaten
-      const curUser = await this.getCurrentUser();
       if (curUser && curUser.id === userId) {
-        curUser.title = newTitle.trim();
+        curUser.title = cleanTitle;
         await AsyncStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(curUser));
       }
     }
@@ -2921,60 +2893,38 @@ export const mockDb = {
   isUserWebUnlocked(user: User | null | undefined, roles: RoleDefinition[] = []): boolean {
     if (!user || typeof user !== 'object') return false;
 
-    // 0. Dennis Köster & Master-Admins immer uneingeschränkt freischalten
+    // 0. Dennis Köster Master-Admin immer uneingeschränkt freischalten
     const email = (user.email || '').toLowerCase().trim();
-    if (
-      email === 'dennis.koester@aixrail.de' || 
-      email === 'admin@railtrainer.de' || 
-      email === 'admin@tf-trainer.de' ||
-      email === 'admin@bahn.de'
-    ) {
+    if (email === 'dennis.koester@aixrail.de') {
       return true;
     }
 
-    // 1. Admins & Moderatoren
+    // 1. Admins & Moderatoren (über verifizierte System-Rolle)
     if (user.role === 'admin' || user.role === 'moderator') return true;
     const userRoleDef = Array.isArray(roles) ? roles.find(r => r && r.id === user.role) : undefined;
     if (userRoleDef?.canAccessAdmin) return true;
 
-    // 2. Ausbilder, Dozenten, Prüfer
-    const userTitle = (user.title || '').toLowerCase();
-    if (
-      userTitle.includes('ausbilder') || 
-      userTitle.includes('dozent') || 
-      userTitle.includes('prüfer') ||
-      userTitle.includes('lehrer')
-    ) {
-      return true;
-    }
-
-    // WICHTIG: Wenn der Nutzer im Wartezustand ist ([Web-Wartend]), KEINE Freischaltung,
+    // 2. Freischalt-Prüfung: Wenn im Wartezustand ([Web-Wartend]), KEINE Freischaltung,
     // außer der Admin hat explizit ein Freigabe-Tag vergeben!
+    const userTitle = (user.title || '').toLowerCase();
     if (
       userTitle.includes('web-wartend') || 
       userTitle.includes('wartet auf') || 
+      userTitle.includes('wartend') ||
       Boolean(user.web_unlock_requested)
     ) {
       const hasRealUnlockTag = 
         userTitle.includes('[web-freigabe]') ||
-        userTitle.includes('[web-zugang]') ||
-        userTitle.includes('[web-lizenz]') ||
-        userTitle.includes('web-freigabe') ||
-        userTitle.includes('web-lizenz') ||
-        userTitle.includes('web-zugang');
+        userTitle.includes('[web-zugang]');
       if (!hasRealUnlockTag) {
         return false;
       }
     }
 
-    // 3. Echte Web-Freigabe Markierung (NUR explizite Freigabe-Tags, niemals generisches '[web')
+    // 3. Echte Web-Freigabe Markierung (NUR explizite Freigabe-Tags durch Admin)
     if (
       userTitle.includes('[web-freigabe]') ||
-      userTitle.includes('[web-zugang]') ||
-      userTitle.includes('[web-lizenz]') ||
-      userTitle.includes('web-freigabe') ||
-      userTitle.includes('web-lizenz') ||
-      userTitle.includes('web-zugang')
+      userTitle.includes('[web-zugang]')
     ) {
       return true;
     }
@@ -2983,6 +2933,17 @@ export const mockDb = {
   },
 
   async unlockWebAccess(userId: string, details?: { provider?: string; key?: string; amount?: string; orderId?: string }): Promise<User> {
+    const caller = await this.getCurrentUser();
+    const callerEmail = (caller?.email || '').toLowerCase().trim();
+    const isCallerAdmin = caller && (
+      caller.role === 'admin' ||
+      caller.role === 'moderator' ||
+      callerEmail === 'dennis.koester@aixrail.de'
+    );
+    if (!isCallerAdmin) {
+      throw new Error('Sicherheitswarnung: Nur autorisierte Administratoren dürfen Konten freischalten.');
+    }
+
     const users = await this.getUsers();
     const index = users.findIndex(u => u.id === userId);
     let currentUserObj = await this.getCurrentUser();
@@ -2992,15 +2953,19 @@ export const mockDb = {
     let newTitle = currentTitle
       .replace(/\[Web-Wartend\]/gi, '')
       .replace(/\[Wartet auf Web-Freischaltung\]/gi, '')
+      .replace(/\[Wartend\]/gi, '')
       .trim();
-    if (!newTitle.toLowerCase().includes('web-freigabe') && !newTitle.toLowerCase().includes('[web]')) {
+    if (!newTitle.toLowerCase().includes('web-freigabe') && !newTitle.toLowerCase().includes('web-zugang')) {
       newTitle = newTitle ? `${newTitle} [Web-Freigabe]` : '[Web-Freigabe]';
     }
 
     // 1. Supabase Update
     if (isSupabaseConfigured() && supabase) {
       try {
-        await supabase.from('users').update({ title: newTitle }).eq('id', userId);
+        await supabase.from('users').update({ 
+          title: newTitle,
+          updated_at: new Date().toISOString()
+        }).eq('id', userId);
       } catch (e) {
         console.warn('Supabase unlockWebAccess title update error:', e);
       }
@@ -3066,30 +3031,74 @@ export const mockDb = {
       if (isSupabaseConfigured() && supabase) {
         try {
           const currentT = currentUserObj?.title || (index !== -1 ? users[index]?.title : '') || '';
-          if (!currentT.includes('[Web-Wartend]')) {
-            const newT = currentT ? `${currentT} [Web-Wartend]` : '[Web-Wartend]';
-            await supabase.from('users').update({ title: newT }).eq('id', userId);
+          let newT = currentT;
+          if (!newT.toLowerCase().includes('web-wartend')) {
+            newT = newT ? `${newT} [Web-Wartend]` : '[Web-Wartend]';
           }
-
-          // Support-Ticket anlegen, damit Admins es sofort im Ticket-System sehen
-          const requesterName = currentUserObj?.name || (index !== -1 ? users[index]?.name : '') || 'Benutzer';
-          const requesterEmail = currentUserObj?.email || (index !== -1 ? users[index]?.email : '') || '';
-          await supabase.from('tickets').insert([{
-            id: 'tick_web_' + Date.now(),
-            user_id: userId,
-            user_name: requesterName,
-            user_email: requesterEmail,
-            title: `🖥️ Web-Freischaltung angefordert: ${requesterName}`,
-            description: `Der Benutzer ${requesterName} (${requesterEmail}) hat bezahlt bzw. die Web-Freischaltung angefordert. Bitte im Admin-Bereich freischalten.`,
-            type: 'other',
-            status: 'open',
-            created_at: nowIso,
-          }]);
-        } catch {}
+          await supabase.from('users').update({ 
+            title: newT,
+            updated_at: nowIso 
+          }).eq('id', userId);
+        } catch (dbErr) {
+          console.warn('Supabase requestWebUnlock error:', dbErr);
+        }
       }
       return true;
     } catch {
       return false;
+    }
+  },
+
+  async getPendingUnlockRequests(): Promise<User[]> {
+    if (isSupabaseConfigured() && supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('users')
+          .select('id, name, email, role, title, created_at, updated_at')
+          .order('updated_at', { ascending: false });
+
+        if (!error && Array.isArray(data)) {
+          return data
+            .filter((u: any) => {
+              if (!u) return false;
+              const email = (u.email || '').toLowerCase().trim();
+              const isMaster = email === 'dennis.koester@aixrail.de' || email.includes('admin@');
+              if (isMaster) return false;
+              if (u.role === 'admin' || u.role === 'moderator') return false;
+
+              const title = (u.title || '').toLowerCase();
+              if (title.includes('ausbilder') || title.includes('dozent') || title.includes('prüfer') || title.includes('lehrer')) return false;
+
+              const hasUnlockTag =
+                title.includes('web-freigabe') ||
+                title.includes('web-zugang') ||
+                title.includes('web-lizenz');
+              if (hasUnlockTag) return false;
+
+              return title.includes('web-wartend') || title.includes('wartend') || Boolean(u.web_unlock_requested);
+            })
+            .map((u: any) => ({
+              id: u.id,
+              name: u.name || 'Benutzer',
+              email: u.email || '',
+              role: u.role || 'user',
+              title: u.title || '',
+              isWebUnlocked: false,
+              web_unlock_requested: true,
+              web_unlock_requested_at: u.updated_at || u.created_at || new Date().toISOString()
+            }));
+        }
+      } catch (e) {
+        console.warn('Error fetching pending unlock requests from Supabase:', e);
+      }
+    }
+
+    // Local fallback
+    try {
+      const users = await this.getUsers();
+      return users.filter(u => u && this.isUserWaitingForWebUnlock(u) && !this.isUserWebUnlocked(u));
+    } catch {
+      return [];
     }
   },
 
@@ -3104,12 +3113,7 @@ export const mockDb = {
 
     // 0. Dennis Köster ist immer Admin und uneingeschränkt freigeschaltet
     const email = (user.email || '').toLowerCase().trim();
-    if (
-      email === 'dennis.koester@aixrail.de' || 
-      email === 'admin@railtrainer.de' || 
-      email === 'admin@tf-trainer.de' ||
-      email === 'admin@bahn.de'
-    ) {
+    if (email === 'dennis.koester@aixrail.de') {
       user.role = 'admin';
       user.isWebUnlocked = true;
       return user;
@@ -3130,6 +3134,15 @@ export const mockDb = {
           user.name = dbUser.name || user.name;
           user.email = dbUser.email || user.email;
           user.isWebUnlocked = this.isUserWebUnlocked(user);
+
+          try {
+            const curUser = await this.getCurrentUser();
+            if (curUser && curUser.id === user.id) {
+              await AsyncStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(user));
+              invalidateMemoryCache('current_user');
+            }
+          } catch {}
+
           return user;
         }
       } catch (e) {
@@ -3157,7 +3170,7 @@ export const mockDb = {
     if (isSupabaseConfigured() && supabase) {
       try {
         await supabase.from('users').update({ title: cleanTitle }).eq('id', userId);
-      } catch (e) {}
+      } catch {}
     }
 
     if (index !== -1) {
@@ -3176,39 +3189,10 @@ export const mockDb = {
     }
   },
 
-  async redeemWebKey(userId: string, rawKey: string): Promise<{ success: boolean; message: string; user?: User }> {
-    const trimmed = (rawKey || '').trim();
-    if (!trimmed) {
-      return { success: false, message: 'Bitte gib einen Aktivierungscode ein.' };
-    }
-
-    const isValid = verifyWebKey(trimmed);
-    if (!isValid) {
-      return { success: false, message: 'Ungültiger Freischaltcode. Bitte überprüfe deine Eingabe.' };
-    }
-
-    // Prüfe, ob der Key bereits eingelöst wurde
-    const rawRedeemed = await AsyncStorage.getItem(STORAGE_KEYS.WEB_KEYS);
-    const redeemedKeys: { key: string; userId: string; date: number }[] = rawRedeemed ? JSON.parse(rawRedeemed) : [];
-    
-    // Normalisierte Version für Duplikatcheck
-    const normKey = trimmed.toUpperCase().replace(/[^A-Z0-9]/g, '');
-    const alreadyUsed = redeemedKeys.find(r => r.key === normKey);
-    if (alreadyUsed && alreadyUsed.userId !== userId) {
-      return { success: false, message: 'Dieser Freischaltcode wurde bereits von einem anderen Benutzer eingelöst.' };
-    }
-
-    // Key als eingelöst markieren
-    if (!alreadyUsed) {
-      redeemedKeys.push({ key: normKey, userId, date: Date.now() });
-      await AsyncStorage.setItem(STORAGE_KEYS.WEB_KEYS, JSON.stringify(redeemedKeys));
-    }
-
-    const updatedUser = await this.unlockWebAccess(userId, { provider: 'activation_key', key: trimmed, amount: '4.99' });
+  async redeemWebKey(_userId: string, _rawKey: string): Promise<{ success: boolean; message: string; user?: User }> {
     return {
-      success: true,
-      message: 'Webzugang erfolgreich freigeschaltet! Viel Erfolg beim Lernen.',
-      user: updatedUser
+      success: false,
+      message: 'Selbstständige Code-Einlösung ist aus Sicherheitsgründen deaktiviert. Die Freischaltung erfolgt ausschließlich durch den Administrator nach Zahlungseingang (4,99 € via PayPal).'
     };
   },
 
@@ -3217,18 +3201,7 @@ export const mockDb = {
     const redeemedList: { key: string; userId: string; date: number }[] = rawRedeemed ? JSON.parse(rawRedeemed) : [];
     
     const rawPool = await AsyncStorage.getItem('@lok_lernapp_web_keys_pool_v1');
-    let pool: string[] = rawPool ? JSON.parse(rawPool) : [];
-
-    if (pool.length === 0) {
-      pool = [
-        'RT-WEB-BMEC-9PTH',
-        'RT-WEB-WMZZ-UPLH',
-        'RT-WEB-4F7N-9Y2C',
-        'RT-WEB-Q3EE-GXF5',
-        'RT-WEB-YMR5-RSLA'
-      ];
-      await AsyncStorage.setItem('@lok_lernapp_web_keys_pool_v1', JSON.stringify(pool));
-    }
+    const pool: string[] = rawPool ? JSON.parse(rawPool) : [];
 
     return pool.map(k => {
       const norm = k.toUpperCase().replace(/[^A-Z0-9]/g, '');
