@@ -1366,22 +1366,24 @@ function MainAppLayout() {
     );
   }
 
-  // PAYWALL-GATE: Prüfung der Freischaltung (4,99 € PayPal / Key oder Dozenten/Admins)
-  const isUnlocked = mockDb.isUserWebUnlocked(currentUser, roles);
+  // PAYWALL-GATE: Prüfung der Web-Freischaltung (4,99 € PayPal / Key oder Dozenten/Admins) nur im Web
+  if (Platform.OS === 'web') {
+    const isUnlocked = mockDb.isUserWebUnlocked(currentUser, roles);
 
-  if (!isUnlocked) {
-    return (
-      <WebPaywallScreen
-        currentUser={currentUser}
-        onUnlocked={(updatedUser) => {
-          setCurrentUser({ ...updatedUser, isWebUnlocked: true });
-        }}
-        onLogout={async () => {
-          await mockDb.logoutUser();
-          setCurrentUser(null);
-        }}
-      />
-    );
+    if (!isUnlocked) {
+      return (
+        <WebPaywallScreen
+          currentUser={currentUser}
+          onUnlocked={(updatedUser) => {
+            setCurrentUser({ ...updatedUser, isWebUnlocked: true });
+          }}
+          onLogout={async () => {
+            await mockDb.logoutUser();
+            setCurrentUser(null);
+          }}
+        />
+      );
+    }
   }
 
   return (

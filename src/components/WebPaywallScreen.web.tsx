@@ -24,7 +24,8 @@ import {
   Check,
   Clock,
   Copy,
-  ExternalLink
+  ExternalLink,
+  Send
 } from 'lucide-react-native';
 
 interface WebPaywallScreenProps {
