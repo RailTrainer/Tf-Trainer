@@ -22,8 +22,9 @@ import {
   Info,
   Bell,
   Check,
-  Send,
-  Clock
+  Clock,
+  Copy,
+  ExternalLink
 } from 'lucide-react-native';
 
 interface WebPaywallScreenProps {
@@ -41,6 +42,7 @@ export default function WebPaywallScreen({ currentUser, onUnlocked, onLogout }: 
   const [isWaitingUnlock, setIsWaitingUnlock] = useState(mockDb.isUserWaitingForWebUnlock(currentUser));
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [popupSentCount, setPopupSentCount] = useState(0);
+  const [copiedEmail, setCopiedEmail] = useState(false);
 
   const colors = {
     ...appColors,
@@ -123,29 +125,30 @@ export default function WebPaywallScreen({ currentUser, onUnlocked, onLogout }: 
     }
   };
 
+  // E-Mail-Adresse in Zwischenablage kopieren
+  const handleCopyEmail = () => {
+    if (typeof navigator !== 'undefined' && navigator.clipboard && currentUser?.email) {
+      navigator.clipboard.writeText(currentUser.email);
+      setCopiedEmail(true);
+      setTimeout(() => {
+        if (isMountedRef.current) setCopiedEmail(false);
+      }, 2500);
+    }
+  };
+
   // PayPal Weiterleitung zur Zahlung (4,99 €)
   const handlePaypalCheckout = async () => {
     setLoadingPaypal(true);
     try {
-      const origin = typeof window !== 'undefined' && window.location?.origin ? window.location.origin : '';
-      const pathname = typeof window !== 'undefined' && window.location?.pathname ? window.location.pathname : '';
-      const returnUrl = origin ? `${origin}${pathname}?payment_status=completed` : '';
-      const cancelUrl = origin ? `${origin}${pathname}?payment_status=cancelled` : '';
+      // Offizielle, direkte PayPal-Zahlungsseite (PayPal.Me für dschmitz112 mit 4,99 €)
+      // Verhindert den HTTP 403 / DataDome-Fehler (weiße Seite) der veralteten cgi-bin/webscr-URL
+      const paypalUrl = 'https://www.paypal.com/paypalme/dschmitz112/4.99EUR';
 
-      const itemName = `RailTrainer Freischaltung - ${currentUser.name} (${currentUser.email})`;
-      let paypalUrl = `https://www.paypal.com/cgi-bin/webscr?cmd=_xclick` +
-        `&business=dschmitz112%40web.de` +
-        `&item_name=${encodeURIComponent(itemName)}` +
-        `&amount=4.99` +
-        `&currency_code=EUR` +
-        `&rm=1` +
-        `&no_shipping=1` +
-        `&no_note=0`;
-
-      if (returnUrl) paypalUrl += `&return=${encodeURIComponent(returnUrl)}`;
-      if (cancelUrl) paypalUrl += `&cancel_return=${encodeURIComponent(cancelUrl)}`;
-
-      await Linking.openURL(paypalUrl);
+      if (typeof window !== 'undefined' && window.open) {
+        window.open(paypalUrl, '_blank', 'noopener,noreferrer');
+      } else {
+        await Linking.openURL(paypalUrl);
+      }
 
       // Nach Klick auf PayPal: Status als wartend markieren
       if (currentUser && currentUser.id) {
@@ -261,8 +264,27 @@ export default function WebPaywallScreen({ currentUser, onUnlocked, onLogout }: 
                   )}
                 </TouchableOpacity>
                 <Text style={{ fontSize: 11, color: colors.textMuted, textAlign: 'center', marginTop: 5 }}>
-                  Empfängerkonto: <Text style={{ fontWeight: '600', color: colors.text }}>dschmitz112@web.de</Text> • Einmalig 4,99 €
+                  Empfängerkonto: <Text style={{ fontWeight: '600', color: colors.text }}>dschmitz112@web.de (PayPal.Me)</Text> • Einmalig 4,99 €
                 </Text>
+
+                {/* ALTERNATIVER DIREKTLINK */}
+                <TouchableOpacity
+                  onPress={() => {
+                    const url = 'https://www.paypal.com/paypalme/dschmitz112/4.99EUR';
+                    if (typeof window !== 'undefined' && window.open) {
+                      window.open(url, '_blank', 'noopener,noreferrer');
+                    } else {
+                      void Linking.openURL(url);
+                    }
+                  }}
+                  style={{ alignSelf: 'center', marginTop: 6, flexDirection: 'row', alignItems: 'center', gap: 4 }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={{ fontSize: 11, color: colors.primary, textDecorationLine: 'underline' }}>
+                    Direktlink: paypal.me/dschmitz112/4.99EUR
+                  </Text>
+                  <ExternalLink size={11} color={colors.primary} />
+                </TouchableOpacity>
               </View>
 
               {/* WICHTIGER EMAIL-HINWEIS FÜR DIE ZAHLUNG */}
@@ -276,10 +298,39 @@ export default function WebPaywallScreen({ currentUser, onUnlocked, onLogout }: 
                 <Text style={{ fontSize: 12, color: colors.text, lineHeight: 18 }}>
                   Bitte gib bei PayPal im Verwendungszweck deine Registrierungs-E-Mail an:
                 </Text>
-                <View style={[styles.emailBadge, { backgroundColor: isDark ? '#1e293b' : '#ffffff', borderColor: colors.border, marginTop: 4 }]}>
-                  <Text style={{ fontSize: 13, fontWeight: 'bold', color: colors.primary }}>
-                    📧 {currentUser.email}
-                  </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                  <View style={[styles.emailBadge, { backgroundColor: isDark ? '#1e293b' : '#ffffff', borderColor: colors.border, flex: 1, marginTop: 0 }]}>
+                    <Text style={{ fontSize: 13, fontWeight: 'bold', color: colors.primary }} numberOfLines={1}>
+                      📧 {currentUser.email}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    onPress={handleCopyEmail}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 4,
+                      paddingVertical: 6,
+                      paddingHorizontal: 10,
+                      borderRadius: 8,
+                      backgroundColor: isDark ? '#1e293b' : '#ffffff',
+                      borderWidth: 1,
+                      borderColor: copiedEmail ? '#10b981' : colors.border,
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    {copiedEmail ? (
+                      <>
+                        <Check size={14} color="#10b981" />
+                        <Text style={{ fontSize: 12, color: '#10b981', fontWeight: 'bold' }}>Kopiert!</Text>
+                      </>
+                    ) : (
+                      <>
+                        <Copy size={14} color={colors.textMuted} />
+                        <Text style={{ fontSize: 12, color: colors.text, fontWeight: '600' }}>Kopieren</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
                 </View>
               </View>
 
