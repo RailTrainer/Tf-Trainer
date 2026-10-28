@@ -234,8 +234,8 @@ export default function WebPaywallScreen({ currentUser, onUnlocked, onLogout }: 
             </View>
           )}
 
-          {/* PRÜFUNGS-STATUS-BANNER (ACCOUNT DERZEIT IN DER PRÜFUNG) */}
-          {isWaitingUnlock && !successMessage && (
+          {/* PRÜFUNGS-STATUS-BANNER (ACCOUNT DERZEIT IN DER PRÜFUNG & PAYPAL ZAHLUNG) */}
+          {!successMessage && (
             <View style={[styles.reviewNoticeBox, { backgroundColor: isDark ? '#451a0325' : '#fffbeb', borderColor: '#f59e0b' }]}>
               <View style={styles.reviewNoticeHeader}>
                 <Clock size={22} color="#d97706" />
