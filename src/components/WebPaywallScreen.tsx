@@ -80,7 +80,7 @@ export default function WebPaywallScreen({ currentUser, onUnlocked, onLogout }: 
       if (!silent) {
         Alert.alert(
           'Noch nicht freigeschaltet ⏳',
-          'Dein Account wartet noch auf die Freigabe durch den Administrator. Sobald deine Zahlung bestätigt und freigeschaltet wurde, öffnet sich der Tf-Trainer automatisch.'
+          'Dein Account wartet noch auf die Freigabe durch den Administrator. Sobald deine Zahlung bestätigt und freigeschaltet wurde, öffnet sich RailTrainer automatisch.'
         );
       }
     } catch {
@@ -132,7 +132,7 @@ export default function WebPaywallScreen({ currentUser, onUnlocked, onLogout }: 
       const returnUrl = origin ? `${origin}${pathname}?payment_status=completed` : '';
       const cancelUrl = origin ? `${origin}${pathname}?payment_status=cancelled` : '';
 
-      const itemName = `Tf-Trainer Freischaltung - ${currentUser.name} (${currentUser.email})`;
+      const itemName = `RailTrainer Freischaltung - ${currentUser.name} (${currentUser.email})`;
       let paypalUrl = `https://www.paypal.com/cgi-bin/webscr?cmd=_xclick` +
         `&business=dschmitz112%40web.de` +
         `&item_name=${encodeURIComponent(itemName)}` +
@@ -212,7 +212,7 @@ export default function WebPaywallScreen({ currentUser, onUnlocked, onLogout }: 
             </View>
 
             <Text style={[styles.title, { color: colors.text }]}>
-              Willkommen beim Tf-Trainer! 🚆
+              Willkommen beim RailTrainer! 🚆
             </Text>
             <Text style={[styles.subtitle, { color: colors.textMuted }]}>
               Um die vollständige Lern- und Wissensplattform unbegrenzt nutzen zu können, ist eine einmalige Freischaltung erforderlich.
@@ -238,7 +238,7 @@ export default function WebPaywallScreen({ currentUser, onUnlocked, onLogout }: 
               </View>
 
               <Text style={[styles.reviewNoticeText, { color: colors.text }]}>
-                Deine Registrierung bzw. Zahlungsanfrage ist eingegangen! Dein Account befindet sich aktuell in der manuellen Prüfung durch einen Administrator. Sobald deine Freischaltung bestätigt wurde, öffnet sich der Tf-Trainer automatisch.
+                Deine Registrierung bzw. Zahlungsanfrage ist eingegangen! Dein Account befindet sich aktuell in der manuellen Prüfung durch einen Administrator. Sobald deine Freischaltung bestätigt wurde, öffnet sich RailTrainer automatisch.
               </Text>
 
               {/* PAYPAL ZAHLUNGS-BUTTON DIREKT IM PRÜFUNGS-BILDSCHIRM */}

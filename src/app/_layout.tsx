@@ -1336,7 +1336,7 @@ function MainAppLayout() {
         {Platform.OS === 'web' && (
           <View style={{ marginTop: 24, alignItems: 'center', maxWidth: 440 }}>
             <Text style={{ fontSize: 17, fontWeight: 'bold', color: activeColor, marginBottom: 8, textAlign: 'center' }}>
-              Tf-Trainer wird geladen...
+              RailTrainer wird geladen...
             </Text>
             <Text style={{ fontSize: 13, color: isDark ? '#94a3b8' : '#64748b', textAlign: 'center', lineHeight: 20, marginBottom: 12 }}>
               Account und Freischaltungsstatus werden überprüft.
