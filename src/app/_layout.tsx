@@ -1254,32 +1254,64 @@ function MainAppLayout() {
     let registeredPushUserId: string | null = null;
 
     const checkData = async () => {
-      let user = await mockDb.getCurrentUser();
-      if (user && typeof user === 'object') {
-        // Authoritative Server-Validierung gegen Supabase (Backend Paywall & Rolle abgleichen)
-        const validated = await mockDb.validateWebAccessAuthoritative(user);
-        if (validated && typeof validated === 'object') {
-          user = validated;
+      try {
+        let user: User | null = null;
+        try {
+          user = await mockDb.getCurrentUser();
+        } catch (e) {
+          console.warn('[Startup] getCurrentUser failed:', e);
         }
+
+        if (user && typeof user === 'object') {
+          // Authoritative Server-Validierung gegen Supabase (Backend Paywall & Rolle abgleichen)
+          try {
+            const validated = await mockDb.validateWebAccessAuthoritative(user);
+            if (validated && typeof validated === 'object') {
+              user = validated;
+            }
+          } catch (e) {
+            console.warn('[Startup] validateWebAccessAuthoritative failed:', e);
+          }
+        }
+
+        if (user && typeof user === 'object') {
+          setCurrentUser(prev => (prev?.id === user?.id && prev?.role === user?.role && prev?.title === user?.title && prev?.isWebUnlocked === user?.isWebUnlocked ? prev : user));
+        } else {
+          setCurrentUser(null);
+        }
+
+        if (user?.id && registeredPushUserId !== user.id) {
+          registeredPushUserId = user.id;
+          registerForPushNotificationsAsync(user.id).catch(() => {});
+        }
+
+        try {
+          const allRoles = await mockDb.getRoles();
+          setRoles(prev => (prev.length === allRoles.length && prev[0]?.id === allRoles[0]?.id ? prev : allRoles));
+        } catch (e) {
+          console.warn('[Startup] getRoles failed:', e);
+        }
+
+        try {
+          await fetchNews();
+        } catch (e) {
+          console.warn('[Startup] fetchNews failed:', e);
+        }
+
+        // 4-Augen-Prinzip: Startabfrage zur Prüfung und Freigabe verifizierter Fragen & Lernkarten (nur 1x beim Start)
+        if (!hasCheckedStartup && user) {
+          hasCheckedStartup = true;
+          try {
+            await mockDb.performStartupVerificationCheck(user?.role);
+          } catch (e) {
+            console.warn('[Startup] performStartupVerificationCheck failed:', e);
+          }
+        }
+      } catch (err) {
+        console.error('Critical error in checkData startup:', err);
+      } finally {
+        setLoading(false);
       }
-      if (user && typeof user === 'object') {
-        setCurrentUser(prev => (prev?.id === user?.id && prev?.role === user?.role && prev?.title === user?.title && prev?.isWebUnlocked === user?.isWebUnlocked ? prev : user));
-      } else {
-        setCurrentUser(null);
-      }
-      if (user?.id && registeredPushUserId !== user.id) {
-        registeredPushUserId = user.id;
-        registerForPushNotificationsAsync(user.id).catch(() => {});
-      }
-      const allRoles = await mockDb.getRoles();
-      setRoles(prev => (prev.length === allRoles.length && prev[0]?.id === allRoles[0]?.id ? prev : allRoles));
-      await fetchNews();
-      // 4-Augen-Prinzip: Startabfrage zur Prüfung und Freigabe verifizierter Fragen & Lernkarten (nur 1x beim Start)
-      if (!hasCheckedStartup && user) {
-        hasCheckedStartup = true;
-        await mockDb.performStartupVerificationCheck(user?.role);
-      }
-      setLoading(false);
     };
 
     // Lautloses, automatisches Laden von serverseitigen Updates im Hintergrund
@@ -1298,6 +1330,11 @@ function MainAppLayout() {
         console.log('[expo-updates] Auto-Update Prüfung:', e);
       }
     }
+
+    // Failsafe-Timeout: Ladebildschirm darf unter keinen Umständen länger als 3.5s blockieren
+    const failsafeTimer = setTimeout(() => {
+      setLoading(false);
+    }, 3500);
 
     requestNotificationPermissions();
     checkData();
@@ -1321,6 +1358,7 @@ function MainAppLayout() {
     const interval = setInterval(checkData, 30000);
     return () => {
       clearInterval(interval);
+      clearTimeout(failsafeTimer);
       appStateSub.remove();
     };
   }, []);
@@ -1334,7 +1372,7 @@ function MainAppLayout() {
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: backgroundColor, padding: 24 }}>
         <ActivityIndicator size="large" color={activeColor} />
         {Platform.OS === 'web' && (
-          <View style={{ marginTop: 24, alignItems: 'center', maxWidth: 440 }}>
+          <View style={{ marginTop: 24, alignItems: 'center', maxWidth: 440, width: '100%' }}>
             <Text style={{ fontSize: 17, fontWeight: 'bold', color: activeColor, marginBottom: 8, textAlign: 'center' }}>
               RailTrainer wird geladen...
             </Text>
@@ -1343,8 +1381,30 @@ function MainAppLayout() {
             </Text>
             <View style={{ backgroundColor: isDark ? '#1e293b' : '#f1f5f9', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: isDark ? '#334155' : '#e2e8f0', width: '100%' }}>
               <Text style={{ fontSize: 12, color: isDark ? '#cbd5e1' : '#475569', textAlign: 'center', lineHeight: 18 }}>
-                💡 <Text style={{ fontWeight: 'bold' }}>Tipp:</Text> Falls dieser Bildschirm länger sichtbar bleibt oder dein Account kürzlich freigeschaltet wurde, kann das <Text style={{ fontWeight: 'bold' }}>Leeren des Webcaches</Text> (<Text style={{ fontWeight: 'bold' }}>Strg + F5</Text> bzw. <Text style={{ fontWeight: 'bold' }}>Cmd + Shift + R</Text>) helfen, die Seite neu zu laden.
+                💡 <Text style={{ fontWeight: 'bold' }}>Tipp:</Text> Falls dieser Bildschirm länger sichtbar bleibt oder dein Account kürzlich freigeschaltet wurde, kann das <Text style={{ fontWeight: 'bold' }}>Leeren des Webcaches</Text> helfen, die Seite neu zu laden.
               </Text>
+            </View>
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
+              <TouchableOpacity
+                onPress={() => {
+                  if (typeof window !== 'undefined') window.location.reload();
+                }}
+                style={{ paddingVertical: 8, paddingHorizontal: 14, backgroundColor: activeColor, borderRadius: 8 }}
+                activeOpacity={0.8}
+              >
+                <Text style={{ color: '#ffffff', fontSize: 12, fontWeight: 'bold' }}>Seite neu laden</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={async () => {
+                  await mockDb.logoutUser();
+                  setCurrentUser(null);
+                  setLoading(false);
+                }}
+                style={{ paddingVertical: 8, paddingHorizontal: 14, backgroundColor: isDark ? '#334155' : '#e2e8f0', borderRadius: 8 }}
+                activeOpacity={0.8}
+              >
+                <Text style={{ color: isDark ? '#f8fafc' : '#1e293b', fontSize: 12, fontWeight: '600' }}>Zur Anmeldung</Text>
+              </TouchableOpacity>
             </View>
           </View>
         )}
