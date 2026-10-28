@@ -1124,12 +1124,18 @@ function MainAppLayout() {
 
   const unreadCount = newsList.filter(n => !readNewsIds.includes(n.id)).length;
 
+  const userEmail = (currentUser?.email || '').toLowerCase().trim();
+  const isMasterAdminEmail = (
+    userEmail === 'dennis.koester@aixrail.de' ||
+    userEmail === 'dschmitz112@web.de' ||
+    userEmail === 'dennis.schmitz112@gmail.com'
+  );
   const isAdmin = Boolean(
     currentUser && (
       currentUser.role === 'admin' ||
       currentUser.role === 'moderator' ||
       Boolean(roles.find(r => r.id === currentUser.role)?.canAccessAdmin) ||
-      (currentUser.email || '').toLowerCase() === 'dennis.koester@aixrail.de'
+      isMasterAdminEmail
     )
   );
 
@@ -1140,10 +1146,12 @@ function MainAppLayout() {
     let isMounted = true;
     const checkPendingRequests = async () => {
       try {
-        const requests = await mockDb.getPendingUnlockRequests();
+        const requests = await mockDb.getPendingUnlockRequests(roles);
         if (!isMounted) return;
         if (requests && requests.length > 0) {
           const actionable = requests.filter(r => {
+            // Bereits freigeschaltete Mitglieder sofort herausfiltern
+            if (mockDb.isUserWebUnlocked(r, roles)) return false;
             const dismissedAt = dismissedTimestamps[r.id] || 0;
             const reqTime = r.web_unlock_requested_at ? new Date(r.web_unlock_requested_at).getTime() : 0;
             return dismissedAt === 0 || reqTime > dismissedAt;
@@ -1151,6 +1159,8 @@ function MainAppLayout() {
           setPendingRequests(actionable);
           if (actionable.length > 0) {
             setAdminModalVisible(true);
+          } else {
+            setAdminModalVisible(false);
           }
         } else {
           setPendingRequests([]);
@@ -1174,7 +1184,7 @@ function MainAppLayout() {
       clearTimeout(initialTimer);
       clearInterval(interval);
     };
-  }, [isAdmin, dismissedTimestamps]);
+  }, [isAdmin, dismissedTimestamps, roles]);
 
   // iOS Safari Zoom-Verhinderung im Web (Meta-Tag, Gesten & 16px Inputs)
   useEffect(() => {
@@ -1395,10 +1405,15 @@ function MainAppLayout() {
           onUnlock={async (userId, userName) => {
             try {
               await mockDb.unlockWebAccess(userId, { provider: 'admin_popup' });
-              setPendingRequests(prev => prev.filter(r => r.id !== userId));
+              setDismissedTimestamps(prev => ({ ...prev, [userId]: Date.now() }));
+              setPendingRequests(prev => {
+                const filtered = prev.filter(r => r.id !== userId);
+                if (filtered.length === 0) setAdminModalVisible(false);
+                return filtered;
+              });
               Alert.alert('Erfolgreich freigeschaltet 🎉', `Der Zugang für ${userName} wurde aktiviert.`);
-            } catch {
-              Alert.alert('Fehler', 'Konnte nicht freigeschaltet werden.');
+            } catch (err: any) {
+              Alert.alert('Fehler', err?.message || 'Konnte nicht freigeschaltet werden.');
             }
           }}
           onDismiss={(userId) => {

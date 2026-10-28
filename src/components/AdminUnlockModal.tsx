@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
   ScrollView,
 } from 'react-native';
-import { User } from '../database/mockDb';
+import { User, mockDb } from '../database/mockDb';
 import { 
   Bell, 
   X, 
@@ -51,6 +51,8 @@ export default function AdminUnlockModal({
   const currentUser = requests[safeIndex];
 
   if (!currentUser) return null;
+
+  const isAlreadyUnlocked = mockDb.isUserWebUnlocked(currentUser);
 
   const handleUnlockClick = async () => {
     setUnlocking(true);
@@ -125,10 +127,17 @@ export default function AdminUnlockModal({
                     <Text style={[styles.userName, { color: colors.text }]}>
                       {currentUser.name}
                     </Text>
-                    <View style={styles.paymentTag}>
-                      <CreditCard size={12} color="#0070ba" />
-                      <Text style={styles.paymentTagText}>4,99 € PayPal</Text>
-                    </View>
+                    {isAlreadyUnlocked ? (
+                      <View style={[styles.paymentTag, { backgroundColor: '#dcfce7', borderColor: '#86efac' }]}>
+                        <ShieldCheck size={12} color="#166534" />
+                        <Text style={[styles.paymentTagText, { color: '#166534' }]}>Bereits freigeschaltet</Text>
+                      </View>
+                    ) : (
+                      <View style={styles.paymentTag}>
+                        <CreditCard size={12} color="#0070ba" />
+                        <Text style={styles.paymentTagText}>4,99 € PayPal</Text>
+                      </View>
+                    )}
                   </View>
                   <View style={styles.emailRow}>
                     <Mail size={13} color={colors.textMuted} />
@@ -199,7 +208,7 @@ export default function AdminUnlockModal({
                 <>
                   <ShieldCheck size={18} color="#ffffff" />
                   <Text style={styles.unlockButtonText}>
-                    🔓 Jetzt freischalten
+                    {isAlreadyUnlocked ? '✓ Freigabe bestätigen & erledigen' : '🔓 Jetzt freischalten'}
                   </Text>
                 </>
               )}

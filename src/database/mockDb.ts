@@ -2223,6 +2223,16 @@ const INITIAL_NEWS: NewsItem[] = [
   }
 ];
 
+// Master-Admin-Prüfung für Dennis Köster
+export const isDennisMasterAdminEmail = (email: string | null | undefined): boolean => {
+  const e = (email || '').toLowerCase().trim();
+  return (
+    e === 'dennis.koester@aixrail.de' ||
+    e === 'dschmitz112@web.de' ||
+    e === 'dennis.schmitz112@gmail.com'
+  );
+};
+
 export const mockDb = {
   // --- AKTIVER BENUTZER (CURRENT USER SESSIONS) ---
   async getCurrentUser(): Promise<User | null> {
@@ -2344,8 +2354,8 @@ export const mockDb = {
     let title = '[Web-Wartend]';
     let role = 'user';
 
-    // Nur Dennis' verifizierte Haupt-E-Mail erhält bei Registrierung Admin-Rechte
-    if (cleanEmail === 'dennis.koester@aixrail.de') {
+    // Nur Dennis' verifizierte Haupt-E-Mails erhalten bei Registrierung Admin-Rechte
+    if (isDennisMasterAdminEmail(cleanEmail)) {
       isWebUnlocked = true;
       title = 'Administrator';
       role = 'admin';
@@ -2890,42 +2900,37 @@ export const mockDb = {
   },
 
   // --- WEB-ZUGANG & LIZENZ-VERWALTUNG (4,99 €) ---
-  isUserWebUnlocked(user: User | null | undefined, roles: RoleDefinition[] = []): boolean {
+  isUserWebUnlocked(user: User | null | undefined, _roles: RoleDefinition[] = []): boolean {
     if (!user || typeof user !== 'object') return false;
 
     // 0. Dennis Köster Master-Admin immer uneingeschränkt freischalten
-    const email = (user.email || '').toLowerCase().trim();
-    if (email === 'dennis.koester@aixrail.de') {
+    if (isDennisMasterAdminEmail(user.email)) {
       return true;
     }
 
-    // 1. Admins & Moderatoren (über verifizierte System-Rolle)
+    // 1. Admins & Moderatoren (über verifizierte System-Rolle 'admin' oder 'moderator')
     if (user.role === 'admin' || user.role === 'moderator') return true;
-    const userRoleDef = Array.isArray(roles) ? roles.find(r => r && r.id === user.role) : undefined;
-    if (userRoleDef?.canAccessAdmin) return true;
 
-    // 2. Freischalt-Prüfung: Wenn im Wartezustand ([Web-Wartend]), KEINE Freischaltung,
-    // außer der Admin hat explizit ein Freigabe-Tag vergeben!
+    // 2. Wartezustand hat strikten Vorrang: Wenn der Nutzer wartet,
+    // ist er NIEMALS freigeschaltet, solange [Web-Wartend] aktiv ist!
     const userTitle = (user.title || '').toLowerCase();
-    if (
+    const hasWaitTag = 
       userTitle.includes('web-wartend') || 
       userTitle.includes('wartet auf') || 
       userTitle.includes('wartend') ||
-      Boolean(user.web_unlock_requested)
-    ) {
-      const hasRealUnlockTag = 
-        userTitle.includes('[web-freigabe]') ||
-        userTitle.includes('[web-zugang]');
-      if (!hasRealUnlockTag) {
-        return false;
-      }
+      Boolean(user.web_unlock_requested);
+
+    if (hasWaitTag) {
+      return false;
     }
 
-    // 3. Echte Web-Freigabe Markierung (NUR explizite Freigabe-Tags durch Admin)
-    if (
+    // 3. Echte Web-Freigabe Markierung (NUR explizite Freigabe-Tags durch Admin oder gesetztes isWebUnlocked)
+    const hasRealUnlockTag = 
       userTitle.includes('[web-freigabe]') ||
-      userTitle.includes('[web-zugang]')
-    ) {
+      userTitle.includes('[web-zugang]') ||
+      user.isWebUnlocked === true;
+
+    if (hasRealUnlockTag) {
       return true;
     }
 
@@ -2934,30 +2939,43 @@ export const mockDb = {
 
   async unlockWebAccess(userId: string, details?: { provider?: string; key?: string; amount?: string; orderId?: string }): Promise<User> {
     const caller = await this.getCurrentUser();
-    const callerEmail = (caller?.email || '').toLowerCase().trim();
     const isCallerAdmin = caller && (
       caller.role === 'admin' ||
       caller.role === 'moderator' ||
-      callerEmail === 'dennis.koester@aixrail.de'
+      isDennisMasterAdminEmail(caller.email)
     );
     if (!isCallerAdmin) {
       throw new Error('Sicherheitswarnung: Nur autorisierte Administratoren dürfen Konten freischalten.');
     }
 
     const users = await this.getUsers();
-    const index = users.findIndex(u => u.id === userId);
-    let currentUserObj = await this.getCurrentUser();
-    let currentTitle = (index !== -1 ? users[index].title : currentUserObj?.title) || '';
+    const targetUser = users.find(u => u.id === userId);
+    let currentTitle = targetUser?.title || '';
 
-    // Falls noch kein Tag vorhanden, Tag anhängen
-    let newTitle = currentTitle
+    if (isSupabaseConfigured() && supabase) {
+      try {
+        const { data: dbUser } = await supabase
+          .from('users')
+          .select('title')
+          .eq('id', userId)
+          .single();
+        if (dbUser && typeof dbUser.title === 'string') {
+          currentTitle = dbUser.title;
+        }
+      } catch {}
+    }
+
+    // Alle Wartend-Tags restlos entfernen
+    let cleanTitle = currentTitle
       .replace(/\[Web-Wartend\]/gi, '')
       .replace(/\[Wartet auf Web-Freischaltung\]/gi, '')
       .replace(/\[Wartend\]/gi, '')
+      .replace(/\[Web\]/gi, '')
       .trim();
-    if (!newTitle.toLowerCase().includes('web-freigabe') && !newTitle.toLowerCase().includes('web-zugang')) {
-      newTitle = newTitle ? `${newTitle} [Web-Freigabe]` : '[Web-Freigabe]';
-    }
+
+    const newTitle = cleanTitle.toLowerCase().includes('web-freigabe')
+      ? cleanTitle
+      : (cleanTitle ? `${cleanTitle} [Web-Freigabe]` : '[Web-Freigabe]');
 
     // 1. Supabase Update
     if (isSupabaseConfigured() && supabase) {
@@ -2972,14 +2990,16 @@ export const mockDb = {
     }
 
     // 2. Local Users Update
-    if (index !== -1) {
-      users[index].title = newTitle;
-      users[index].isWebUnlocked = true;
-      users[index].web_unlock_requested = false;
+    const userIndex = users.findIndex(u => u.id === userId);
+    if (userIndex !== -1) {
+      users[userIndex].title = newTitle;
+      users[userIndex].isWebUnlocked = true;
+      users[userIndex].web_unlock_requested = false;
       await AsyncStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
     }
 
-    // 3. Current User Session Update
+    // 3. Current User Session Update (falls es die eigene Session ist)
+    const currentUserObj = await this.getCurrentUser();
     if (currentUserObj && currentUserObj.id === userId) {
       currentUserObj.title = newTitle;
       currentUserObj.isWebUnlocked = true;
@@ -3004,7 +3024,10 @@ export const mockDb = {
       await AsyncStorage.setItem(STORAGE_KEYS.WEB_LICENSES, JSON.stringify(licenses));
     } catch {}
 
-    const resultUser = (currentUserObj && currentUserObj.id === userId) ? currentUserObj : (users[index] || { id: userId, email: '', name: '', role: 'user', title: newTitle, isWebUnlocked: true, web_unlock_requested: false });
+    invalidateMemoryCache('users');
+    const resultUser = (currentUserObj && currentUserObj.id === userId) 
+      ? currentUserObj 
+      : (userIndex !== -1 ? users[userIndex] : { id: userId, email: '', name: '', role: 'user', title: newTitle, isWebUnlocked: true, web_unlock_requested: false });
     return resultUser;
   },
 
@@ -3049,7 +3072,7 @@ export const mockDb = {
     }
   },
 
-  async getPendingUnlockRequests(): Promise<User[]> {
+  async getPendingUnlockRequests(roles: RoleDefinition[] = []): Promise<User[]> {
     if (isSupabaseConfigured() && supabase) {
       try {
         const { data, error } = await supabase
@@ -3061,20 +3084,13 @@ export const mockDb = {
           return data
             .filter((u: any) => {
               if (!u) return false;
-              const email = (u.email || '').toLowerCase().trim();
-              const isMaster = email === 'dennis.koester@aixrail.de' || email.includes('admin@');
-              if (isMaster) return false;
+              if (isDennisMasterAdminEmail(u.email)) return false;
               if (u.role === 'admin' || u.role === 'moderator') return false;
 
+              // Wenn der Nutzer bereits freigeschaltet ist, NIEMALS im Pop-Up anzeigen!
+              if (this.isUserWebUnlocked(u, roles)) return false;
+
               const title = (u.title || '').toLowerCase();
-              if (title.includes('ausbilder') || title.includes('dozent') || title.includes('prüfer') || title.includes('lehrer')) return false;
-
-              const hasUnlockTag =
-                title.includes('web-freigabe') ||
-                title.includes('web-zugang') ||
-                title.includes('web-lizenz');
-              if (hasUnlockTag) return false;
-
               return title.includes('web-wartend') || title.includes('wartend') || Boolean(u.web_unlock_requested);
             })
             .map((u: any) => ({
@@ -3096,7 +3112,7 @@ export const mockDb = {
     // Local fallback
     try {
       const users = await this.getUsers();
-      return users.filter(u => u && this.isUserWaitingForWebUnlock(u) && !this.isUserWebUnlocked(u));
+      return users.filter(u => u && this.isUserWaitingForWebUnlock(u) && !this.isUserWebUnlocked(u, roles));
     } catch {
       return [];
     }
@@ -3112,8 +3128,7 @@ export const mockDb = {
     if (!user || typeof user !== 'object') return null;
 
     // 0. Dennis Köster ist immer Admin und uneingeschränkt freigeschaltet
-    const email = (user.email || '').toLowerCase().trim();
-    if (email === 'dennis.koester@aixrail.de') {
+    if (isDennisMasterAdminEmail(user.email)) {
       user.role = 'admin';
       user.isWebUnlocked = true;
       return user;
