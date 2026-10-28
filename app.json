@@ -2,7 +2,7 @@
   "expo": {
     "name": "RailTrainer",
     "slug": "lernapp",
-    "version": "1.2.8",
+    "version": "1.2.7",
     "orientation": "default",
     "icon": "./assets/images/icon.png",
     "scheme": "railtrainer",
