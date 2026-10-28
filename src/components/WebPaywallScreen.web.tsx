@@ -105,7 +105,7 @@ export default function WebPaywallScreen({ currentUser, onUnlocked, onLogout }: 
         await mockDb.requestWebUnlock(currentUser.id);
       }
       setIsWaitingUnlock(true);
-      await sendAdminWebUnlockRequestNotification(currentUser);
+      await sendAdminWebUnlockRequestNotification(currentUser, isAutoFromPayment ? 'payment' : 'manual_request');
       if (isAutoFromPayment) {
         setSuccessMessage('Vielen Dank für deine Zahlung! Deine Freischaltung wurde automatisch angefordert. Der Admin wurde per Push-Benachrichtigung benachrichtigt. Dein Browser prüft die Freigabe.');
       } else {

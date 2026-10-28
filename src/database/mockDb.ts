@@ -1,7 +1,7 @@
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase, isSupabaseConfigured } from '../services/supabaseClient';
-import { broadcastChatPushNotification, sendDirectSupportPushNotification, registerForPushNotificationsAsync } from '../services/notificationService';
+import { broadcastChatPushNotification, sendDirectSupportPushNotification, registerForPushNotificationsAsync, sendAdminWebUnlockRequestNotification } from '../services/notificationService';
 import quizletSignals from './quizlet_signals.json';
 import anlage5Cards from './anlage5_cards.json';
 import bremsprobeCards from './bremsprobe_cards.json';
@@ -2361,6 +2361,10 @@ export const mockDb = {
 
       isWebUnlocked = true;
       title = '[Web-Freigabe]';
+    } else {
+      // Standard: Auf Web wartet jeder neu registrierte Kunde auf Zahlung & Admin-Freigabe
+      title = '[Web-Wartend]';
+      isWebUnlocked = false;
     }
 
     const newUser: User = {
@@ -2371,6 +2375,8 @@ export const mockDb = {
       role: 'user',
       title: title,
       isWebUnlocked: isWebUnlocked,
+      web_unlock_requested: !isWebUnlocked,
+      web_unlock_requested_at: !isWebUnlocked ? new Date().toISOString() : undefined,
     };
 
     if (isSupabaseConfigured() && supabase) {
@@ -2397,6 +2403,23 @@ export const mockDb = {
             throw new Error('Diese E-Mail-Adresse ist bereits registriert.');
           }
           throw new Error(error.message);
+        }
+
+        // Support-Ticket für Web-Freischaltung erstellen
+        if (!isWebUnlocked) {
+          try {
+            await supabase.from('tickets').insert([{
+              id: 'tick_reg_' + Date.now(),
+              user_id: newUser.id,
+              user_name: newUser.name,
+              user_email: newUser.email,
+              title: `🖥️ Neuer Web-Kunde registriert: ${newUser.name}`,
+              description: `Neuer Kunde ${newUser.name} (${newUser.email}) hat sich auf Web registriert und wartet auf Freischaltung.`,
+              type: 'other',
+              status: 'open',
+              created_at: new Date().toISOString(),
+            }]);
+          } catch {}
         }
       } catch (e: any) {
         if (e.message && (e.message.includes('bereits') || e.message.includes('registriert'))) throw e;
@@ -2437,6 +2460,14 @@ export const mockDb = {
     await AsyncStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
     invalidateMemoryCache('current_user');
     await AsyncStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(newUser));
+
+    // Admin (Dennis) sofort per Push-Benachrichtigung auf seinem Smartphone informieren
+    if (!isWebUnlocked) {
+      sendAdminWebUnlockRequestNotification(newUser, 'registration').catch(err => {
+        console.warn('Error triggering registration push to admin:', err);
+      });
+    }
+
     return newUser;
   },
 
@@ -2890,7 +2921,7 @@ export const mockDb = {
   isUserWebUnlocked(user: User | null | undefined, roles: RoleDefinition[] = []): boolean {
     if (!user || typeof user !== 'object') return false;
 
-    // 0. Haupt-Account & Admins immer uneingeschränkt freischalten
+    // 0. Dennis Köster & Master-Admins immer uneingeschränkt freischalten
     const email = (user.email || '').toLowerCase().trim();
     if (
       email === 'dennis.koester@aixrail.de' || 
@@ -2917,13 +2948,13 @@ export const mockDb = {
       return true;
     }
 
-    // WICHTIG: Wenn der Nutzer im Wartezustand ist ([Web-Wartend]), KEINE Freischaltung!
+    // WICHTIG: Wenn der Nutzer im Wartezustand ist ([Web-Wartend]), KEINE Freischaltung,
+    // außer der Admin hat explizit ein Freigabe-Tag vergeben!
     if (
       userTitle.includes('web-wartend') || 
       userTitle.includes('wartet auf') || 
       Boolean(user.web_unlock_requested)
     ) {
-      // Nur freischalten, wenn explizit ein echtes Freigabe-Tag vergeben wurde
       const hasRealUnlockTag = 
         userTitle.includes('[web-freigabe]') ||
         userTitle.includes('[web-zugang]') ||
@@ -2936,20 +2967,15 @@ export const mockDb = {
       }
     }
 
-    // 3. Echte Web-Freigabe Markierung (NUR explizite Tags, niemals generisches '[web')
+    // 3. Echte Web-Freigabe Markierung (NUR explizite Freigabe-Tags, niemals generisches '[web')
     if (
       userTitle.includes('[web-freigabe]') ||
       userTitle.includes('[web-zugang]') ||
       userTitle.includes('[web-lizenz]') ||
       userTitle.includes('web-freigabe') ||
       userTitle.includes('web-lizenz') ||
-      userTitle.includes('web-zugang') ||
-      userTitle.includes('[web]')
+      userTitle.includes('web-zugang')
     ) {
-      return true;
-    }
-
-    if (user.isWebUnlocked && !user.web_unlock_requested && !userTitle.includes('web-wartend')) {
       return true;
     }
 

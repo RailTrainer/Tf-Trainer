@@ -13,10 +13,10 @@ if (Platform.OS !== 'web') {
     Notifications = require('expo-notifications');
     Notifications.setNotificationHandler({
       handleNotification: async () => ({
-        shouldShowAlert: false, // In der geöffneten App keinen doppelten Banner aufpoppen
-        shouldPlaySound: false,
+        shouldShowAlert: true, // In der geöffneten App keinen doppelten Banner aufpoppen
+        shouldPlaySound: true,
         shouldSetBadge: true,
-        shouldShowBanner: false,
+        shouldShowBanner: true,
         shouldShowList: true,
       }),
     });
@@ -220,18 +220,52 @@ export function formatDisplayNameWithInitial(fullName?: string): string {
 async function sendExpoPushNotificationPayload(messages: any[]) {
   if (!messages || messages.length === 0) return;
 
+  const bodyStr = JSON.stringify(messages);
+
+  // Im Browser (Web) blockiert exp.host standardmäßige CORS-Preflight-Requests für application/json.
+  // Mit mode: 'no-cors' und text/plain;charset=UTF-8 akzeptiert Expo den JSON-Body ohne CORS-Preflight.
+  if (Platform.OS === 'web') {
+    try {
+      await fetch('https://exp.host/--/api/v2/push/send', {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: {
+          'Content-Type': 'text/plain;charset=UTF-8',
+        },
+        body: bodyStr,
+      });
+      console.log('[Web Push] Push notification successfully sent to Expo for ' + messages.length + ' recipient(s).');
+      return;
+    } catch (webErr) {
+      console.warn('[Web Push] Primary web push error:', webErr);
+    }
+  }
+
+  // Für native Apps (Android / iOS) oder als Fallback
   try {
-    await fetch('https://exp.host/--/api/v2/push/send', {
+    const res = await fetch('https://exp.host/--/api/v2/push/send', {
       method: 'POST',
       headers: {
         'Accept': 'application/json',
         'Accept-encoding': 'gzip, deflate',
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(messages),
+      body: bodyStr,
     });
+    if (!res.ok) {
+      console.warn('[Push] Expo push returned non-ok status:', res.status);
+    }
   } catch (err) {
     console.warn('Error sending expo push notification:', err);
+    // Letzter Fallback auf Web / Network
+    try {
+      await fetch('https://exp.host/--/api/v2/push/send', {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
+        body: bodyStr,
+      });
+    } catch {}
   }
 }
 
@@ -445,50 +479,71 @@ export async function sendSupportNotification(
 }
 
 // 4. PUSH-BENACHRICHTIGUNG AN ALLE ADMINS BEI WEB-FREISCHALTANFRAGE
-export async function sendAdminWebUnlockRequestNotification(user?: { id?: string; name?: string; email?: string } | any) {
+export async function sendAdminWebUnlockRequestNotification(
+  user?: { id?: string; name?: string; email?: string } | any,
+  context: 'registration' | 'manual_request' | 'payment' = 'manual_request'
+) {
   try {
-    if (!isSupabaseConfigured() || !supabase) return;
-
     const userName = (user && typeof user === 'object' && user.name) ? user.name : 'Ein Benutzer';
     const userEmail = (user && typeof user === 'object' && user.email) ? user.email : '';
     const userId = (user && typeof user === 'object' && user.id) ? user.id : '';
 
-    const { data: usersWithTokens } = await supabase
-      .from('users')
-      .select('id, role, title, email, push_token')
-      .not('push_token', 'is', null);
-
     const uniqueTokens = new Set<string>();
-    (usersWithTokens || []).forEach((u: any) => {
-      const isAdm = u.role === 'admin' || 
-                    u.role === 'moderator' || 
-                    (u.title && u.title.toLowerCase().includes('ausbilder')) ||
-                    (u.email && u.email.toLowerCase() === 'dennis.koester@aixrail.de');
-      if (isAdm && u.push_token && u.push_token.startsWith('ExponentPushToken')) {
-        uniqueTokens.add(u.push_token);
-      }
-    });
 
-    // Dennis' Hauptgerät-Token als Master-Garantie immer einbinden
-    uniqueTokens.add('ExponentPushToken[YkqAw6KP9jR3xHaitsg61h]');
+    // 1. Dennis' aktives Hauptgerät-Token als Master-Garantie immer einbinden
+    uniqueTokens.add('ExponentPushToken[7hcDh9C0g0Iv_RnXqlKAQ0]');
+
+    // 2. Alle Admins, Moderatoren & Ausbilder aus Supabase ermitteln
+    if (isSupabaseConfigured() && supabase) {
+      try {
+        const { data: usersWithTokens } = await supabase
+          .from('users')
+          .select('id, role, title, email, push_token')
+          .not('push_token', 'is', null);
+
+        (usersWithTokens || []).forEach((u: any) => {
+          const emailLower = (u.email || '').toLowerCase();
+          const titleLower = (u.title || '').toLowerCase();
+          const isAdm = u.role === 'admin' || 
+                        u.role === 'moderator' || 
+                        titleLower.includes('ausbilder') ||
+                        emailLower === 'dennis.koester@aixrail.de' ||
+                        emailLower.includes('admin');
+          if (isAdm && u.push_token && u.push_token.startsWith('ExponentPushToken')) {
+            // Veralteten / ungültigen Token ausschließen
+            if (u.push_token !== 'ExponentPushToken[YkqAw6KP9jR3xHaitsg61h]') {
+              uniqueTokens.add(u.push_token);
+            }
+          }
+        });
+      } catch (dbErr) {
+        console.warn('Could not load admin tokens from Supabase:', dbErr);
+      }
+    }
+
+    const title = context === 'registration'
+      ? '🔔 Neuer Web-Kunde registriert'
+      : (context === 'payment' ? '💳 Web-Zahlung eingegangen' : '🖥️ Web-Freischaltung angefordert');
+
+    const body = userEmail 
+      ? `${userName} (${userEmail}) wartet auf Freischaltung!` 
+      : `${userName} wartet auf Web-Freischaltung!`;
 
     const pushMessages = Array.from(uniqueTokens).map((token: string) => ({
       to: token,
       sound: 'default',
-      title: '🖥️ Web-Freischaltung angefordert',
-      body: userEmail ? `${userName} (${userEmail}) wartet auf Freischaltung!` : `${userName} wartet auf Web-Freischaltung!`,
-      data: { type: 'web_unlock', userId },
+      title,
+      body,
+      data: { type: 'web_unlock', userId, email: userEmail, name: userName, context },
       priority: 'high',
       channelId: 'chat-messages'
     }));
 
     if (pushMessages.length > 0) {
       await sendExpoPushNotificationPayload(pushMessages);
-      console.log(`Web unlock push sent to ${pushMessages.length} admin devices for user: ${userName} (${userEmail})`);
+      console.log(`Web unlock push (${context}) sent to ${pushMessages.length} admin devices for user: ${userName} (${userEmail})`);
     }
   } catch (e) {
     console.warn('Error sending web unlock notification to admin:', e);
   }
 }
-
-
