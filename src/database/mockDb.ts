@@ -1213,282 +1213,115 @@ export const INITIAL_FACTS: Fact[] = [
 
   // --- SIGNALE (RIL 301 SIGNALBUCH) ---
   // ==========================================
-  // --- SIGNALE (RIL 301 SIGNALBUCH AKT. 12) ---
-  // ==========================================
+  // --- SYSTEMISCHE SIGNALE (RIL 301 SIGNALBUCH) ---
+  {
+  "id": "f_sig_hl_uebersicht",
+  "category": "Signale",
+  "title": "Hl-Signale – Systemübersicht (DV 301)",
+  "content": "Bedeutung:\nHl-Signale (Lichthaupt- und Lichtvorsignale) vereinigen Haupt- und Vorsignalfunktion auf einem gemeinsamen Signalschirm:\n\n1. Oberes Licht (Vorsignalfunktion für folgendes Signal):\n• 🟢 Standlicht: Fahrt mit Höchstgeschwindigkeit (Hl 1, Hl 2, Hl 3a/b)\n• 🟢 Blinklicht: Höchstgeschwindigkeit auf 100 km/h ermäßigen (Hl 4, Hl 5, Hl 6a/b)\n• 🟡 Blinklicht: Höchstgeschwindigkeit auf 40/60 km/h ermäßigen (Hl 7, Hl 8, Hl 9a/b)\n• 🟡 Standlicht: Halt erwarten (Hl 10, Hl 11, Hl 12a/b)\n\n2. Unteres Licht & Lichtstreifen (Geschwindigkeit ab diesem Signal):\n• Kein unteres Licht: Streckengeschwindigkeit\n• 🟡 unteres Licht + grüner Streifen: 100 km/h\n• 🟡 unteres Licht + gelber Streifen: 60 km/h\n• 🟡 unteres Licht ohne Streifen: 40 km/h",
+  "reference": "Ril 301.0103 & 301.0103A01",
+  "isVerified": true
+},
 
-  // --- 1. HAUPTSIGNALE (HP, HL, SV) ---
   {
-    id: 'f_sig_hp0',
-    category: 'Signale',
-    title: 'Signal Hp 0 – Halt',
-    content: 'Bedeutung:\nHalt.\n\nGeltung:\nGilt für Zug- und Rangierfahrten.\n\nSignalbild:\n• Formsignal: Ein Signalflügel (bei zweiflügligen Signalen der obere Flügel) zeigt waagerecht nach rechts. Nachtzeichen: Ein rotes Licht (🔴).\n• Lichtsignal: Ein rotes Licht (🔴) oder zwei rote Lichter nebeneinander (🔴 🔴).\n\nHinweis für Rangierfahrten:\nWird am Hauptsignal zusätzlich zum Signal Hp 0 das Signal Sh 1 bzw. Ra 12 (DV 301) gezeigt (⚪⚪), ist das Haltegebot für Rangierfahrten aufgehoben.',
-    reference: 'Ril 301.0101 Abschnitt 2',
-    isVerified: true
-  },
-  {
-    id: 'f_sig_hp1',
-    category: 'Signale',
-    title: 'Signal Hp 1 – Fahrt',
-    content: 'Bedeutung:\nFahrt.\n\nGeltung:\nGilt nur für Zugfahrten.\n\nSignalbild:\n• Formsignal: Ein Signalflügel (bei zweiflügligen Signalen der obere Flügel) zeigt schräg nach rechts aufwärts. Nachtzeichen: Ein grünes Licht (🟢).\n• Lichtsignal: Ein grünes Licht (🟢).\n\nGeschwindigkeit:\nErlaubt die Fahrt mit der im Fahrplan zugelassenen Höchstgeschwindigkeit, sofern sie nicht durch andere Signale oder Befehle eingeschränkt ist.',
-    reference: 'Ril 301.0101 Abschnitt 3',
-    isVerified: true
-  },
-  {
-    id: 'f_sig_hp2',
-    category: 'Signale',
-    title: 'Signal Hp 2 – Langsamfahrt',
-    content: 'Bedeutung:\nLangsamfahrt.\n\nGeltung:\nGilt nur für Zugfahrten.\n\nSignalbild:\n• Formsignal: Zwei Signalflügel zeigen schräg nach rechts aufwärts. Nachtzeichen: Ein grünes und senkrecht darunter ein gelbes Licht (🟢 über 🟡).\n• Lichtsignal: Ein grünes und senkrecht darunter ein gelbes Licht (🟢 über 🟡).\n\nGeschwindigkeit:\nSchreibt eine Geschwindigkeitsbeschränkung auf 40 km/h vor (sofern nicht durch Signal Zs 3 eine abweichende Geschwindigkeit angezeigt wird). Gilt vom Hauptsignal ab für den gesamten anschließenden Weichenbereich.',
-    reference: 'Ril 301.0101 Abschnitt 4',
-    isVerified: true
-  },
-  {
-    id: 'f_sig_hl_uebersicht',
-    category: 'Signale',
-    title: 'Hl-Signale – Systemübersicht (DV 301)',
-    content: 'Bedeutung:\nHl-Signale (Lichthaupt- und Lichtvorsignale) vereinigen Haupt- und Vorsignalfunktion auf einem gemeinsamen Signalschirm:\n\n1. Oberes Licht (Vorsignalfunktion für folgendes Signal):\n• 🟢 Standlicht: Fahrt mit Höchstgeschwindigkeit (Hl 1, Hl 2, Hl 3a/b)\n• 🟢 Blinklicht: Höchstgeschwindigkeit auf 100 km/h ermäßigen (Hl 4, Hl 5, Hl 6a/b)\n• 🟡 Blinklicht: Höchstgeschwindigkeit auf 40/60 km/h ermäßigen (Hl 7, Hl 8, Hl 9a/b)\n• 🟡 Standlicht: Halt erwarten (Hl 10, Hl 11, Hl 12a/b)\n\n2. Unteres Licht & Lichtstreifen (Geschwindigkeit ab diesem Signal):\n• Kein unteres Licht: Streckengeschwindigkeit\n• 🟡 unteres Licht + grüner Streifen: 100 km/h\n• 🟡 unteres Licht + gelber Streifen: 60 km/h\n• 🟡 unteres Licht ohne Streifen: 40 km/h',
-    reference: 'Ril 301.0103 & 301.0103A01',
-    isVerified: true
-  },
-  {
-    id: 'f_sig_sv_uebersicht',
-    category: 'Signale',
-    title: 'Sv-Signale – Signalverbindungen (S-Bahn)',
-    content: 'Bedeutung:\nHaupt- und Vorsignalverbindungen (z.B. S-Bahn Hamburg/Berlin) auf geteiltem Signalschirm:\n\n• Linke Lichter (Hauptsignal):\n  - 🟡🟡 (Sv 0): Zughalt! Weiterfahrt auf Sicht.\n  - 🟢: Fahrt mit Streckengeschwindigkeit.\n  - 🟢 über 🟡: Langsamfahrt mit 40 km/h.\n\n• Rechte Lichter (Vorsignal):\n  - 🟢: Fahrt erwarten.\n  - 🟢 über 🟡: Langsamfahrt erwarten.\n  - 🟡: Halt erwarten.\n\n• Signalbegriffe:\n  - Sv 1: Fahrt! Fahrt erwarten (🟢 🟢)\n  - Sv 2: Fahrt! Halt erwarten (🟢 🟡)\n  - Sv 3: Fahrt! Langsamfahrt erwarten (🟢 🟢/🟡)\n  - Sv 4: Langsamfahrt! Fahrt erwarten (🟢/🟡 🟢)\n  - Sv 5: Langsamfahrt! Langsamfahrt erwarten (🟢/🟡 🟢/🟡)\n  - Sv 6: Langsamfahrt! Halt erwarten (🟢/🟡 🟡)',
-    reference: 'Ril 301.0104 Abschnitte 1–10',
-    isVerified: true
-  },
+  "id": "f_sig_sv_uebersicht",
+  "category": "Signale",
+  "title": "Sv-Signale – Signalverbindungen (S-Bahn)",
+  "content": "Bedeutung:\nHaupt- und Vorsignalverbindungen (z.B. S-Bahn Hamburg/Berlin) auf geteiltem Signalschirm:\n\n• Linke Lichter (Hauptsignal):\n  - 🟡🟡 (Sv 0): Zughalt! Weiterfahrt auf Sicht.\n  - 🟢: Fahrt mit Streckengeschwindigkeit.\n  - 🟢 über 🟡: Langsamfahrt mit 40 km/h.\n\n• Rechte Lichter (Vorsignal):\n  - 🟢: Fahrt erwarten.\n  - 🟢 über 🟡: Langsamfahrt erwarten.\n  - 🟡: Halt erwarten.\n\n• Signalbegriffe:\n  - Sv 1: Fahrt! Fahrt erwarten (🟢 🟢)\n  - Sv 2: Fahrt! Halt erwarten (🟢 🟡)\n  - Sv 3: Fahrt! Langsamfahrt erwarten (🟢 🟢/🟡)\n  - Sv 4: Langsamfahrt! Fahrt erwarten (🟢/🟡 🟢)\n  - Sv 5: Langsamfahrt! Langsamfahrt erwarten (🟢/🟡 🟢/🟡)\n  - Sv 6: Langsamfahrt! Halt erwarten (🟢/🟡 🟡)",
+  "reference": "Ril 301.0104 Abschnitte 1–10",
+  "isVerified": true
+},
 
-  // --- 2. KOMBINATIONSSIGNALE (KS) ---
   {
-    id: 'f_sig_ks1',
-    category: 'Signale',
-    title: 'Signal Ks 1 – Fahrt',
-    content: 'Bedeutung:\nFahrt mit der im Fahrplan zugelassenen Geschwindigkeit.\n\nSignalbild:\n• Ein grünes Standlicht (🟢) oder\n• Ein grünes Blinklicht (🟢⚡).\n\nBesonderheit des Blinklichts:\nDas Signal Ks 1 blinkt, wenn am Vorsignal oder Hauptsignal mit Vorsignalfunktion zusätzlich ein Geschwindigkeitsvoranzeiger (Signal Zs 3v) leuchtet und eine Geschwindigkeitsreduzierung am nächsten Signal ankündigt.\n\nGeltung:\nKs-Signale gelten nur für Zugfahrten.',
-    reference: 'Ril 301.0102 Abschnitt 2',
-    isVerified: true
-  },
-  {
-    id: 'f_sig_ks2',
-    category: 'Signale',
-    title: 'Signal Ks 2 – Halt erwarten',
-    content: 'Bedeutung:\nHalt erwarten.\n\nSignalbild:\nEin gelbes Standlicht (🟡).\n\nFunktion:\nErlaubt die Vorbeifahrt am Signal und kündigt Halt am nächsten Signal (Hauptsignal oder Schutzsignal Sh 0/Sh 2) an.',
-    reference: 'Ril 301.0102 Abschnitt 3',
-    isVerified: true
-  },
-  {
-    id: 'f_sig_ks_zusatzlicht',
-    category: 'Signale',
-    title: 'Ks-Signale: Weißes Zusatzlicht',
-    content: 'Bedeutung des weißen Zusatzlichts bei Ks-Signalen:\n\n1. Weißes Zusatzlicht ÜBER dem Signallicht (⚪):\nKennzeichnet ein Hauptsignal mit Vorsignalfunktion, das in einem um mehr als 5 % verkürzten Bremswegabstand der Strecke vor dem folgenden Signal steht (wird bei Ks 1 mit Zs 3v und bei Ks 2 gezeigt).\n\n2. Weißes Zusatzlicht UNTER dem Signallicht (⚪):\nKennzeichnet einen Ks-Vorsignalwiederholer (wird bei Ks 1 mit Zs 3v und bei Ks 2 gezeigt; bei Ks 1 ohne Zs 3v bleibt das Zusatzlicht dunkel).',
-    reference: 'Ril 301.0102 Abschnitt 1 (3) und (4)',
-    isVerified: true
-  },
+  "id": "f_sig_ks_zusatzlicht",
+  "category": "Signale",
+  "title": "Ks-Signale: Weißes Zusatzlicht",
+  "content": "Bedeutung:\nEin weißes Licht über dem Signallicht (Ks 1 oder Ks 2):\n\n1. Verkürzter Bremsweg:\nDer Bremsweg der Strecke ist um mehr als 5 % kürzer als der Regelbremsweg. (Signal steht im verkürzten Bremswegabstand zum Hauptsignal).\n\n2. Vorsignalwiederholer:\nZeigt das Signal im Bremswegabstand erneut einen Vorsignalbegriff, brennt das weiße Zusatzlicht (oft in Verbindung mit einer Zusatztafel). Bei Vorsignalwiederholern fehlt die Ne 2-Vorsignaltafel!\n\nMerksatz:\nWeißes Zusatzlicht oben links = Verkürzter Bremswegabstand oder Vorsignalwiederholer.",
+  "reference": "Ril 301.0102 Abschnitt 2 Absatz 8",
+  "isVerified": true
+},
 
-  // --- 3. ZUSATZSIGNALE (ZS) ---
   {
-    id: 'f_sig_zs1',
-    category: 'Signale',
-    title: 'Signal Zs 1 – Ersatzsignal',
-    content: 'Bedeutung:\nAm Signal Hp 0 oder am gestörten Lichthauptsignal ohne schriftlichen Befehl vorbeifahren.\n\nSignalbild:\n• Drei weiße Lichter in Form eines A (⚪ ⚪ / ⚪) oder\n• Ein weißes Blinklicht (⚪⚡).\n\nRegeln:\n• Gilt auch weiter, wenn es erlischt, bevor die Zugspitze am Signal vorbeigefahren ist.\n• Höchstgeschwindigkeit im anschließenden Weichenbereich: maximal 40 km/h.',
-    reference: 'Ril 301.0301 Abschnitt 2',
-    isVerified: true
-  },
-  {
-    id: 'f_sig_zs2',
-    category: 'Signale',
-    title: 'Signal Zs 2 & Zs 2v – Richtungsanzeiger & -voranzeiger',
-    content: 'Bedeutung:\n• Signal Zs 2 (Richtungsanzeiger): Die Fahrstraße führt in die angezeigte Richtung. Signalbild: Ein weißleuchtender Buchstabe.\n• Signal Zs 2v (Richtungsvoranzeiger): Richtungsanzeiger (Zs 2) erwarten. Signalbild: Ein gelbleuchtender Buchstabe (im Bereich der DV 301 bis auf weiteres auch weißleuchtend).\n\nZweck:\nKennzeichnet bei Streckenverzweigungen oder größeren Bahnhöfen das eingestellte Zielgleis bzw. die Fahrtrichtung.',
-    reference: 'Ril 301.0301 Abschnitte 3 & 4',
-    isVerified: true
-  },
-  {
-    id: 'f_sig_zs3',
-    category: 'Signale',
-    title: 'Signal Zs 3 & Zs 3v – Geschwindigkeitsanzeiger & -voranzeiger',
-    content: 'Bedeutung:\n• Signal Zs 3 (Geschwindigkeitsanzeiger): Die durch die Kennziffer angezeigte Geschwindigkeit darf vom Signal ab im anschließenden Weichenbereich nicht überschritten werden. Kennziffer $\\times$ 10 = km/h (z.B. Kennziffer „6“ = 60 km/h, „3“ = 30 km/h für Stumpfgleise/kurze Durchrutschwege).\n  - Formsignal: Weiße Kennziffer auf dreieckiger schwarzer Tafel.\n  - Lichtsignal: Weiß leuchtende Kennziffer.\n\n• Signal Zs 3v (Geschwindigkeitsvoranzeiger): Geschwindigkeitsanzeiger (Zs 3) erwarten.\n  - Formsignal: Gelbe Kennziffer auf schwarzer Tafel mit gelbem Rand.\n  - Lichtsignal: Gelb leuchtende Kennziffer.',
-    reference: 'Ril 301.0301 Abschnitte 5 & 6',
-    isVerified: true
-  },
-  {
-    id: 'f_sig_zs6',
-    category: 'Signale',
-    title: 'Signal Zs 6 – Gegengleisanzeiger',
-    content: 'Bedeutung:\nDer Fahrweg führt in das Streckengleis entgegen der gewöhnlichen Fahrtrichtung.\n\nSignalbild:\n• Lichtsignal: Ein weiß leuchtender schräger Lichtstreifen von rechts nach links steigend (Enden meist senkrecht abgebogen).\n• Formsignal: Rechteckige schwarze Scheibe mit weißem Rand und weißem schräg steigendem Streifen.\n\nGeltung:\nErteilt den Auftrag, das Gegengleis bis zum nächsten Bahnhof (bzw. zur nächsten Überleit-/Abzweigstelle) zu befahren.',
-    reference: 'Ril 301.0301 Abschnitt 7',
-    isVerified: true
-  },
-  {
-    id: 'f_sig_zs7',
-    category: 'Signale',
-    title: 'Signal Zs 7 – Vorsichtsignal',
-    content: 'Bedeutung:\nAm Signal Hp 0 oder am gestörten Lichthauptsignal ohne schriftlichen Befehl vorbeifahren! Weiterfahrt auf Sicht.\n\nSignalbild:\nDrei gelbe Lichter in Form eines V (🟡 🟡 / 🟡).\n\nGeltung & Fahrweise:\n• Auf Sicht fahren: Geschwindigkeit so einrichten, dass vor jedem Hindernis oder Haltsignal sicher angehalten werden kann (maximal 40 km/h).\n• Gilt bis zum nächsten Hauptsignal plus 400 m darüber hinaus.',
-    reference: 'Ril 301.0301 Abschnitt 8',
-    isVerified: true
-  },
-  {
-    id: 'f_sig_zs8',
-    category: 'Signale',
-    title: 'Signal Zs 8 – Gegengleisfahrt-Ersatzsignal',
-    content: 'Bedeutung:\nAm Halt zeigenden oder gestörten Hauptsignal vorbeifahren, der Fahrweg führt in das Streckengleis entgegen der gewöhnlichen Fahrtrichtung.\n\nSignalbild:\n• Drei blinkende weiße Lichter in Form eines A (⚪⚡) oder\n• Ein weißblinkender Lichtstreifen von rechts nach links steigend.\n\nFunktion:\nKombiniert Ersatzsignal (Zs 1) und Gegengleisanzeiger (Zs 6) in einem Signalbild. Gilt bis zum nächsten Bahnhof.',
-    reference: 'Ril 301.0301 Abschnitt 9',
-    isVerified: true
-  },
-  {
-    id: 'f_sig_zs9',
-    category: 'Signale',
-    title: 'Signal Zs 9 – Bahnübergangstafel (Bü-Tafel, DV 301)',
-    content: 'Bedeutung:\nNach dem zulässigen Vorbeifahren an dem Halt zeigenden oder gestörten Lichthauptsignal: Halt vor dem Bahnübergang! Weiterfahrt nach Sicherung.\n\nSignalbild:\nEine dreieckige weiße Tafel mit rotem Rand und schwarzem Gatter (ggf. mit schwarzer Ziffer für die Anzahl der betroffenen BÜ).\n\nAnwendung:\nSteht vor Lichthauptsignalen mit weiß-gelb-weiß-gelb-weißem oder rotem Mastschild, die nur dann Fahrt zeigen, wenn der BÜ technisch gesichert ist.',
-    reference: 'Ril 301.0301 Abschnitt 10',
-    isVerified: true
-  },
-  {
-    id: 'f_sig_zs10',
-    category: 'Signale',
-    title: 'Signal Zs 10 – Endesignal (DS 301)',
-    content: 'Bedeutung:\nEnde der Geschwindigkeitsbeschränkung.\n\nSignalbild:\n• Formsignal: Ein weißer Pfeil mit der Spitze nach oben auf pfeilförmiger schwarzer Tafel.\n• Lichtsignal: Ein weißleuchtender Pfeil mit der Spitze nach oben.\n\nFunktion:\nZeigt an, dass eine mit Signal Hp 2 oder Signal Zs 3 vorgeschriebene Geschwindigkeitsbeschränkung bereits vor dem Ende des anschließenden Weichenbereichs aufgehoben ist.',
-    reference: 'Ril 301.0301 Abschnitt 11',
-    isVerified: true
-  },
-  {
-    id: 'f_sig_zs12',
-    category: 'Signale',
-    title: 'Signal Zs 12 – M-Tafel',
-    content: 'Bedeutung:\nAm Halt zeigenden oder gestörten Hauptsignal auf mündlichen oder fernmündlichen Auftrag des Fahrdienstleiters vorbeifahren.\n\nSignalbild:\nEine weiße Tafel mit rotem Rand und rotem „M“ in Schreibschrift.\n\nVerhalten:\nNach dem Halten vor dem Signal darf der Triebfahrzeugführer auf mündlichen/fernmündlichen Auftrag des Fdl (oder der örtlichen Aufsicht) ohne schriftlichen Befehl vorbeifahren.',
-    reference: 'Ril 301.0301 Abschnitt 12',
-    isVerified: true
-  },
-  {
-    id: 'f_sig_zs13',
-    category: 'Signale',
-    title: 'Signal Zs 13 – Stumpfgleis- und Frühhaltanzeiger',
-    content: 'Bedeutung:\nFahrt in ein Stumpfgleis oder in ein Gleis mit verkürztem Einfahrweg.\n\nSignalbild:\n• Formsignal: Ein um 90° nach links umgelegtes gelbes rückstrahlendes „T“ auf schwarzer Tafel.\n• Lichtsignal: Ein um 90° nach links umgelegtes gelbleuchtendes „T“.\n\nAnwendung:\nErscheint bei Einfahrten in Stumpfgleise (Kopfbahnhöfe ausgenommen), abschnittsweise unterteilte Gleise oder bei um mehr als 30 % verkürztem Einfahrweg.',
-    reference: 'Ril 301.0301 Abschnitt 13',
-    isVerified: true
-  },
-  {
-    id: 'f_sig_zs103',
-    category: 'Signale',
-    title: 'Signal Zs 103 – Rautentafel (DV 301)',
-    content: 'Bedeutung:\nDas Halt zeigende Hauptsignal gilt nicht für Rangierabteilungen.\n\nSignalbild:\nEine rechteckige schwarze Tafel mit senkrecht übereinander angeordneten weißen Rauten.\n\nAnwendung:\nAm Hauptsignal angebracht; befreit Rangierfahrten vom Haltegebot des Signals Hp 0.',
-    reference: 'Ril 301.0301 Abschnitt 14',
-    isVerified: true
-  },
+  "id": "f_sig_zs103",
+  "category": "Signale",
+  "title": "Zs 103 – Rautentafel (DV 301)",
+  "content": "Bedeutung:\nKennzeichnet ein Signal, das in einem anderen als dem im Signalbuch angegebenen Regellichtraumprofil steht (z.B. links statt rechts oder an besonderen Signalbrücken im Bereich der ehemaligen DR).\n\nSignalbild:\nEine weiße Raute mit schwarzem Rand.",
+  "reference": "Ril 301.0301 Abschnitt 14 (DV 301)",
+  "isVerified": true
+},
 
-  // --- 4. WEICHENSIGNALE (WN) ---
   {
-    id: 'f_sig_wn1',
-    category: 'Signale',
-    title: 'Signal Wn 1 – Gerader Zweig',
-    content: 'Bedeutung:\nDie Weiche ist für den geraden Zweig (bzw. schwächer gebogenen Zweig bei Innenbogenweichen) gestellt.\n\nSignalbilder:\n• Formsignal: Ein auf der Schmalseite stehendes weißes Rechteck auf schwarzem Grund (von der Spitze oder vom Herzstück aus).\n• Lichtsignal: Zwei senkrecht übereinander stehende weiße Lichter (⚪ über ⚪).\n• Rückfallweichen: Weißes Symbol auf orangefarbenem Grund.',
-    reference: 'Ril 301.0801 Abschnitt 2',
-    isVerified: true
-  },
-  {
-    id: 'f_sig_wn2',
-    category: 'Signale',
-    title: 'Signal Wn 2 – Gebogener Zweig',
-    content: 'Bedeutung:\nDie Weiche ist für den gebogenen Zweig (bzw. stärker gebogenen Zweig) gestellt.\n\nSignalbilder:\n• Von der Weichenspitze aus:\n  - Formsignal: Ein weißer Pfeil auf schwarzem Grund zeigt schräg nach links oder rechts aufwärts.\n  - Lichtsignal: Zwei nebeneinander stehende weiße Lichter (⚪ ⚪).\n• Vom Herzstück aus:\n  - Formsignal: Eine runde weiße Scheibe auf schwarzem Grund (bei Außenbogenweichen eine nach links/rechts geöffnete Sichel).',
-    reference: 'Ril 301.0801 Abschnitt 3',
-    isVerified: true
-  },
-  {
-    id: 'f_sig_wn_dkw',
-    category: 'Signale',
-    title: 'Signale Wn 3 bis Wn 6 – Doppelte Kreuzungsweichen (DKW)',
-    content: 'Bedeutung an doppelten Kreuzungsweichen (DKW):\n(Unterer Pfeil = Fahrt in die Weiche, oberer Pfeil = Fahrt aus der Weiche):\n\n• Wn 3: Gerade von links nach rechts (Pfeile bilden eine von links nach rechts steigende Linie).\n• Wn 4: Gerade von rechts nach links (Pfeile bilden eine von rechts nach links steigende Linie).\n• Wn 5: Bogen von links nach links (Pfeile bilden einen nach links geöffneten rechten Winkel).\n• Wn 6: Bogen von rechts nach rechts (Pfeile bilden einen nach rechts geöffneten rechten Winkel).',
-    reference: 'Ril 301.0801 Abschnitte 4–8',
-    isVerified: true
-  },
-  {
-    id: 'f_sig_wn7',
-    category: 'Signale',
-    title: 'Signal Wn 7 – Gleissperrensignal',
-    content: 'Bedeutung:\nDie Gleissperre ist abgelegt.\n\nSignalbild:\nEin senkrechter schwarzer Streifen in einer runden weißen Scheibe auf schwarzem Grund.\n\nRückseite bei Tage: Eine kleine weiße runde Scheibe auf schwarzem Grund.\n\nWichtiger Hinweis:\nDurch das Signal Wn 7 wird keine Zustimmung des Weichenwärters zur Rangierfahrt erteilt!',
-    reference: 'Ril 301.0801 Abschnitt 9',
-    isVerified: true
-  },
+  "id": "f_sig_so_signale",
+  "category": "Signale",
+  "title": "So 1, So 19 & So 106 (DV 301)",
+  "content": "Besondere Signale der DV 301:\n\n• So 1 – Endesignal für Falschfahrten: Kennzeichnet das Ende einer Fahrt auf dem Gegengleis (DR).\n• So 19 – Hauptsignal-Bake: Kündigt ein Hauptsignal im Bereich der DV 301 an (ähnlich Vorsignalbaken, jedoch mit waagerechten Streifen).\n• So 106 – Kreuzungstafel: Zeigt den Beginn des Bremswegs vor einer nicht technisch gesicherten Kreuzung von Eisenbahnen an.",
+  "reference": "Ril 301.1401 Abschnitte 11–13",
+  "isVerified": true
+},
 
-  // --- 5. NEBENSIGNALE (NE / SO) ---
   {
-    id: 'f_sig_ne1',
-    category: 'Signale',
-    title: 'Signal Ne 1 – Trapeztafel',
-    content: 'Bedeutung:\nKennzeichnung der Stelle, wo bestimmte Züge vor einer Betriebsstelle zu halten haben.\n\nSignalbild:\nEine weiße Trapeztafel mit schwarzem Rand an schwarz und weiß schräg gestreiftem Pfahl.\n\nAnwendung:\n• Vor Bahnhöfen ohne Einfahrsignale (z.B. Nebenbahnen, Zugleitbetrieb).\n• An Gleisen entgegen der gewöhnlichen Fahrtrichtung (Gegengleis) ohne Haupt-/Sperrsignal (dann mit Kilometerangabe).',
-    reference: 'Ril 301.1401 Abschnitt 1',
-    isVerified: true
-  },
+  "id": "f_sig_zs9",
+  "category": "Signale",
+  "title": "Zs 9 – Bahnübergangstafel (Bü-Tafel, DV 301)",
+  "content": "Bedeutung:\nErteilt dem Triebfahrzeugführer die Erlaubnis, an einem gestörten oder Halt zeigenden Bahnübergangs-Überwachungssignal nach Halt und Sichern bzw. Beachten der Vorschriften weiterzufahren (DV 301).\n\nSignalbild:\nEin auf der Spitze stehendes weißes Dreieck mit schwarzem Rand und schwarzem Aufdruck \"Bü\".",
+  "reference": "Ril 301.0301 Abschnitt 10 (DV 301)",
+  "isVerified": true
+},
+
   {
-    id: 'f_sig_ne2',
-    category: 'Signale',
-    title: 'Signal Ne 2 – Vorsignaltafel',
-    content: 'Bedeutung:\nKennzeichnung des Standorts eines Vorsignals.\n\nSignalbild:\nEine schwarzgeränderte weiße Tafel mit zwei übereinander stehenden schwarzen Winkeln, die sich mit der Spitze berühren.\n\nVerkürzter Bremswegabstand:\nSteht das Vorsignal um mehr als 5 % kürzer als der Bremsweg der Strecke vor dem Hauptsignal, trägt die Tafel am oberen Rand ein auf der Spitze stehendes weißes Dreieck mit schwarzem Rand.',
-    reference: 'Ril 301.1401 Abschnitt 2',
-    isVerified: true
-  },
+  "id": "f_sig_ne7",
+  "category": "Signale",
+  "title": "Ne 7 – Schneepflugtafel",
+  "content": "Bedeutung:\nSignalisiert das Heben bzw. Senken des Schneepflugs:\n\n• Ne 7a: Pflugschar heben (weißer Keil mit Spitze nach oben auf schwarzem Grund). Vor Hindernissen im Gleis (z.B. Weichen, BÜ, Indusi-Magnete).\n• Ne 7b: Pflugschar senken (weißer Keil mit Spitze nach unten auf schwarzem Grund). Nach dem Hindernis darf das Räumen fortgesetzt werden.",
+  "reference": "Ril 301.0501 Abschnitt 7",
+  "isVerified": true
+},
+
   {
-    id: 'f_sig_ne3',
-    category: 'Signale',
-    title: 'Signal Ne 3 – Vorsignalbaken',
-    content: 'Bedeutung:\nEin Vorsignal ist zu erwarten.\n\nSignalbild:\nMehrere aufeinanderfolgende weiße Tafeln mit nach rechts steigenden schwarzen Streifen:\n• 3 Streifen = ca. 250 m vor dem Vorsignal\n• 2 Streifen = ca. 175 m vor dem Vorsignal\n• 1 Streifen = ca. 100 m vor dem Vorsignal\n\nBesonderheit: Bei verkürztem Bremswegabstand trägt die 1. Bake (mit 3 Streifen) ein auf der Spitze stehendes weißes Dreieck.',
-    reference: 'Ril 301.1401 Abschnitt 3',
-    isVerified: true
-  },
+  "id": "f_sig_ne14",
+  "category": "Signale",
+  "title": "Ne 14 – ETCS-Halt-Tafel (ETCS Stop marker)",
+  "content": "Bedeutung:\nHalt für Züge in der ETCS-Betriebsart Vollüberwachung (Full Supervision) oder Fahrwegprüfung (On Sight), wenn keine Fahrerlaubnis (Movement Authority - MA) vorliegt.\n\nSignalbild:\nEin blaues Quadrat mit einem weißen Pfeil, der in Richtung des Gleises zeigt, für das das Signal gilt, und einem gelben Dreieck.",
+  "reference": "Ril 301.0501 Abschnitt 14",
+  "isVerified": true
+},
+
   {
-    id: 'f_sig_ne4',
-    category: 'Signale',
-    title: 'Signal Ne 4 – Schachbretttafel',
-    content: 'Bedeutung:\nDas Hauptsignal steht – abweichend von der Regel – an einem anderen Standort.\n\nSignalbild:\nEine viereckige, schachbrettartig schwarz und weiß gemusterte Tafel.\n\nStandort:\nSteht an der Stelle, an der sich das Hauptsignal nach der Regel befinden müsste (in der Regel rechts vom Gleis) und verweist auf das Signal auf der linken Seite.',
-    reference: 'Ril 301.1401 Abschnitt 4',
-    isVerified: true
-  },
+  "id": "f_sig_wn_dkw",
+  "category": "Signale",
+  "title": "Wn 3 bis Wn 6 – Doppelte Kreuzungsweichen (DKW)",
+  "content": "Bedeutung an doppelten Kreuzungsweichen (DKW):\n(Unterer Pfeil = Fahrt in die Weiche, oberer Pfeil = Fahrt aus der Weiche):\n\n• Wn 3: Gerade von links nach rechts (Pfeile bilden eine von links nach rechts steigende Linie).\n• Wn 4: Gerade von rechts nach links (Pfeile bilden eine von rechts nach links steigende Linie).\n• Wn 5: Bogen von links nach links (Pfeile bilden einen nach links geöffneten rechten Winkel).\n• Wn 6: Bogen von rechts nach rechts (Pfeile bilden einen nach rechts geöffneten rechten Winkel).",
+  "reference": "Ril 301.0801 Abschnitte 4–8",
+  "isVerified": true
+},
+
   {
-    id: 'f_sig_ne5',
-    category: 'Signale',
-    title: 'Signal Ne 5 – Haltetafel (H-Tafel)',
-    content: 'Bedeutung:\nKennzeichnung des Halteplatzes der Zugspitze bei planmäßig haltenden Zügen.\n\nSignalbild:\nEine hochstehende weiße Rechteckscheibe mit schwarzem H (oder schwarze Scheibe mit weißem H).\n\nZusätze:\n• Kann mit Längenangaben (z.B. „150 m“) für Reisezüge ergänzt sein.\n• Ein weiß blinkendes „H“ zeigt die Anforderung eines Bedarfshalts an.',
-    reference: 'Ril 301.1401 Abschnitt 5',
-    isVerified: true
-  },
+  "id": "f_sig_ne12_13",
+  "category": "Signale",
+  "title": "Ne 12 & Ne 13 – Signale für Rückfallweichen",
+  "content": "Signale an Rückfallweichen:\n\n• Ne 12 – Ankündigung einer Rückfallweiche:\nKündigt eine Rückfallweiche an, die gegen die Spitze befahren wird. Gelbe Tafel mit schwarzem Pfeil.\n\n• Ne 13 – Überwachungssignal einer Rückfallweiche:\nZeigt an, ob die Rückfallweiche in der für die Zugfahrt erforderlichen Endlage verriegelt ist.\n- Ein weißes Licht: Weiche ist ordnungsgemäß verriegelt und darf befahren werden.\n- Kein Licht oder gelbes Blinklicht: Weiche nicht in Endlage! Halt vor der Weiche.",
+  "reference": "Ril 301.0501 Abschnitte 12–13",
+  "isVerified": true
+},
+
   {
-    id: 'f_sig_ne6',
-    category: 'Signale',
-    title: 'Signal Ne 6 – Haltepunkttafel',
-    content: 'Bedeutung:\nEin Haltepunkt ist zu erwarten.\n\nSignalbild:\nEine schräg zum Gleis gestellte waagerechte weiße Tafel mit drei schwarzen Schrägstreifen.\n\nAufstellung:\nSteht vor schwer erkennbaren Bahnsteigen/Haltepunkten:\n• Auf Hauptbahnen im Bremswegabstand der Strecke,\n• Auf Nebenbahnen 150 m vor dem Bahnsteig.',
-    reference: 'Ril 301.1401 Abschnitt 6',
-    isVerified: true
-  },
+  "id": "f1",
+  "category": "Signale",
+  "title": "Bedeutung von Vorsignalen (Vr-System)",
+  "content": "Vorsignale kündigen das Signalbild des folgenden Hauptsignals im Bremswegabstand (in der Regel 1000 m oder 700 m) an:\n\n• Vr 0: Halt erwarten\n• Vr 1: Fahrt erwarten\n• Vr 2: Langsamfahrt erwarten (40 km/h bzw. lt. Zs 3v)\n\nVorsignale haben keinen eigenen Haltebegriff, fordern den Triebfahrzeugführer jedoch bei Vr 0 und Vr 2 zur sofortigen Bremsung und Bestätigung der Wachsamkeitstaste (PZB) auf.",
+  "reference": "Ril 301 (Signalbuch), Modul 301.0101",
+  "isVerified": true
+},
+
   {
-    id: 'f_sig_ne7',
-    category: 'Signale',
-    title: 'Signal Ne 7 – Schneepflugtafel',
-    content: 'Bedeutung & Signalbilder:\n• Signal Ne 7a: Pflugschar heben! (Eine weiße oder gelbe Pfeilspitze mit schwarzem Rand zeigt nach oben).\n• Signal Ne 7b: Pflugschar senken! (Eine weiße oder gelbe Pfeilspitze mit schwarzem Rand zeigt nach unten).\n\nGeltung:\nGilt für Schneepflüge mit beweglichen Pflugscharen vor Hindernissen im Gleisbett (z.B. Bahnübergänge, Weichen, Gleismagnete).',
-    reference: 'Ril 301.1401 Abschnitt 7',
-    isVerified: true
-  },
-  {
-    id: 'f_sig_ne12_13',
-    category: 'Signale',
-    title: 'Signal Ne 12 & Ne 13 – Signale für Rückfallweichen',
-    content: 'Bedeutung & Signalbilder:\n\n• Signal Ne 12 (Ankündigungsbake):\nÜberwachungssignal einer Rückfallweiche beachten. (Rechteckige orangefarbene Tafel mit zwei waagerechten weißen Streifen).\n\n• Signal Ne 13a:\nDie Rückfallweiche ist gegen die Spitze befahrbar. (Ein weißes Licht über orangefarbenem waagerechtem Streifen und orange-weiß schräg gestreiftem Mastschild).\n\n• Signal Ne 13b:\nDie Rückfallweiche ist gegen die Spitze nicht befahrbar – vor der Weiche halten! (Nur orangefarbener Streifen über orange-weiß gestreiftem Mastschild).',
-    reference: 'Ril 301.1401 Abschnitte 8 & 9',
-    isVerified: true
-  },
-  {
-    id: 'f_sig_ne14',
-    category: 'Signale',
-    title: 'Signal Ne 14 – ETCS-Halt-Tafel (ETCS Stop marker)',
-    content: 'Bedeutung:\nHalt für Züge in ETCS-Betriebsart SR (Staff Responsible).\n\nSignalbild:\nEin gelber Pfeil mit weißem Rand auf einer blauen quadratischen Tafel mit Blockstellen-Kennzeichnung.\n\nGeltung als alleinstehendes Signal:\nGebietet Halt für Züge, die nicht in den ETCS-Betriebsarten FS (Full Supervision) oder OS (On Sight) verkehren, sowie für Rangier- und Kleinwagenfahrten.',
-    reference: 'Ril 301.1401 Abschnitt 10',
-    isVerified: true
-  },
-  {
-    id: 'f_sig_so_signale',
-    category: 'Signale',
-    title: 'Signale So 1, So 19 & So 106 (DV 301)',
-    content: 'Nebensignale im Geltungsbereich der DV 301:\n\n• Signal So 1 (Endtafel – S-Bahn Berlin):\nFahren auf Sicht beenden (viereckige rote Tafel mit liegendem weißem Kreuz).\n\n• Signal So 19 (Hauptsignalbaken):\nEin Hauptsignal ist zu erwarten (drei orangefarbene Tafeln mit 3, 2 bzw. 1 weißer Kreisfläche in 250 m, 175 m, 100 m vor dem Hauptsignal).\n\n• Signal So 106 (Kreuztafel):\nBei fehlendem Vorsignal wird angezeigt, dass ein Hauptsignal zu erwarten ist (weiße Sechseckscheibe mit liegendem schwarzem Kreuz auf Nebenbahnen).',
-    reference: 'Ril 301.1401 Abschnitte 11–13',
-    isVerified: true
-  },
+  "id": "fact_anl5_buffl_056",
+  "category": "Signale",
+  "title": "Was regelt die Ril 301?",
+  "content": "Die Richtlinie 301 (Signalbuch) regelt die Bedeutung, das Aussehen und den betrieblichen Zweck aller bei der Eisenbahn im Geltungsbereich zugelassenen Signale für Zug- und Rangierfahrten.",
+  "reference": "Ril 301 (Signalbuch) Grundlagen",
+  "isVerified": true
+},
+
   {
     id: 'f6',
     category: 'Wagenprüfung',

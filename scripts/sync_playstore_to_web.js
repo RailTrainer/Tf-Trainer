@@ -111,15 +111,21 @@ async function main() {
     ...anlage5,
     ...bremsprobe,
     ...hardcodedFacts
-  ].map(f => ({
-    id: f.id,
-    category: f.category,
-    title: f.title,
-    content: f.content,
-    reference: packFactMetadata(f),
-    image_url: f.imageUrl || (f.imageUrls && f.imageUrls[0]) || null,
-    is_verified: true
-  }));
+  ].map(f => {
+    let title = (f.title || '').trim();
+    if (f.category === 'Signale') {
+      title = title.replace(/^Signale?\s+/i, '').trim();
+    }
+    return {
+      id: f.id,
+      category: f.category,
+      title: title,
+      content: f.content,
+      reference: packFactMetadata(f),
+      image_url: f.imageUrl || (f.imageUrls && f.imageUrls[0]) || null,
+      is_verified: true
+    };
+  });
 
   // Master Prüfungsfragen zusammensetzen
   const masterQuestions = [
