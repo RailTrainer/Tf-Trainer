@@ -3535,9 +3535,10 @@ export const mockDb = {
   },
 
   /**
-   * Vollständige bidirektionale Synchronisierung von Fragen, Lernkarten und Freigaben
-   * mit der Supabase-Cloud.
-   * Aktualisiert Memory-Cache und persistenten AsyncStorage und benachrichtigt alle Screens.
+   * Synchronisierung von der Android-App zur Webversion (Supabase):
+   * 1. Liest lokale Fragen und Lernkarten aus der App (AsyncStorage / Master)
+   * 2. Überträgt (Upsert) alle Fragen, Lernkarten und Freigaben aus der App nach Supabase
+   * 3. Aktualisiert den lokalen Cache und benachrichtigt alle Screens.
    */
   async syncContentBidirectional(forceRefresh: boolean = true): Promise<{
     questionsCount: number;
@@ -3549,10 +3550,86 @@ export const mockDb = {
     timestamp: string;
   }> {
     try {
-      console.log('[Sync] Starte bidirektionalen Abgleich mit Supabase...');
+      console.log('[Sync] Starte Übertragung von App zur Webversion (Supabase)...');
       invalidateMemoryCache('questions');
       invalidateMemoryCache('facts');
 
+      // 1. Lokale Fragen und Lernkarten der App laden
+      let localQuestions: Question[] = [];
+      let localFacts: Fact[] = [];
+
+      try {
+        const qData = await AsyncStorage.getItem(STORAGE_KEYS.QUESTIONS);
+        if (qData) localQuestions = JSON.parse(qData);
+        const fData = await AsyncStorage.getItem(STORAGE_KEYS.FACTS);
+        if (fData) localFacts = JSON.parse(fData);
+      } catch (storageErr) {
+        console.warn('[Sync] Fehler beim Laden des lokalen Speichers:', storageErr);
+      }
+
+      // 2. Lokale Daten & Freigaben aus der App ZUERST nach Supabase übertragen (Android -> Web)!
+      if (isSupabaseConfigured() && supabase) {
+        if (localQuestions.length > 0) {
+          try {
+            const BATCH_SIZE = 25;
+            for (let i = 0; i < localQuestions.length; i += BATCH_SIZE) {
+              const batch = localQuestions.slice(i, i + BATCH_SIZE).map(q => {
+                const resolvedCorrectIndices = getQuestionCorrectIndices(q);
+                const explanationWithMeta = packQuestionMetadata(q);
+                return {
+                  id: q.id,
+                  category: q.category,
+                  text: q.text,
+                  options: q.options,
+                  correct_index: typeof q.correctIndex === 'number' ? q.correctIndex : (resolvedCorrectIndices[0] ?? 0),
+                  correct_indices: resolvedCorrectIndices,
+                  explanation: explanationWithMeta,
+                  image_url: q.imageUrl || null,
+                  is_verified: q.isVerified === true,
+                  danger_indices: q.dangerIndices || q.danger_indices || []
+                };
+              });
+
+              let { error } = await supabase.from('quiz_questions').upsert(batch, { onConflict: 'id' });
+              if (error && (error.code === 'PGRST204' || error.message?.includes('correct_indices'))) {
+                const fallbackBatch = batch.map(q => {
+                  const { correct_indices, ...rest } = q;
+                  return rest;
+                });
+                await supabase.from('quiz_questions').upsert(fallbackBatch, { onConflict: 'id' });
+              }
+            }
+          } catch (qPushErr) {
+            console.warn('[Sync] Fehler beim Hochladen der Fragen nach Supabase:', qPushErr);
+          }
+        }
+
+        if (localFacts.length > 0) {
+          try {
+            const BATCH_SIZE = 25;
+            for (let i = 0; i < localFacts.length; i += BATCH_SIZE) {
+              const batch = localFacts.slice(i, i + BATCH_SIZE).map(f => {
+                const referenceWithMeta = packFactMetadata(f);
+                const images = getFactImageUrls(f);
+                return {
+                  id: f.id,
+                  category: f.category,
+                  title: f.title,
+                  content: f.content,
+                  reference: referenceWithMeta,
+                  image_url: images[0] || f.imageUrl || null,
+                  is_verified: f.isVerified === true
+                };
+              });
+              await supabase.from('flashcards').upsert(batch, { onConflict: 'id' });
+            }
+          } catch (fPushErr) {
+            console.warn('[Sync] Fehler beim Hochladen der Lernkarten nach Supabase:', fPushErr);
+          }
+        }
+      }
+
+      // 3. Nun den neuesten synchronisierten Gesamtstand abrufen
       const [allQuestions, allFacts] = await Promise.all([
         this.getQuestions(false, forceRefresh),
         this.getFacts(undefined, false, forceRefresh)
@@ -3586,14 +3663,14 @@ export const mockDb = {
         timestamp: new Date().toISOString()
       };
 
-      console.log(`[Sync] Abgleich erfolgreich: ${syncResult.questionsCount} Fragen (${syncResult.verifiedQuestionsCount} verifiziert), ${syncResult.factsCount} Lernkarten (${syncResult.verifiedFactsCount} verifiziert).`);
+      console.log(`[Sync] Übertragung an Webversion erfolgreich: ${syncResult.questionsCount} Fragen (${syncResult.verifiedQuestionsCount} verifiziert), ${syncResult.factsCount} Lernkarten (${syncResult.verifiedFactsCount} verifiziert).`);
 
       // Bildschirme informieren
       DeviceEventEmitter.emit('contentSynced', syncResult);
 
       return syncResult;
     } catch (error) {
-      console.error('[Sync] Fehler beim bidirektionalen Abgleich:', error);
+      console.error('[Sync] Fehler bei der Übertragung an Webversion:', error);
       throw error;
     }
   },

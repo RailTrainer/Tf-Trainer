@@ -522,8 +522,8 @@ export default function AdminScreen() {
       const timeStr = new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
       setLastSyncTime(timeStr);
       Alert.alert(
-        'Synchronisierung erfolgreich ✅',
-        `Alle Fragen, Lernkarten und Freigaben wurden mit der Webversion synchronisiert.\n\n` +
+        'An Webversion übertragen ✅',
+        `Alle Fragen, Lernkarten und Freigaben aus der App wurden erfolgreich zur Webplattform (Tf-Trainer) übertragen.\n\n` +
         `• Fragen: ${res.questionsCount} (${res.verifiedQuestionsCount} freigegeben)\n` +
         `• Lernkarten: ${res.factsCount} (${res.verifiedFactsCount} freigegeben)\n` +
         `• Ungeprüfte Fragen: ${res.unverifiedQuestionsCount}\n` +
@@ -2096,7 +2096,7 @@ export default function AdminScreen() {
             <RefreshCw size={14} color="#ffffff" />
           )}
           <Text style={{ color: '#ffffff', fontSize: 13, fontWeight: '700' }}>
-            {isSyncing ? 'Synchronisiere...' : 'Web-Sync'}
+            {isSyncing ? 'Übertrage...' : 'An Web übertragen'}
           </Text>
         </TouchableOpacity>
       </View>
