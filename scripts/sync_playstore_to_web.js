@@ -253,22 +253,22 @@ async function main() {
     const extraF = dbFlashcards.filter(f => !masterFIds.has(f.id));
 
     if (extraF.length > 0) {
-      console.log(`-> Deaktiviere ${extraF.length} nicht-Playstore Lernkarten (is_verified = false)...`);
+      console.log(`-> Bereinige/Entferne ${extraF.length} nicht-Playstore Lernkarten aus Supabase...`);
       const extraFIds = extraF.map(f => f.id);
       for (let i = 0; i < extraFIds.length; i += 50) {
         const chunk = extraFIds.slice(i, i + 50);
-        await client.from('flashcards').update({ is_verified: false }).in('id', chunk);
+        await client.from('flashcards').delete().in('id', chunk);
       }
     }
 
     const masterQIds = new Set(masterQuestions.map(q => q.id));
     const extraQ = dbQuestions.filter(q => !masterQIds.has(q.id));
     if (extraQ.length > 0) {
-      console.log(`-> Deaktiviere ${extraQ.length} nicht-Playstore Fragen (is_verified = false)...`);
+      console.log(`-> Bereinige/Entferne ${extraQ.length} nicht-Playstore Fragen aus Supabase...`);
       const extraQIds = extraQ.map(q => q.id);
       for (let i = 0; i < extraQIds.length; i += 50) {
         const chunk = extraQIds.slice(i, i + 50);
-        await client.from('quiz_questions').update({ is_verified: false }).in('id', chunk);
+        await client.from('quiz_questions').delete().in('id', chunk);
       }
     }
     console.log('-> Bereinigung abgeschlossen. Schüler und Web-Nutzer sehen exakt die verifizierten Playstore-Inhalte!\n');

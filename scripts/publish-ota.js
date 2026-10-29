@@ -11,6 +11,7 @@ const args = process.argv.slice(2);
 let branch = 'production';
 let customMessage = null;
 let autoBump = true;
+let specifiedVersion = null;
 
 for (let i = 0; i < args.length; i++) {
   if (args[i] === '--branch' && args[i + 1]) {
@@ -21,6 +22,10 @@ for (let i = 0; i < args.length; i++) {
     i++;
   } else if (args[i] === '--message' && args[i + 1]) {
     customMessage = args[i + 1];
+    i++;
+  } else if (args[i] === '--version' && args[i + 1]) {
+    specifiedVersion = args[i + 1];
+    autoBump = false;
     i++;
   } else if (args[i] === '--no-bump') {
     autoBump = false;
@@ -35,15 +40,17 @@ let appJson = JSON.parse(fs.readFileSync(appJsonPath, 'utf8'));
 let packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
 
 let currentVersion = appJson.expo?.version || packageJson.version || '1.0.0';
-let newVersion = currentVersion;
+let newVersion = specifiedVersion || currentVersion;
 
 if (autoBump) {
   const parts = currentVersion.split('.');
   const lastIndex = parts.length - 1;
   parts[lastIndex] = String((parseInt(parts[lastIndex], 10) || 0) + 1);
   newVersion = parts.join('.');
+}
 
-  console.log(`\n📦 Versionsnummer wird automatisch erhöht: ${currentVersion} ➔ ${newVersion}`);
+if (newVersion !== currentVersion) {
+  console.log(`\n📦 Versionsnummer: ${currentVersion} ➔ ${newVersion}`);
 
   if (appJson.expo) {
     appJson.expo.version = newVersion;
